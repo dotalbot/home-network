@@ -9,11 +9,6 @@ services:
     hosts:
       - jellyhome
       - jellybase
-    containers:
-      jellyhome:
-        - homepage
-      jellybase:
-        - homepage
     urls:
       primary: http://jellyhome:3000
       secondary: http://jellybase:3000
@@ -29,11 +24,6 @@ services:
         - jellyhome
       agents:
         - jellybase
-    containers:
-      jellyhome:
-        - dozzle
-      jellybase:
-        - dozzle-agent
     urls:
       primary: http://jellyhome:8080
     backup: config-only
@@ -48,11 +38,6 @@ services:
         - jellyhome
       agents:
         - jellybase
-    containers:
-      jellyhome:
-        - portainer
-      jellybase:
-        - portainer-agent
     urls:
       primary: https://jellyhome:9443
     backup: appdata
@@ -65,11 +50,6 @@ services:
     hosts:
       - jellyhome
       - jellybase
-    containers:
-      jellyhome:
-        - netdata
-      jellybase:
-        - netdata
     urls:
       jellyhome: http://jellyhome:19999
       jellybase: http://jellybase:19999
@@ -82,9 +62,6 @@ services:
     mode: single-primary
     hosts:
       - jellybase
-    containers:
-      jellybase:
-        - prometheus
     urls:
       primary: http://jellybase:9090
     backup: appdata
@@ -96,25 +73,8 @@ services:
     mode: single-primary
     hosts:
       - jellybase
-    containers:
-      jellybase:
-        - grafana
     urls:
       primary: http://jellybase:3001
-    backup: appdata
-    status: active
-
-  homeassistant:
-    display_name: Home Assistant
-    category: IoT
-    mode: single-primary
-    hosts:
-      - jellybase
-    containers:
-      jellybase:
-        - homeassistant
-    urls:
-      primary: pending
     backup: appdata
     status: active
 
@@ -124,9 +84,6 @@ services:
     mode: single-primary
     hosts:
       - jellyhome
-    containers:
-      jellyhome:
-        - calibre-web-automated
     urls:
       primary: pending
     backup: appdata-and-library
@@ -138,9 +95,6 @@ services:
     mode: single-primary
     hosts:
       - jellyhome
-    containers:
-      jellyhome:
-        - mosquitto
     urls:
       primary: pending
     backup: config-and-persistence

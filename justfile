@@ -53,3 +53,9 @@ homepage-deploy:
     ./scripts/homepage-render
     ./scripts/sync-docker-config
     ./scripts/deploy
+
+drift-check:
+    -./scripts/drift-check
+
+drift-check-strict:
+    ./scripts/drift-check

@@ -1,0 +1,148 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+HOSTNAME_SHORT="$(hostname -s)"
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+SERVICES_FILE="${REPO_ROOT}/inventory/services.yml"
+
+if [ ! -f "$SERVICES_FILE" ]; then
+  echo "not good: missing $SERVICES_FILE"
+  exit 1
+fi
+
+if ! command -v python3 >/dev/null 2>&1; then
+  echo "not good: python3 missing"
+  exit 1
+fi
+
+if ! python3 -c "import yaml" >/dev/null 2>&1; then
+  echo "not good: missing python3-yaml. Install with: sudo apt install python3-yaml"
+  exit 1
+fi
+
+if ! command -v docker >/dev/null 2>&1; then
+  echo "not good: docker missing"
+  exit 1
+fi
+
+EXPECTED="$(
+python3 - "$SERVICES_FILE" "$HOSTNAME_SHORT" <<'PY'
+import sys
+import yaml
+
+services_file = sys.argv[1]
+host = sys.argv[2]
+
+with open(services_file, "r", encoding="utf-8") as f:
+    data = yaml.safe_load(f) or {}
+
+services = data.get("services", {})
+
+def includes_host(hosts, target):
+    if isinstance(hosts, list):
+        return target in hosts
+
+    if isinstance(hosts, dict):
+        for value in hosts.values():
+            if isinstance(value, list) and target in value:
+                return True
+            if isinstance(value, str) and value == target:
+                return True
+
+    if isinstance(hosts, str):
+        return hosts == target
+
+    return False
+
+for name, svc in services.items():
+    status = svc.get("status", "active")
+
+    if status not in ("active", "planned"):
+        continue
+
+    if not includes_host(svc.get("hosts"), host):
+        continue
+
+    containers = svc.get("containers", {})
+
+    if isinstance(containers, dict) and host in containers:
+        host_containers = containers[host]
+
+        if isinstance(host_containers, list):
+            for container in host_containers:
+                print(container)
+        elif isinstance(host_containers, str):
+            print(host_containers)
+        else:
+            print(name)
+    else:
+        print(svc.get("container_name", name))
+PY
+)"
+
+RUNNING="$(docker ps --format '{{.Names}}' | sort -u)"
+EXPECTED="$(echo "$EXPECTED" | sort -u)"
+
+echo
+echo "=== Host ==="
+echo "$HOSTNAME_SHORT"
+
+echo
+echo "=== Expected containers ==="
+if [ -n "$EXPECTED" ]; then
+  echo "$EXPECTED"
+else
+  echo "none"
+fi
+
+echo
+echo "=== Running containers ==="
+if [ -n "$RUNNING" ]; then
+  echo "$RUNNING"
+else
+  echo "none"
+fi
+
+echo
+echo "=== Missing containers ==="
+
+missing=0
+while read -r service; do
+  [ -z "$service" ] && continue
+
+  if ! echo "$RUNNING" | grep -qx "$service"; then
+    echo "missing: $service"
+    missing=1
+  fi
+done <<< "$EXPECTED"
+
+if [ "$missing" -eq 0 ]; then
+  echo "none"
+fi
+
+echo
+echo "=== Unexpected containers ==="
+
+unexpected=0
+while read -r container; do
+  [ -z "$container" ] && continue
+
+  if ! echo "$EXPECTED" | grep -qx "$container"; then
+    echo "unexpected: $container"
+    unexpected=1
+  fi
+done <<< "$RUNNING"
+
+if [ "$unexpected" -eq 0 ]; then
+  echo "none"
+fi
+
+echo
+
+if [ "$missing" -eq 0 ] && [ "$unexpected" -eq 0 ]; then
+  echo "good"
+  exit 0
+fi
+
+echo "not good"
+exit 1
