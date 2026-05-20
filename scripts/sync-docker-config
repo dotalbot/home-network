@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+DOCKER_DIR="${DOCKER_DIR:-/opt/docker}"
+HOSTNAME_SHORT="$(hostname -s)"
+DOCKER_GROUP="${DOCKER_GROUP:-dockerops}"
+
+SRC_BASE="${REPO_ROOT}/docker/docker-compose.yml"
+SRC_HOST="${REPO_ROOT}/docker/hosts/${HOSTNAME_SHORT}.yaml"
+
+DEST_BASE="${DOCKER_DIR}/docker-compose.yml"
+DEST_HOST_DIR="${DOCKER_DIR}/hosts"
+DEST_HOST="${DEST_HOST_DIR}/${HOSTNAME_SHORT}.yaml"
+
+if [ ! -f "$SRC_BASE" ]; then
+  echo "not good: missing $SRC_BASE"
+  exit 1
+fi
+
+if [ ! -f "$SRC_HOST" ]; then
+  echo "not good: missing $SRC_HOST"
+  exit 1
+fi
+
+sudo mkdir -p "$DEST_HOST_DIR"
+
+sudo cp "$SRC_BASE" "$DEST_BASE"
+sudo cp "$SRC_HOST" "$DEST_HOST"
+
+sudo chown root:"$DOCKER_GROUP" "$DEST_BASE" "$DEST_HOST"
+sudo chmod 664 "$DEST_BASE" "$DEST_HOST"
+
+echo "good"
