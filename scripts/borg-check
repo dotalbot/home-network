@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+HOSTNAME_SHORT="$(hostname -s)"
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+BACKUPS_FILE="${REPO_ROOT}/inventory/backups.yml"
+
+if [ ! -f "$BACKUPS_FILE" ]; then
+  echo "not good: missing $BACKUPS_FILE"
+  exit 1
+fi
+
+if ! command -v borg >/dev/null 2>&1; then
+  echo "not good: borg is not installed"
+  exit 1
+fi
+
+if ! python3 -c "import yaml" >/dev/null 2>&1; then
+  echo "not good: missing python3-yaml"
+  exit 1
+fi
+
+python3 - "$BACKUPS_FILE" "$HOSTNAME_SHORT" <<'PY'
+import sys
+import yaml
+from pathlib import Path
+
+backups_file = sys.argv[1]
+host = sys.argv[2]
+
+with open(backups_file, "r", encoding="utf-8") as f:
+    data = yaml.safe_load(f) or {}
+
+hosts = data.get("hosts", {})
+
+if host not in hosts:
+    print(f"not good: host not found in backups.yml: {host}")
+    sys.exit(1)
+
+host_cfg = hosts[host]
+
+if not host_cfg.get("borg_enabled", False):
+    print(f"not good: borg not enabled for host: {host}")
+    sys.exit(1)
+
+important_paths = host_cfg.get("important_paths", [])
+
+missing = False
+
+print(f"Host: {host}")
+print("Important paths:")
+
+for path in important_paths:
+    p = Path(path)
+    if p.exists():
+        print(f"  good: {path}")
+    else:
+        print(f"  missing: {path}")
+        missing = True
+
+if missing:
+    print("not good")
+    sys.exit(1)
+
+print("good")
+PY

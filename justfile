@@ -62,3 +62,6 @@ drift-check-strict:
 
 backup-policy-check:
     ./scripts/backup-policy-check
+
+borg-check:
+    ./scripts/borg-check
