@@ -42,3 +42,6 @@ down service:
       -f docker-compose.yml \
       -f hosts/$(hostname -s).yaml \
       stop {{service}}
+
+sync-docker-config:
+    ./scripts/sync-docker-config

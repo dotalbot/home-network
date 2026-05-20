@@ -7,6 +7,12 @@ HOST_FILE="${DOCKER_DIR}/hosts/${HOSTNAME_SHORT}.yaml"
 BASE_FILE="${DOCKER_DIR}/docker-compose.yml"
 ENV_FILE="${DOCKER_DIR}/.env"
 
+REPO_SYNC_SCRIPT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/sync-docker-config"
+
+if [ -x "$REPO_SYNC_SCRIPT" ]; then
+  "$REPO_SYNC_SCRIPT"
+fi
+
 if [ ! -d "$DOCKER_DIR" ]; then
   echo "not good: missing $DOCKER_DIR"
   exit 1
