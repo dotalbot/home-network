@@ -80,8 +80,34 @@ for name, svc in services.items():
 PY
 )"
 
+IGNORED="$(
+python3 - "$SERVICES_FILE" "$HOSTNAME_SHORT" <<'PY'
+import sys
+import yaml
+
+services_file = sys.argv[1]
+host = sys.argv[2]
+
+with open(services_file, "r", encoding="utf-8") as f:
+    data = yaml.safe_load(f) or {}
+
+ignored = (
+    data.get("drift", {})
+    .get("ignored_containers", {})
+    .get(host, [])
+)
+
+if isinstance(ignored, str):
+    print(ignored)
+elif isinstance(ignored, list):
+    for item in ignored:
+        print(item)
+PY
+)"
+
 RUNNING="$(docker ps --format '{{.Names}}' | sort -u)"
 EXPECTED="$(echo "$EXPECTED" | sort -u)"
+IGNORED="$(echo "$IGNORED" | sort -u)"
 
 echo
 echo "=== Host ==="
@@ -91,6 +117,14 @@ echo
 echo "=== Expected containers ==="
 if [ -n "$EXPECTED" ]; then
   echo "$EXPECTED"
+else
+  echo "none"
+fi
+
+echo
+echo "=== Ignored containers ==="
+if [ -n "$IGNORED" ]; then
+  echo "$IGNORED"
 else
   echo "none"
 fi
@@ -127,10 +161,16 @@ unexpected=0
 while read -r container; do
   [ -z "$container" ] && continue
 
-  if ! echo "$EXPECTED" | grep -qx "$container"; then
-    echo "unexpected: $container"
-    unexpected=1
+  if echo "$EXPECTED" | grep -qx "$container"; then
+    continue
   fi
+
+  if echo "$IGNORED" | grep -qx "$container"; then
+    continue
+  fi
+
+  echo "unexpected: $container"
+  unexpected=1
 done <<< "$RUNNING"
 
 if [ "$unexpected" -eq 0 ]; then

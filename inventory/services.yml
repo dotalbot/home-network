@@ -145,3 +145,11 @@ services:
       primary: pending
     backup: config-and-persistence
     status: planned
+
+drift:
+  ignored_containers:
+    jellyhome: []
+    jellybase:
+      - homeassistant
+      - onecli-postgres-1
+      - onecli
