@@ -1,0 +1,101 @@
+# inventory/services.yml
+
+services:
+
+  homepage:
+    display_name: Homepage
+    category: Core
+    mode: active-active
+    hosts:
+      - jellyhome
+      - jellybase
+    urls:
+      primary: http://jellyhome:3000
+      secondary: http://jellybase:3000
+    backup: config-only
+    status: active
+
+  dozzle:
+    display_name: Dozzle
+    category: Core
+    mode: central-ui-plus-agents
+    hosts:
+      ui:
+        - jellyhome
+      agents:
+        - jellybase
+    urls:
+      primary: http://jellyhome:8080
+    backup: config-only
+    status: active
+
+  portainer:
+    display_name: Portainer
+    category: Core
+    mode: central-ui-plus-agents
+    hosts:
+      server:
+        - jellyhome
+      agents:
+        - jellybase
+    urls:
+      primary: https://jellyhome:9443
+    backup: appdata
+    status: active
+
+  netdata:
+    display_name: Netdata
+    category: Monitoring
+    mode: duplicated-parents
+    hosts:
+      - jellyhome
+      - jellybase
+    urls:
+      jellyhome: http://jellyhome:19999
+      jellybase: http://jellybase:19999
+    backup: config-and-cache
+    status: active
+
+  prometheus:
+    display_name: Prometheus
+    category: Monitoring
+    mode: single-primary
+    hosts:
+      - jellybase
+    urls:
+      primary: http://jellybase:9090
+    backup: appdata
+    status: active
+
+  grafana:
+    display_name: Grafana
+    category: Monitoring
+    mode: single-primary
+    hosts:
+      - jellybase
+    urls:
+      primary: http://jellybase:3001
+    backup: appdata
+    status: active
+
+  calibre-web-automated:
+    display_name: Calibre Web Automated
+    category: Media
+    mode: single-primary
+    hosts:
+      - jellyhome
+    urls:
+      primary: pending
+    backup: appdata-and-library
+    status: planned
+
+  mosquitto:
+    display_name: Mosquitto MQTT
+    category: IoT
+    mode: single-primary
+    hosts:
+      - jellyhome
+    urls:
+      primary: pending
+    backup: config-and-persistence
+    status: planned
