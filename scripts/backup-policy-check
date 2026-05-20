@@ -1,0 +1,58 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+SERVICES_FILE="${REPO_ROOT}/inventory/services.yml"
+BACKUPS_FILE="${REPO_ROOT}/inventory/backups.yml"
+
+if [ ! -f "$SERVICES_FILE" ]; then
+  echo "not good: missing $SERVICES_FILE"
+  exit 1
+fi
+
+if [ ! -f "$BACKUPS_FILE" ]; then
+  echo "not good: missing $BACKUPS_FILE"
+  exit 1
+fi
+
+if ! python3 -c "import yaml" >/dev/null 2>&1; then
+  echo "not good: missing python3-yaml"
+  exit 1
+fi
+
+python3 - "$SERVICES_FILE" "$BACKUPS_FILE" <<'PY'
+import sys
+import yaml
+
+services_file = sys.argv[1]
+backups_file = sys.argv[2]
+
+with open(services_file, "r", encoding="utf-8") as f:
+    services_data = yaml.safe_load(f) or {}
+
+with open(backups_file, "r", encoding="utf-8") as f:
+    backups_data = yaml.safe_load(f) or {}
+
+services = services_data.get("services", {})
+backup_classes = backups_data.get("backup_classes", {})
+
+bad = False
+
+for name, svc in services.items():
+    backup_class = svc.get("backup")
+
+    if not backup_class:
+        print(f"missing backup class: {name}")
+        bad = True
+        continue
+
+    if backup_class not in backup_classes:
+        print(f"unknown backup class: {name} -> {backup_class}")
+        bad = True
+
+if bad:
+    print("not good")
+    sys.exit(1)
+
+print("good")
+PY

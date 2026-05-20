@@ -1,0 +1,147 @@
+# inventory/backups.yml
+
+backup_classes:
+
+  config-only:
+    description: Service can be rebuilt from Git/config only.
+    includes:
+      - compose config
+      - app config
+    excludes:
+      - cache
+      - generated runtime data
+    restore_priority: low
+
+  appdata:
+    description: Service has useful persistent appdata.
+    includes:
+      - /opt/docker/appdata/SERVICE
+    excludes:
+      - cache
+      - logs
+      - temp files
+    restore_priority: medium
+
+  appdata-and-database:
+    description: Service has appdata and database state.
+    includes:
+      - /opt/docker/appdata/SERVICE
+      - database dump or database volume
+    excludes:
+      - cache
+      - temp files
+    restore_priority: high
+
+  appdata-and-library:
+    description: Service has appdata plus media/library files.
+    includes:
+      - /opt/docker/appdata/SERVICE
+      - library storage
+    excludes:
+      - cache
+      - temp files
+    restore_priority: high
+
+  config-and-persistence:
+    description: Service has config and small persistent runtime state.
+    includes:
+      - /opt/docker/appdata/SERVICE/config
+      - /opt/docker/appdata/SERVICE/data
+    excludes:
+      - cache
+      - logs
+    restore_priority: medium
+
+  config-and-cache:
+    description: Config should be backed up, cache is optional.
+    includes:
+      - /opt/docker/appdata/SERVICE/config
+    excludes:
+      - /opt/docker/appdata/SERVICE/cache
+    restore_priority: low
+
+
+hosts:
+
+  jellyhome:
+    borg_enabled: true
+    role: primary-docker-dev-host
+    important_paths:
+      - /opt/docker
+      - /home/jellyfish/repo
+    notes:
+      - Runs core management UI.
+      - Runs planned Calibre and Mosquitto.
+      - Dev repos may also be synced elsewhere.
+
+  jellybase:
+    borg_enabled: true
+    role: secondary-monitoring-host
+    important_paths:
+      - /opt/docker
+      - /home/jellyfish/repo
+    notes:
+      - Runs Prometheus and Grafana.
+      - May hold synced dev mirror.
+
+  jellyberry:
+    borg_enabled: true
+    role: raspberry-pi-lightweight-node
+    important_paths:
+      - /opt/docker
+    notes:
+      - Only back up if it has local state worth preserving.
+
+  seedbox:
+    borg_enabled: true
+    role: remote-sync-backup-helper
+    important_paths:
+      - /opt/docker
+      - /home/jellyfish
+    notes:
+      - May act as offsite sync or backup relay.
+
+
+restore_rules:
+
+  config-only:
+    method: redeploy_from_git
+    steps:
+      - bootstrap host
+      - clone home-network
+      - sync docker config
+      - deploy service
+
+  appdata:
+    method: restore_borg_then_deploy
+    steps:
+      - bootstrap host
+      - restore /opt/docker/appdata/SERVICE from Borg
+      - sync docker config
+      - deploy service
+
+  appdata-and-database:
+    method: restore_data_and_database
+    steps:
+      - bootstrap host
+      - restore appdata from Borg
+      - restore database dump or volume
+      - deploy service
+      - verify application health
+
+  appdata-and-library:
+    method: restore_appdata_and_library
+    steps:
+      - bootstrap host
+      - restore appdata from Borg
+      - restore library/media path
+      - deploy service
+      - verify application health
+
+  config-and-persistence:
+    method: restore_config_and_persistent_state
+    steps:
+      - bootstrap host
+      - restore config and persistent data from Borg
+      - deploy service
+      - verify service health

@@ -59,3 +59,6 @@ drift-check:
 
 drift-check-strict:
     ./scripts/drift-check
+
+backup-policy-check:
+    ./scripts/backup-policy-check
