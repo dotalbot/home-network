@@ -1,0 +1,105 @@
+services:
+
+  homepage:
+    image: ghcr.io/gethomepage/homepage:latest
+    container_name: homepage
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      TZ: ${TZ}
+    volumes:
+      - /opt/docker/appdata/homepage:/app/config
+
+  portainer-agent:
+    image: portainer/agent:lts
+    container_name: portainer-agent
+    restart: unless-stopped
+    ports:
+      - "9001:9001"
+    environment:
+      AGENT_SECRET: ${PORTAINER_AGENT_SECRET}
+      TZ: ${TZ}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /var/lib/docker/volumes:/var/lib/docker/volumes
+
+  dozzle-agent:
+    image: amir20/dozzle:latest
+    container_name: dozzle-agent
+    restart: unless-stopped
+    command: agent
+    environment:
+      DOZZLE_HOSTNAME: jellybase
+      TZ: ${TZ}
+    ports:
+      - "7007:7007"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=90d"
+      - "--web.enable-lifecycle"
+    volumes:
+      - /opt/docker/appdata/prometheus/config/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - /opt/docker/appdata/prometheus/data:/prometheus
+
+  grafana:
+    image: grafana/grafana-oss:latest
+    container_name: grafana
+    restart: unless-stopped
+    ports:
+      - "3001:3000"
+    environment:
+      TZ: ${TZ}
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-change-me}
+    volumes:
+      - /opt/docker/appdata/grafana:/var/lib/grafana
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  netdata:
+    image: netdata/netdata:stable
+    container_name: netdata
+    hostname: jellybase
+    restart: unless-stopped
+
+    network_mode: host
+    pid: host
+
+    cap_add:
+      - SYS_PTRACE
+      - SYS_ADMIN
+
+    security_opt:
+      - apparmor:unconfined
+
+    environment:
+      TZ: ${TZ}
+
+    volumes:
+      - /opt/docker/appdata/netdata/config:/etc/netdata
+      - /opt/docker/appdata/netdata/lib:/var/lib/netdata
+      - /opt/docker/appdata/netdata/cache:/var/cache/netdata
+
+      - /:/host/root:ro,rslave
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+
+      - /etc/passwd:/host/etc/passwd:ro
+      - /etc/group:/host/etc/group:ro
+      - /etc/os-release:/host/etc/os-release:ro
+      - /etc/localtime:/etc/localtime:ro
+
+      - /var/run/docker.sock:/var/run/docker.sock:ro

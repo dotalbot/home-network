@@ -1,0 +1,72 @@
+services:
+
+  homepage:
+    image: ghcr.io/gethomepage/homepage:latest
+    container_name: homepage
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      TZ: ${TZ}
+    volumes:
+      - /opt/docker/appdata/homepage:/app/config
+
+  portainer:
+    image: portainer/portainer-ce:lts
+    container_name: portainer
+    restart: unless-stopped
+    ports:
+      - "9443:9443"
+    environment:
+      AGENT_SECRET: ${PORTAINER_AGENT_SECRET}
+      TZ: ${TZ}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /opt/docker/appdata/portainer:/data
+
+  dozzle:
+    image: amir20/dozzle:latest
+    container_name: dozzle
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      TZ: ${TZ}
+      DOZZLE_REMOTE_AGENT: "jellybase:7007|jellybase|HomeLab"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+
+  netdata:
+    image: netdata/netdata:stable
+    container_name: netdata
+    hostname: jellyhome
+    restart: unless-stopped
+
+    network_mode: host
+    pid: host
+
+    cap_add:
+      - SYS_PTRACE
+      - SYS_ADMIN
+
+    security_opt:
+      - apparmor:unconfined
+
+    environment:
+      TZ: ${TZ}
+
+    volumes:
+      - /opt/docker/appdata/netdata/config:/etc/netdata
+      - /opt/docker/appdata/netdata/lib:/var/lib/netdata
+      - /opt/docker/appdata/netdata/cache:/var/cache/netdata
+
+      - /:/host/root:ro,rslave
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+
+      - /etc/passwd:/host/etc/passwd:ro
+      - /etc/group:/host/etc/group:ro
+      - /etc/os-release:/host/etc/os-release:ro
+      - /etc/localtime:/etc/localtime:ro
+
+      - /var/run/docker.sock:/var/run/docker.sock:ro
