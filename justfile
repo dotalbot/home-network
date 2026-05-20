@@ -45,3 +45,11 @@ down service:
 
 sync-docker-config:
     ./scripts/sync-docker-config
+
+homepage-render:
+    ./scripts/homepage-render
+
+homepage-deploy:
+    ./scripts/homepage-render
+    ./scripts/sync-docker-config
+    ./scripts/deploy

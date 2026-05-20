@@ -1,0 +1,17 @@
+- Core:
+  - Homepage:
+      href: http://jellyhome:3000
+      description: active-active | jellyhome, jellybase
+  - Dozzle:
+      href: http://jellyhome:8080
+      description: 'central-ui-plus-agents | ui: jellyhome, agents: jellybase'
+  - Portainer:
+      href: https://jellyhome:9443
+      description: 'central-ui-plus-agents | server: jellyhome, agents: jellybase'
+- Monitoring:
+  - Prometheus:
+      href: http://jellybase:9090
+      description: single-primary | jellybase
+  - Grafana:
+      href: http://jellybase:3001
+      description: single-primary | jellybase

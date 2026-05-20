@@ -32,3 +32,13 @@ sudo chown root:"$DOCKER_GROUP" "$DEST_BASE" "$DEST_HOST"
 sudo chmod 664 "$DEST_BASE" "$DEST_HOST"
 
 echo "good"
+
+SRC_HOMEPAGE="${REPO_ROOT}/docker/appdata/homepage"
+DEST_HOMEPAGE="${DOCKER_DIR}/appdata/homepage"
+
+if [ -d "$SRC_HOMEPAGE" ]; then
+  sudo mkdir -p "$DEST_HOMEPAGE"
+  sudo rsync -a --delete "$SRC_HOMEPAGE"/ "$DEST_HOMEPAGE"/
+  sudo chown -R root:"$DOCKER_GROUP" "$DEST_HOMEPAGE"
+  sudo chmod -R 775 "$DEST_HOMEPAGE"
+fi

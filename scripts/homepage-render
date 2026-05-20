@@ -1,0 +1,147 @@
+#!/usr/bin/env python3
+
+import sys
+from pathlib import Path
+
+try:
+    import yaml
+except ImportError:
+    print("not good: missing python3-yaml. Install with: sudo apt install python3-yaml")
+    sys.exit(1)
+
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+
+SERVICES_FILE = REPO_ROOT / "inventory" / "services.yml"
+
+OUT_DIR = REPO_ROOT / "docker" / "appdata" / "homepage"
+SERVICES_OUT = OUT_DIR / "services.yaml"
+SETTINGS_OUT = OUT_DIR / "settings.yaml"
+WIDGETS_OUT = OUT_DIR / "widgets.yaml"
+BOOKMARKS_OUT = OUT_DIR / "bookmarks.yaml"
+DOCKER_OUT = OUT_DIR / "docker.yaml"
+
+
+def host_summary(hosts):
+    if isinstance(hosts, dict):
+        parts = []
+        for key, value in hosts.items():
+            if isinstance(value, list):
+                parts.append(f"{key}: {', '.join(value)}")
+            else:
+                parts.append(f"{key}: {value}")
+        return ", ".join(parts)
+
+    if isinstance(hosts, list):
+        return ", ".join(hosts)
+
+    if hosts:
+        return str(hosts)
+
+    return "unknown host"
+
+
+def main():
+    if not SERVICES_FILE.exists():
+        print(f"not good: missing {SERVICES_FILE}")
+        sys.exit(1)
+
+    data = yaml.safe_load(SERVICES_FILE.read_text()) or {}
+    services = data.get("services", {})
+
+    groups = {}
+
+    for key, svc in services.items():
+        status = svc.get("status", "active")
+
+        if status not in ("active", "planned"):
+            continue
+
+        category = svc.get("category", "Other")
+        display_name = svc.get("display_name", key)
+        mode = svc.get("mode", "service")
+        hosts = svc.get("hosts", [])
+
+        urls = svc.get("urls", {})
+        primary_url = urls.get("primary")
+
+        if not primary_url or primary_url == "pending":
+            continue
+
+        description = svc.get("description")
+        if not description:
+            description = f"{mode} | {host_summary(hosts)}"
+
+        groups.setdefault(category, [])
+
+        groups[category].append({
+            display_name: {
+                "href": primary_url,
+                "description": description,
+            }
+        })
+
+    homepage_services = []
+
+    for category in sorted(groups.keys()):
+        homepage_services.append({
+            category: groups[category]
+        })
+
+    OUT_DIR.mkdir(parents=True, exist_ok=True)
+
+    SERVICES_OUT.write_text(
+        yaml.safe_dump(homepage_services, sort_keys=False),
+        encoding="utf-8",
+    )
+
+    SETTINGS_OUT.write_text(
+        """---
+title: Home Network
+theme: dark
+color: slate
+layout:
+  Core:
+    style: row
+    columns: 4
+  Monitoring:
+    style: row
+    columns: 4
+  Media:
+    style: row
+    columns: 3
+  IoT:
+    style: row
+    columns: 3
+""",
+        encoding="utf-8",
+    )
+
+    WIDGETS_OUT.write_text(
+        """---
+- resources:
+    cpu: true
+    memory: true
+    disk: /
+""",
+        encoding="utf-8",
+    )
+
+    BOOKMARKS_OUT.write_text(
+        """---
+[]
+""",
+        encoding="utf-8",
+    )
+
+    DOCKER_OUT.write_text(
+        """---
+""",
+        encoding="utf-8",
+    )
+
+    print("good")
+
+
+if __name__ == "__main__":
+    main()

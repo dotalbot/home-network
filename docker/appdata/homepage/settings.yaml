@@ -1,0 +1,17 @@
+---
+title: Home Network
+theme: dark
+color: slate
+layout:
+  Core:
+    style: row
+    columns: 4
+  Monitoring:
+    style: row
+    columns: 4
+  Media:
+    style: row
+    columns: 3
+  IoT:
+    style: row
+    columns: 3

@@ -8,6 +8,8 @@ services:
       - "3000:3000"
     environment:
       TZ: ${TZ}
+      HOMEPAGE_ALLOWED_HOSTS: "jellyhome:3000,jellybase:3000,localhost:3000,127.0.0.1:3000"
+
     volumes:
       - /opt/docker/appdata/homepage:/app/config
 
