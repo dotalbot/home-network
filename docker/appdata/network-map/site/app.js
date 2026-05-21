@@ -1,5 +1,14 @@
 let inventory = null;
 let selected = null;
+let topologyNodes = [];
+let topologyPositions = {};
+let topologyCorePositions = {
+  internet: {x: 600, y: 95},
+  router: {x: 600, y: 240},
+  tailnet: {x: 600, y: 730},
+};
+let dragState = null;
+let popupPosition = null;
 
 const $ = (id) => document.getElementById(id);
 const TOPOLOGY = {width: 1200, height: 960};
@@ -65,7 +74,8 @@ function renderMap(items) {
   const management = items.filter(item => item.has_management).sort(byName);
   const topServices = [...items].sort((a, b) => (b.service_count || 0) - (a.service_count || 0)).slice(0, 8);
   const nodes = buildTopologyNodes(lan, tailnet);
-  const links = buildTopologyLinks(nodes);
+  topologyNodes = nodes;
+  ensureTopologyPositions(nodes);
 
   $('map').innerHTML = `
     <section class="option-card option-topology" aria-labelledby="topology-title">
@@ -74,9 +84,9 @@ function renderMap(items) {
           <p class="eyebrow small">Option 1 · improved current graph</p>
           <h3 id="topology-title">Expanded topology</h3>
         </div>
-        <p class="muted">Same inferred-link model as before, but with a taller canvas, smaller nodes, and LAN/Tailnet lanes to stop the spaghetti from boiling over.</p>
+        <p class="muted">Drag nodes to organise the map, then click any node for a movable properties pop-up. Links are still inferred from inventory, not live LLDP/SNMP.</p>
       </div>
-      ${renderExpandedTopology(nodes, links, lan.length, tailnet.length)}
+      ${renderExpandedTopology(nodes, lan.length, tailnet.length)}
     </section>
 
     <section class="option-grid">
@@ -116,10 +126,10 @@ function renderMap(items) {
   `;
 
   bindDeviceClicks();
-  document.querySelectorAll('.topology-core').forEach(el => el.addEventListener('click', () => showCoreDetail(el.dataset.core, items)));
+  bindTopologyInteractions(items);
 }
 
-function renderExpandedTopology(nodes, links, lanCount, tailnetCount) {
+function renderExpandedTopology(nodes, lanCount, tailnetCount) {
   return `
     <div class="topology-scroll" tabindex="0" aria-label="Scrollable expanded topology canvas">
       <div class="topology-stage" role="region" aria-label="Home network topology map">
@@ -142,29 +152,57 @@ function renderExpandedTopology(nodes, links, lanCount, tailnetCount) {
               <stop offset="100%" stop-color="#38bdf8" stop-opacity="0.18" />
             </linearGradient>
           </defs>
-          <path class="backbone-link" d="M 600 90 C 600 126, 600 144, 600 180" />
-          <path class="backbone-link tailnet" d="M 600 250 C 600 396, 600 518, 600 650" />
-          ${links.map(link => `<path class="topology-link ${escapeHtml(link.type)}" d="${linkPath(link)}" />`).join('')}
+          <g id="topologyLinks">${renderTopologyLinks()}</g>
         </svg>
-        <button class="topology-core internet" data-core="internet" style="left: 50%; top: 10%;">
+        <button class="topology-core internet" data-core="internet" style="${positionStyle(topologyCorePositions.internet)}">
           <span class="node-icon">☁</span>
           <strong>Internet</strong>
           <em>uplink</em>
         </button>
-        <button class="topology-core router" data-core="router" style="left: 50%; top: 25%;">
+        <button class="topology-core router" data-core="router" style="${positionStyle(topologyCorePositions.router)}">
           <span class="node-icon">⇄</span>
           <strong>LAN gateway</strong>
           <em>${lanCount} LAN devices</em>
         </button>
-        <button class="topology-core tailnet" data-core="tailnet" style="left: 50%; top: 76%;">
+        <button class="topology-core tailnet" data-core="tailnet" style="${positionStyle(topologyCorePositions.tailnet)}">
           <span class="node-icon">◇</span>
           <strong>Tailscale</strong>
           <em>${tailnetCount} peers</em>
         </button>
         ${nodes.map(node => renderTopologyNode(node)).join('')}
+        <aside id="topologyPopup" class="topology-detail-popover hidden" aria-live="polite"></aside>
       </div>
     </div>
   `;
+}
+
+
+function ensureTopologyPositions(nodes) {
+  nodes.forEach((node) => {
+    const key = node.item.ip;
+    if (!topologyPositions[key]) topologyPositions[key] = {x: node.x, y: node.y};
+  });
+}
+
+function positionStyle(pos) {
+  return `left: ${(pos.x / TOPOLOGY.width) * 100}%; top: ${(pos.y / TOPOLOGY.height) * 100}%;`;
+}
+
+function renderTopologyLinks() {
+  return [
+    `<path class="backbone-link" d="${linkPath({from: topologyCorePositions.internet, to: topologyCorePositions.router})}" />`,
+    `<path class="backbone-link tailnet" d="${linkPath({from: topologyCorePositions.router, to: topologyCorePositions.tailnet})}" />`,
+    ...topologyNodes.map((node) => {
+      const from = node.type === 'tailnet' ? topologyCorePositions.tailnet : topologyCorePositions.router;
+      const to = topologyPositions[node.item.ip] || {x: node.x, y: node.y};
+      return `<path class="topology-link ${escapeHtml(node.type)}" d="${linkPath({from, to})}" />`;
+    }),
+  ].join('');
+}
+
+function redrawTopologyLinks() {
+  const layer = $('topologyLinks');
+  if (layer) layer.innerHTML = renderTopologyLinks();
 }
 
 function buildTopologyNodes(lan, tailnet) {
@@ -208,7 +246,7 @@ function renderTopologyNode(node) {
   const item = node.item;
   const classes = ['topology-node', node.type, item.category || 'unknown', item.has_management ? 'management' : ''].join(' ');
   return `
-    <button class="${escapeHtml(classes)}" data-ip="${escapeHtml(item.ip)}" style="left: ${(node.x / TOPOLOGY.width) * 100}%; top: ${(node.y / TOPOLOGY.height) * 100}%;">
+    <button class="${escapeHtml(classes)}" data-ip="${escapeHtml(item.ip)}" style="${positionStyle(topologyPositions[item.ip] || node)}">
       <span class="node-icon">${iconFor(item)}</span>
       <strong>${escapeHtml(shortName(item.display_name))}</strong>
       <em>${escapeHtml(item.ip)}</em>
@@ -296,6 +334,176 @@ function renderMiniBar(item, max) {
   `;
 }
 
+
+function bindTopologyInteractions(items) {
+  document.querySelectorAll('.topology-node').forEach((el) => {
+    makeDraggable(el, 'node');
+    el.addEventListener('click', (event) => {
+      if (el.dataset.suppressClick === 'true') return;
+      event.stopPropagation();
+      selectByIp(el.dataset.ip);
+      showTopologyDevicePopup(selected, el);
+    });
+  });
+  document.querySelectorAll('.topology-core').forEach((el) => {
+    makeDraggable(el, 'core');
+    el.addEventListener('click', (event) => {
+      if (el.dataset.suppressClick === 'true') return;
+      event.stopPropagation();
+      showCoreDetail(el.dataset.core, items);
+      showTopologyCorePopup(el.dataset.core, items, el);
+    });
+  });
+  const stage = document.querySelector('.topology-stage');
+  if (stage) stage.addEventListener('click', (event) => {
+    if (event.target === stage) closeTopologyPopup();
+  });
+}
+
+function makeDraggable(el, kind) {
+  el.addEventListener('pointerdown', (event) => {
+    if (event.button !== 0) return;
+    const stage = el.closest('.topology-stage');
+    const rect = stage.getBoundingClientRect();
+    const key = kind === 'core' ? el.dataset.core : el.dataset.ip;
+    const source = kind === 'core' ? topologyCorePositions : topologyPositions;
+    const start = source[key];
+    dragState = {
+      el,
+      kind,
+      key,
+      rect,
+      startX: start.x,
+      startY: start.y,
+      pointerX: event.clientX,
+      pointerY: event.clientY,
+      moved: false,
+    };
+    el.setPointerCapture(event.pointerId);
+    el.classList.add('dragging');
+    event.preventDefault();
+  });
+  el.addEventListener('pointermove', (event) => {
+    if (!dragState || dragState.el !== el) return;
+    const dx = ((event.clientX - dragState.pointerX) / dragState.rect.width) * TOPOLOGY.width;
+    const dy = ((event.clientY - dragState.pointerY) / dragState.rect.height) * TOPOLOGY.height;
+    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) dragState.moved = true;
+    const pos = {
+      x: clamp(dragState.startX + dx, 45, TOPOLOGY.width - 45),
+      y: clamp(dragState.startY + dy, 45, TOPOLOGY.height - 45),
+    };
+    if (dragState.kind === 'core') topologyCorePositions[dragState.key] = pos;
+    else topologyPositions[dragState.key] = pos;
+    el.style.left = `${(pos.x / TOPOLOGY.width) * 100}%`;
+    el.style.top = `${(pos.y / TOPOLOGY.height) * 100}%`;
+    redrawTopologyLinks();
+  });
+  el.addEventListener('pointerup', (event) => {
+    if (!dragState || dragState.el !== el) return;
+    el.releasePointerCapture(event.pointerId);
+    el.classList.remove('dragging');
+    if (dragState.moved) {
+      el.dataset.suppressClick = 'true';
+      window.setTimeout(() => { el.dataset.suppressClick = 'false'; }, 120);
+    }
+    dragState = null;
+  });
+}
+
+function showTopologyDevicePopup(item, anchor) {
+  if (!item) return;
+  const services = item.services || [];
+  showTopologyPopup(`
+    <div class="popover-titlebar">
+      <strong>${escapeHtml(item.display_name)}</strong>
+      <button class="popover-close" type="button" aria-label="Close properties">×</button>
+    </div>
+    <dl>
+      <dt>IP</dt><dd>${escapeHtml(item.ip)}</dd>
+      <dt>Source</dt><dd>${escapeHtml(item.source)}</dd>
+      <dt>Role</dt><dd>${escapeHtml(item.role || item.name || 'unknown')}</dd>
+      <dt>Category</dt><dd>${escapeHtml(item.category || 'peer')}</dd>
+      <dt>MAC</dt><dd>${escapeHtml(item.mac || 'n/a')}</dd>
+      <dt>Ports</dt><dd>${(item.open_ports || []).map(p => `:${escapeHtml(String(p))}`).join(', ') || 'none from checked list'}</dd>
+      <dt>Confidence</dt><dd>${escapeHtml(item.confidence || 'observed')}</dd>
+      <dt>Notes</dt><dd>${escapeHtml(item.notes || '')}</dd>
+    </dl>
+    ${services.length ? `<h4>Services</h4><ul class="services">${services.map(s => `<li>${escapeHtml(s.name || 'service')} · ${escapeHtml(String(s.protocol || 'tcp'))} · :${escapeHtml(String(s.port || ''))}</li>`).join('')}</ul>` : ''}
+  `, anchor);
+}
+
+function showTopologyCorePopup(core, items, anchor) {
+  const copy = {
+    internet: ['Internet uplink', 'Conceptual edge node. Add router telemetry later for WAN status, latency, and throughput.'],
+    router: ['LAN gateway', `${items.filter(i => i.source === 'lan').length} LAN devices currently visible in the filtered view. Future LLDP/CDP/SNMP data can replace inferred links with real neighbours.`],
+    tailnet: ['Tailscale overlay', `${items.filter(i => i.source === 'tailscale').length} Tailnet peers currently visible in the filtered view.`],
+  }[core];
+  showTopologyPopup(`
+    <div class="popover-titlebar">
+      <strong>${escapeHtml(copy[0])}</strong>
+      <button class="popover-close" type="button" aria-label="Close properties">×</button>
+    </div>
+    <p>${escapeHtml(copy[1])}</p>
+  `, anchor);
+}
+
+function showTopologyPopup(content, anchor) {
+  const popup = $('topologyPopup');
+  if (!popup) return;
+  popup.classList.remove('hidden');
+  popup.innerHTML = content;
+  if (!popupPosition && anchor) {
+    popup.style.left = '';
+    popup.style.top = '18px';
+    popup.style.right = '18px';
+  }
+  popup.querySelector('.popover-close')?.addEventListener('click', closeTopologyPopup);
+  makePopupDraggable(popup);
+}
+
+function closeTopologyPopup() {
+  const popup = $('topologyPopup');
+  if (!popup) return;
+  popup.classList.add('hidden');
+  popup.innerHTML = '';
+}
+
+function makePopupDraggable(popup) {
+  const handle = popup.querySelector('.popover-titlebar');
+  if (!handle) return;
+  handle.addEventListener('pointerdown', (event) => {
+    if (event.target.closest('.popover-close')) return;
+    const stageRect = popup.closest('.topology-stage').getBoundingClientRect();
+    const popupRect = popup.getBoundingClientRect();
+    const startLeft = popupRect.left - stageRect.left;
+    const startTop = popupRect.top - stageRect.top;
+    const startX = event.clientX;
+    const startY = event.clientY;
+    popup.setPointerCapture(event.pointerId);
+    popup.classList.add('dragging');
+    const move = (moveEvent) => {
+      const left = clamp(startLeft + moveEvent.clientX - startX, 12, stageRect.width - popupRect.width - 12);
+      const top = clamp(startTop + moveEvent.clientY - startY, 12, stageRect.height - popupRect.height - 12);
+      popup.style.left = `${left}px`;
+      popup.style.top = `${top}px`;
+      popup.style.right = 'auto';
+      popupPosition = {left, top};
+    };
+    const up = (upEvent) => {
+      popup.releasePointerCapture(upEvent.pointerId);
+      popup.classList.remove('dragging');
+      popup.removeEventListener('pointermove', move);
+      popup.removeEventListener('pointerup', up);
+    };
+    popup.addEventListener('pointermove', move);
+    popup.addEventListener('pointerup', up);
+  });
+}
+
+function clamp(value, min, max) {
+  return Math.min(max, Math.max(min, value));
+}
+
 function showCoreDetail(core, items) {
   const copy = {
     internet: {
@@ -370,7 +578,10 @@ function renderCards(items) {
 }
 
 function bindDeviceClicks() {
-  document.querySelectorAll('[data-ip]').forEach(el => el.addEventListener('click', () => selectByIp(el.dataset.ip)));
+  document.querySelectorAll('[data-ip]').forEach((el) => {
+    if (el.classList.contains('topology-node')) return;
+    el.addEventListener('click', () => selectByIp(el.dataset.ip));
+  });
 }
 
 function selectByIp(ip) {
