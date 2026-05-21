@@ -54,7 +54,7 @@ The platform pack identifies these completed stages. Current repo files support 
 | Network Map generation | `scripts/network-map-render`, `docker/appdata/network-map/site/` |
 | Drift detection | `scripts/drift-check`, `just drift-check-strict` |
 | Backup policy | `inventory/backups.yml`, `scripts/backup-policy-check` |
-| Borgmatic/Borg integration | `scripts/borg-check`, restore runbooks under `docs/runbooks/` |
+| Borgmatic/Borg integration | `scripts/borg-check`, `scripts/borgmatic-rollout-discovery`, restore runbooks under `docs/runbooks/` |
 
 ## 4. Managed hosts
 
@@ -126,6 +126,7 @@ just homepage-deploy
 just drift-check-strict
 just backup-policy-check
 just borg-check
+just borgmatic-rollout-discovery
 ```
 
 Expected deployment flow:

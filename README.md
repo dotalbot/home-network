@@ -147,11 +147,12 @@ Check expected vs running containers:
 just drift-check-strict
 ```
 
-Check Borg backup policy:
+Check Borg backup policy and local rollout readiness:
 
 ```bash
 just backup-policy-check
 just borg-check
+just borgmatic-rollout-discovery
 ```
 
 Restart a managed service:
@@ -256,10 +257,11 @@ docs/specs/home-network-platform-spec.md
 docs/roadmap/product-roadmap.md
 ```
 
-Backup class alignment is validated by:
+Backup class alignment and local rollout readiness are validated by:
 
 ```bash
 just backup-policy-check
+just borgmatic-rollout-discovery
 ```
 
 Runbooks live in:

@@ -1,0 +1,215 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+  cat <<'EOF'
+Usage: scripts/borgmatic-rollout-discovery [--backup-user USER] [--repo-path ABSOLUTE_REPO_PATH]
+
+Safely discovers non-secret Borg/Borgmatic rollout status for the current host.
+It does not initialize repositories, run backups, alter config, or print secrets.
+
+Optional:
+  --backup-user USER              SSH user to test against the primary backup target.
+  --repo-path ABSOLUTE_REPO_PATH  Host-specific repo path to verify on the backup target.
+
+Environment alternatives:
+  BORG_BACKUP_USER=USER
+  BORG_REPO_PATH=ABSOLUTE_REPO_PATH
+EOF
+}
+
+BACKUP_USER="${BORG_BACKUP_USER:-}"
+REPO_PATH="${BORG_REPO_PATH:-}"
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --backup-user)
+      BACKUP_USER="${2:-}"
+      shift 2
+      ;;
+    --repo-path)
+      REPO_PATH="${2:-}"
+      shift 2
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      echo "not good: unknown argument: $1" >&2
+      usage >&2
+      exit 2
+      ;;
+  esac
+done
+
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+BACKUPS_FILE="${REPO_ROOT}/inventory/backups.yml"
+HOSTNAME_SHORT="$(hostname -s)"
+
+if [ ! -f "$BACKUPS_FILE" ]; then
+  echo "not good: missing $BACKUPS_FILE"
+  exit 1
+fi
+
+if ! python3 -c "import yaml" >/dev/null 2>&1; then
+  echo "not good: missing python3-yaml"
+  exit 1
+fi
+
+readarray -t INVENTORY_LINES < <(python3 - "$BACKUPS_FILE" "$HOSTNAME_SHORT" <<'PY'
+import sys
+import yaml
+
+backups_file, host = sys.argv[1], sys.argv[2]
+with open(backups_file, "r", encoding="utf-8") as f:
+    data = yaml.safe_load(f) or {}
+primary = data.get("primary_target", {}) or {}
+hosts = data.get("hosts", {}) or {}
+host_cfg = hosts.get(host, {}) or {}
+print(primary.get("host", ""))
+print(primary.get("lan_ip", ""))
+print("1" if host in hosts else "0")
+print("1" if host_cfg.get("borg_enabled", False) else "0")
+for path in host_cfg.get("important_paths", []) or []:
+    print(path)
+PY
+)
+
+TARGET_HOST="${INVENTORY_LINES[0]:-}"
+TARGET_IP="${INVENTORY_LINES[1]:-}"
+HOST_IN_INVENTORY="${INVENTORY_LINES[2]:-0}"
+BORG_ENABLED="${INVENTORY_LINES[3]:-0}"
+IMPORTANT_PATHS=("${INVENTORY_LINES[@]:4}")
+
+status=0
+
+echo "Borgmatic rollout discovery"
+echo "host: ${HOSTNAME_SHORT}"
+echo "user: $(whoami)"
+echo "inventory_file: ${BACKUPS_FILE}"
+echo "primary_target: ${TARGET_HOST:-unknown}"
+echo "primary_target_lan_ip: ${TARGET_IP:-unknown}"
+
+if [ "$HOST_IN_INVENTORY" != "1" ]; then
+  echo "inventory: not good: current host is not listed under inventory/backups.yml hosts"
+  status=1
+else
+  echo "inventory: good: current host is listed"
+fi
+
+if [ "$BORG_ENABLED" = "1" ]; then
+  echo "borg_enabled: true"
+else
+  echo "borg_enabled: false"
+  status=1
+fi
+
+echo
+if command -v borg >/dev/null 2>&1; then
+  echo "borg: good: $(borg --version 2>&1)"
+else
+  echo "borg: not good: not installed or not on PATH"
+  status=1
+fi
+
+if command -v borgmatic >/dev/null 2>&1; then
+  echo "borgmatic: good: $(borgmatic --version 2>&1)"
+else
+  echo "borgmatic: not good: not installed or not on PATH"
+  status=1
+fi
+
+echo
+if [ "${#IMPORTANT_PATHS[@]}" -eq 0 ]; then
+  echo "important_paths: none recorded"
+else
+  echo "important_paths:"
+  for p in "${IMPORTANT_PATHS[@]}"; do
+    if [ -e "$p" ]; then
+      echo "  good: $p"
+    else
+      echo "  missing: $p"
+      status=1
+    fi
+  done
+fi
+
+echo
+CONFIG_CANDIDATES=(
+  "/etc/borgmatic/config.yaml"
+  "$HOME/.config/borgmatic/config.yaml"
+)
+for cfg in /etc/borgmatic.d/*.yaml; do
+  [ -e "$cfg" ] && CONFIG_CANDIDATES+=("$cfg")
+done
+
+found_config=0
+echo "borgmatic_config_candidates:"
+for cfg in "${CONFIG_CANDIDATES[@]}"; do
+  if [ -f "$cfg" ]; then
+    found_config=1
+    echo "  found: $cfg"
+    if [ -n "$TARGET_IP" ] && grep -q "$TARGET_IP" "$cfg" 2>/dev/null; then
+      echo "    target_ip_check: good: contains $TARGET_IP"
+    elif grep -qi "jellybackup\|tailscale\|ts.net" "$cfg" 2>/dev/null; then
+      echo "    target_ip_check: not good: may contain hostname/tailscale reference; verify manually"
+      status=1
+    else
+      echo "    target_ip_check: unknown: repository URL not identified by simple scan"
+    fi
+  else
+    echo "  missing: $cfg"
+  fi
+done
+if [ "$found_config" = "0" ]; then
+  echo "borgmatic_config: not good: no standard config file found"
+  status=1
+fi
+
+echo
+if [ -n "$BACKUP_USER" ]; then
+  if [ -z "$TARGET_IP" ]; then
+    echo "ssh_probe: not good: no target IP in inventory"
+    status=1
+  else
+    echo "ssh_probe: ${BACKUP_USER}@${TARGET_IP}"
+    if timeout 8 ssh -o BatchMode=yes -o ConnectTimeout=5 -o StrictHostKeyChecking=yes "${BACKUP_USER}@${TARGET_IP}" 'printf "good: user=%s host=%s home=%s\n" "$(whoami)" "$(hostname)" "$HOME"'; then
+      :
+    else
+      echo "ssh_probe: not good: passwordless SSH failed or host key is not already trusted"
+      status=1
+    fi
+  fi
+else
+  echo "ssh_probe: skipped: provide --backup-user USER or BORG_BACKUP_USER"
+fi
+
+if [ -n "$REPO_PATH" ]; then
+  if [[ "$REPO_PATH" != /* ]]; then
+    echo "repo_path_probe: not good: repo path must be absolute"
+    status=1
+  elif [ -z "$BACKUP_USER" ]; then
+    echo "repo_path_probe: skipped: repo path provided but no backup user provided"
+    status=1
+  else
+    echo "repo_path_probe: ${REPO_PATH}"
+    printf -v REPO_PATH_Q '%q' "$REPO_PATH"
+    if timeout 8 ssh -o BatchMode=yes -o ConnectTimeout=5 -o StrictHostKeyChecking=yes "${BACKUP_USER}@${TARGET_IP}" "test -d ${REPO_PATH_Q} && stat -c 'good: %A %U:%G %n' ${REPO_PATH_Q}"; then
+      :
+    else
+      echo "repo_path_probe: not good: path missing or inaccessible"
+      status=1
+    fi
+  fi
+else
+  echo "repo_path_probe: skipped: provide --repo-path ABSOLUTE_REPO_PATH or BORG_REPO_PATH"
+fi
+
+echo
+if [ "$status" -eq 0 ]; then
+  echo "result: good"
+else
+  echo "result: not good"
+fi
+exit "$status"

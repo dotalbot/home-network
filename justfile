@@ -69,3 +69,6 @@ backup-policy-check:
 
 borg-check:
     ./scripts/borg-check
+
+borgmatic-rollout-discovery:
+    ./scripts/borgmatic-rollout-discovery

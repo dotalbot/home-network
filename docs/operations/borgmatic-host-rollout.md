@@ -73,7 +73,19 @@ For each client host:
 
 ## Suggested per-host verification commands
 
-Run on each client host, adjusting user and repo path once confirmed:
+Run the safe discovery helper on each client host first. It does not initialize repositories, run backups, alter configuration, or print secrets.
+
+```bash
+just borgmatic-rollout-discovery
+```
+
+Once the backup SSH user and repo path are known, run:
+
+```bash
+./scripts/borgmatic-rollout-discovery --backup-user <backup-user> --repo-path <absolute/repo/path/on/jellybackup>
+```
+
+Then run the Borg/Borgmatic checks on each client host, adjusting user and repo path once confirmed:
 
 ```bash
 ssh <backup-user>@192.168.1.75 'hostname && pwd'
@@ -98,6 +110,22 @@ If using user-level Borgmatic timers:
 systemctl --user status borgmatic.timer
 systemctl --user status borgmatic.service
 ```
+
+## Current discovery result
+
+Last checked from the Hermes execution environment on `jellyberry` as user `jellybot`:
+
+- `jellyberry` is present in `inventory/backups.yml` and has `borg_enabled: true`.
+- `/opt/docker` exists on `jellyberry`.
+- `borg` is not currently installed or not on `PATH` for the checked user.
+- `borgmatic` is not currently installed or not on `PATH` for the checked user.
+- No standard Borgmatic config was found at:
+  - `/etc/borgmatic/config.yaml`
+  - `/etc/borgmatic.d/*.yaml`
+  - `/home/jellybot/.config/borgmatic/config.yaml`
+- Passwordless SSH from `jellybot@jellyberry` to `192.168.1.75` failed for common candidate users (`jellybot`, `jellyfish`, `borg`, `backup`, `borgbackup`). This does not disprove SSH trust for the intended operational user; it means the Hermes runtime user cannot complete the rollout remotely yet.
+
+Implication: the next implementation step needs either the intended backup SSH user/repo paths or execution from the host/user that has the deployed SSH key.
 
 ## Data to confirm before writing final configs
 
