@@ -206,11 +206,13 @@ services:
       - jellyhome
     containers:
       jellyhome:
-        - mosquitto
+        - mqtt-mosquitto
     urls:
-      primary: pending
+      primary: mqtt://jellyhome:1883
+      websocket: ws://jellyhome:9001
+    description: MQTT broker | jellyhome
     backup: config-and-persistence
-    status: planned
+    status: active
 
 drift:
   ignored_containers:

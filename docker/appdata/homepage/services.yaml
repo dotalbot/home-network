@@ -11,6 +11,10 @@
   - Network Map:
       href: http://jellyberry:8788
       description: interactive inventory | LAN and Tailscale discovery
+- IoT:
+  - Mosquitto MQTT:
+      href: mqtt://jellyhome:1883
+      description: MQTT broker | jellyhome
 - Monitoring:
   - Prometheus:
       href: http://jellybase:9090

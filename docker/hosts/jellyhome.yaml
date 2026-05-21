@@ -37,6 +37,22 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
 
+  mosquitto:
+    image: eclipse-mosquitto:2
+    container_name: mqtt-mosquitto
+    restart: unless-stopped
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    environment:
+      PUID: "1000"
+      PGID: "1000"
+      TZ: ${TZ}
+    volumes:
+      - /opt/docker/appdata/mosquitto/config:/mosquitto/config
+      - /opt/docker/appdata/mosquitto/data:/mosquitto/data
+      - /opt/docker/appdata/mosquitto/log:/mosquitto/log
+
   netdata:
     image: netdata/netdata:stable
     container_name: netdata
