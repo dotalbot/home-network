@@ -160,7 +160,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   box-shadow: 0 24px 80px rgba(0,0,0,.48), 0 0 0 1px rgba(255,255,255,.04) inset;
   backdrop-filter: blur(16px);
 }
-.topology-detail-popover.hidden { display: none; }
+.layout .topology-detail-popover { display: block; }
+.layout .topology-detail-popover.hidden { display: none; }
 .topology-detail-popover.dragging { cursor: grabbing; }
 .popover-titlebar {
   position: sticky;
