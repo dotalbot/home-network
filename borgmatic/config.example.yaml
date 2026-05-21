@@ -1,0 +1,40 @@
+# borgmatic/config.example.yaml
+
+source_directories:
+  - /opt/docker
+  - /home/jellyfish/repo
+
+repositories:
+  - path: ssh://USER@BACKUP-HOST/PATH/TO/BORG/REPO
+    label: remote
+
+encryption_passcommand: "cat /opt/docker/.secrets/borgmatic-passphrase"
+
+keep_daily: 7
+keep_weekly: 4
+keep_monthly: 6
+
+checks:
+  - name: repository
+  - name: archives
+    frequency: 2 weeks
+
+exclude_patterns:
+  - /opt/docker/appdata/*/cache
+  - /opt/docker/appdata/*/logs
+  - /home/jellyfish/repo/*/.venv
+  - /home/jellyfish/repo/*/node_modules
+  - /home/jellyfish/repo/*/.git
+
+commands:
+  - before: action
+    when:
+      - create
+    run:
+      - echo "Starting borgmatic backup on $(hostname -s)"
+
+  - after: action
+    when:
+      - create
+    run:
+      - echo "Finished borgmatic backup on $(hostname -s)"

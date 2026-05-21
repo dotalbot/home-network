@@ -26,6 +26,7 @@ apt-get install -y \
   jq \
   rsync \
   borgbackup \
+  borgmatic \
   ufw \
   lsb-release \
   software-properties-common
