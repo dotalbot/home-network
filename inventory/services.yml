@@ -180,7 +180,8 @@ services:
       jellybase:
         - homeassistant
     urls:
-      primary: pending
+      primary: http://jellybase:8123
+    description: smart home controller | jellybase host-network container
     backup: appdata
     status: active
 
@@ -218,6 +219,5 @@ drift:
   ignored_containers:
     jellyhome: []
     jellybase:
-      - homeassistant
       - onecli-postgres-1
       - onecli

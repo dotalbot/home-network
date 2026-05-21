@@ -12,6 +12,9 @@
       href: http://jellyberry:8788
       description: interactive inventory | LAN and Tailscale discovery
 - IoT:
+  - Home Assistant:
+      href: http://jellybase:8123
+      description: smart home controller | jellybase host-network container
   - Mosquitto MQTT:
       href: mqtt://jellyhome:1883
       description: MQTT broker | jellyhome

@@ -71,6 +71,26 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
+  homeassistant:
+    image: ghcr.io/home-assistant/home-assistant:stable
+    container_name: homeassistant
+    restart: unless-stopped
+    network_mode: host
+    privileged: true
+    environment:
+      TZ: ${TZ}
+    volumes:
+      - /opt/docker/appdata/homeassistant/config:/config
+      - /run/dbus/systemd:/run/dbus/systemd:ro
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:8123/manifest.json"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
   netdata:
     image: netdata/netdata:stable
     container_name: netdata
