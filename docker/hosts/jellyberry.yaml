@@ -1,0 +1,62 @@
+services:
+
+  network-map:
+    image: nginx:alpine
+    container_name: network-map
+    restart: unless-stopped
+    ports:
+      - "8788:80"
+    volumes:
+      - /opt/docker/appdata/network-map/site:/usr/share/nginx/html:ro
+
+  portfolio-mission-control-v2:
+    build:
+      context: /home/jellybot/portfolio-intel
+      dockerfile: Dockerfile
+    image: portfolio-mission-control-v2:latest
+    container_name: portfolio-mission-control-v2
+    restart: unless-stopped
+    ports:
+      - "8787:8787"
+    environment:
+      PORT: "8787"
+      PORTFOLIO_INTEL_ROOT: /app
+      HERMES_ENV_FILE: /run/secrets/hermes_env
+      REFRESH_INTERVAL_SECONDS: "14400"
+    secrets:
+      - hermes_env
+    volumes:
+      - /home/jellybot/portfolio-intel/config:/app/config:ro
+      - /home/jellybot/portfolio-intel/docs:/app/docs:ro
+      - /home/jellybot/portfolio-intel/data:/app/data:ro
+      - /opt/docker/appdata/portfolio-mission-control-v2/data:/app/mission-control-v2/data
+
+  sc401-study-hub:
+    build:
+      context: /home/jellybot/sc-100-prep/study-web
+      dockerfile: Dockerfile
+    image: study-web-sc401-study-hub:latest
+    container_name: sc401-study-hub
+    restart: unless-stopped
+    ports:
+      - "8791:80"
+
+  image-pastebin:
+    build:
+      context: /home/jellybot/image-pastebin
+      dockerfile: Dockerfile
+    image: image-pastebin-image-pastebin:latest
+    container_name: image-pastebin
+    restart: unless-stopped
+    ports:
+      - "8792:8792"
+    environment:
+      PORT: "8792"
+      UPLOAD_DIR: /data/uploads
+      MAX_UPLOAD_MB: "25"
+    volumes:
+      - /opt/docker/appdata/image-pastebin/uploads:/data/uploads
+
+secrets:
+  hermes_env:
+    file: /home/jellybot/.hermes/.env

@@ -8,6 +8,9 @@
   - Portainer:
       href: https://jellyhome:9443
       description: 'central-ui-plus-agents | server: jellyhome, agents: jellybase'
+  - Network Map:
+      href: http://jellyberry:8788
+      description: interactive inventory | LAN and Tailscale discovery
 - Monitoring:
   - Prometheus:
       href: http://jellybase:9090
@@ -15,3 +18,15 @@
   - Grafana:
       href: http://jellybase:3001
       description: single-primary | jellybase
+- Projects:
+  - Portfolio Mission Control:
+      href: http://jellyberry:8787
+      description: portfolio dashboard | home-network managed on jellyberry
+- Study:
+  - SC-401 Study Hub:
+      href: http://jellyberry:8791
+      description: certification study hub | home-network managed on jellyberry
+- Tools:
+  - Image Pastebin:
+      href: http://jellyberry:8792
+      description: unauthenticated LAN upload helper | home-network managed on jellyberry

@@ -1,0 +1,89 @@
+#!/usr/bin/env python3
+import json
+import sys
+from pathlib import Path
+
+try:
+    import yaml
+except ImportError:
+    print("not good: missing python3-yaml. Install with: sudo apt install python3-yaml")
+    sys.exit(1)
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+INVENTORY_FILE = REPO_ROOT / "inventory" / "devices.yml"
+SITE_DIR = REPO_ROOT / "docker" / "appdata" / "network-map" / "site"
+DATA_DIR = SITE_DIR / "data"
+DATA_FILE = DATA_DIR / "inventory.json"
+
+
+def load_inventory():
+    if not INVENTORY_FILE.exists():
+        print(f"not good: missing {INVENTORY_FILE}")
+        sys.exit(1)
+    data = yaml.safe_load(INVENTORY_FILE.read_text(encoding="utf-8")) or {}
+    data.setdefault("network", {})
+    data.setdefault("devices", [])
+    data.setdefault("tailnet_peers", [])
+    return data
+
+
+def normalize_ports(item):
+    ports = item.get("open_ports") or []
+    out = []
+    for port in ports:
+        try:
+            out.append(int(port))
+        except (TypeError, ValueError):
+            pass
+    return sorted(set(out))
+
+
+def enrich_device(item, source):
+    enriched = dict(item)
+    enriched["source"] = source
+    enriched["open_ports"] = normalize_ports(item)
+    enriched["service_count"] = len(item.get("services") or [])
+    enriched["has_management"] = bool(set(enriched["open_ports"]) & {22, 80, 443, 3000, 5000, 8080, 8123, 9000, 9443})
+    enriched["display_name"] = item.get("hostname") or item.get("name") or item.get("ip")
+    return enriched
+
+
+def build_payload(data):
+    lan_devices = [enrich_device(d, "lan") for d in data.get("devices", [])]
+    tailnet_peers = [enrich_device(d, "tailscale") for d in data.get("tailnet_peers", [])]
+    all_items = lan_devices + tailnet_peers
+
+    categories = {}
+    for item in lan_devices:
+        categories[item.get("category") or "unknown"] = categories.get(item.get("category") or "unknown", 0) + 1
+
+    open_port_counts = {}
+    for item in all_items:
+        for port in item.get("open_ports", []):
+            open_port_counts[str(port)] = open_port_counts.get(str(port), 0) + 1
+
+    return {
+        "generated_at": __import__("datetime").datetime.now(__import__("datetime").timezone.utc).isoformat(),
+        "network": data.get("network", {}),
+        "summary": {
+            "lan_devices": len(lan_devices),
+            "tailnet_peers": len(tailnet_peers),
+            "total_items": len(all_items),
+            "management_surfaces": sum(1 for item in all_items if item.get("has_management")),
+            "categories": dict(sorted(categories.items())),
+            "open_port_counts": dict(sorted(open_port_counts.items(), key=lambda kv: int(kv[0]))),
+        },
+        "lan_devices": lan_devices,
+        "tailnet_peers": tailnet_peers,
+    }
+
+
+def main():
+    payload = build_payload(load_inventory())
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    DATA_FILE.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    print(f"good: wrote {DATA_FILE.relative_to(REPO_ROOT)}")
+
+
+if __name__ == "__main__":
+    main()

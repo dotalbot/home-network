@@ -58,6 +58,66 @@ services:
     backup: appdata
     status: active
 
+  network-map:
+    display_name: Network Map
+    category: Core
+    mode: single-primary
+    hosts:
+      - jellyberry
+    containers:
+      jellyberry:
+        - network-map
+    urls:
+      primary: http://jellyberry:8788
+    description: interactive inventory | LAN and Tailscale discovery
+    backup: config-only
+    status: active
+
+  portfolio-mission-control-v2:
+    display_name: Portfolio Mission Control
+    category: Projects
+    mode: single-primary-home-network-compose
+    hosts:
+      - jellyberry
+    containers:
+      jellyberry:
+        - portfolio-mission-control-v2
+    urls:
+      primary: http://jellyberry:8787
+    description: portfolio dashboard | home-network managed on jellyberry
+    backup: appdata-and-source-repo
+    status: active
+
+  sc401-study-hub:
+    display_name: SC-401 Study Hub
+    category: Study
+    mode: single-primary-home-network-compose
+    hosts:
+      - jellyberry
+    containers:
+      jellyberry:
+        - sc401-study-hub
+    urls:
+      primary: http://jellyberry:8791
+    description: certification study hub | home-network managed on jellyberry
+    backup: source-repo
+    status: active
+
+  image-pastebin:
+    display_name: Image Pastebin
+    category: Tools
+    mode: single-primary-home-network-compose
+    hosts:
+      - jellyberry
+    containers:
+      jellyberry:
+        - image-pastebin
+    urls:
+      primary: http://jellyberry:8792
+    description: unauthenticated LAN upload helper | home-network managed on jellyberry
+    backup: uploads-if-needed
+    status: active
+
   netdata:
     display_name: Netdata
     category: Monitoring

@@ -49,8 +49,12 @@ sync-docker-config:
 homepage-render:
     ./scripts/homepage-render
 
+network-map-render:
+    ./scripts/network-map-render
+
 homepage-deploy:
     ./scripts/homepage-render
+    ./scripts/network-map-render
     ./scripts/sync-docker-config
     ./scripts/deploy
 

@@ -1,0 +1,621 @@
+{
+  "generated_at": "2026-05-21T12:13:22.551194+00:00",
+  "lan_devices": [
+    {
+      "category": "server",
+      "confidence": "medium",
+      "display_name": "192.168.1.1",
+      "has_management": true,
+      "hostname": null,
+      "ip": "192.168.1.1",
+      "mac": "2c:f0:5d:58:8e:09",
+      "notes": "Important management node; verify hostname and owner.",
+      "open_ports": [
+        22,
+        1883,
+        3000,
+        8080,
+        9443
+      ],
+      "role": "docker_host_or_dashboard_node",
+      "service_count": 4,
+      "services": [
+        {
+          "name": "Home Network",
+          "port": 3000,
+          "protocol": "http"
+        },
+        {
+          "name": "Dozzle",
+          "port": 8080,
+          "protocol": "http"
+        },
+        {
+          "name": "Portainer",
+          "port": 9443,
+          "protocol": "https"
+        },
+        {
+          "name": "MQTT",
+          "port": 1883,
+          "protocol": "tcp"
+        }
+      ],
+      "source": "lan"
+    },
+    {
+      "category": "server",
+      "confidence": "high",
+      "display_name": "192.168.1.2",
+      "has_management": true,
+      "hostname": null,
+      "ip": "192.168.1.2",
+      "mac": "a0:ad:9f:5f:df:43",
+      "notes": "mDNS advertises Home Assistant service on the LAN.",
+      "open_ports": [
+        22,
+        3000,
+        8123
+      ],
+      "role": "home_assistant_or_dashboard_node",
+      "service_count": 2,
+      "services": [
+        {
+          "name": "Home Network",
+          "port": 3000,
+          "protocol": "http"
+        },
+        {
+          "name": "Home Assistant",
+          "port": 8123,
+          "protocol": "http"
+        }
+      ],
+      "source": "lan"
+    },
+    {
+      "category": "iot",
+      "confidence": "high",
+      "display_name": "Meross_Smart_Switch.lan",
+      "has_management": true,
+      "hostname": "Meross_Smart_Switch.lan",
+      "ip": "192.168.1.73",
+      "mac": "48:e1:e9:ad:27:24",
+      "notes": "HTTP port closes without a normal page response.",
+      "open_ports": [
+        80
+      ],
+      "role": "smart_switch",
+      "service_count": 0,
+      "source": "lan"
+    },
+    {
+      "category": "server",
+      "confidence": "high",
+      "display_name": "jellybackup.lan",
+      "has_management": true,
+      "hostname": "jellybackup.lan",
+      "ip": "192.168.1.75",
+      "mac": "dc:a6:32:d2:05:90",
+      "notes": "Also visible via mDNS as jellybackup.local.",
+      "open_ports": [
+        22
+      ],
+      "role": "backup_host",
+      "service_count": 0,
+      "source": "lan"
+    },
+    {
+      "category": "iot",
+      "confidence": "high",
+      "display_name": "tado.lan",
+      "has_management": true,
+      "hostname": "tado.lan",
+      "ip": "192.168.1.77",
+      "mac": "ec:e5:12:21:1b:aa",
+      "notes": "HTTP timed out during safe title fetch.",
+      "open_ports": [
+        80
+      ],
+      "role": "heating_or_climate_device",
+      "service_count": 0,
+      "source": "lan"
+    },
+    {
+      "category": "unknown",
+      "confidence": "low",
+      "display_name": "192.168.1.84",
+      "has_management": true,
+      "hostname": null,
+      "ip": "192.168.1.84",
+      "mac": "00:31:92:aa:b6:5b",
+      "notes": "HTTP responds; HTTPS handshake failed. Needs owner/device identification.",
+      "open_ports": [
+        22,
+        80,
+        443
+      ],
+      "role": "unknown_http_ssh_device",
+      "service_count": 0,
+      "source": "lan"
+    },
+    {
+      "category": "iot",
+      "confidence": "high",
+      "display_name": "dreame_vacuum_r2449a.lan",
+      "has_management": false,
+      "hostname": "dreame_vacuum_r2449a.lan",
+      "ip": "192.168.1.87",
+      "mac": "00:ae:f7:26:35:c0",
+      "notes": "Seen by hostname and ICMP only.",
+      "open_ports": [],
+      "role": "robot_vacuum",
+      "service_count": 0,
+      "source": "lan"
+    },
+    {
+      "category": "iot",
+      "confidence": "high",
+      "display_name": "P100.lan",
+      "has_management": true,
+      "hostname": "P100.lan",
+      "ip": "192.168.1.97",
+      "mac": "e4:fa:c4:18:fd:46",
+      "notes": "SHIP 2.0 HTTP server observed.",
+      "open_ports": [
+        80
+      ],
+      "role": "tp_link_smart_plug_or_switch",
+      "service_count": 1,
+      "services": [
+        {
+          "name": "SHIP 2.0",
+          "port": 80,
+          "protocol": "http"
+        }
+      ],
+      "source": "lan"
+    },
+    {
+      "category": "unknown",
+      "confidence": "low",
+      "display_name": "192.168.1.102",
+      "has_management": false,
+      "hostname": null,
+      "ip": "192.168.1.102",
+      "mac": "0a:79:56:7d:94:55",
+      "notes": "Seen in neighbour cache only.",
+      "open_ports": [],
+      "role": "unknown",
+      "service_count": 0,
+      "source": "lan"
+    },
+    {
+      "category": "client",
+      "confidence": "high",
+      "display_name": "Dominics-MacBook-Air.local",
+      "has_management": false,
+      "hostname": "Dominics-MacBook-Air.local",
+      "ip": "192.168.1.117",
+      "mac": "06:67:dd:79:59:2a",
+      "notes": "mDNS identified MacBook Air; also appeared as unknown in neighbour cache.",
+      "open_ports": [],
+      "role": "macbook",
+      "service_count": 2,
+      "services": [
+        {
+          "name": "AirPlay / AirTunes",
+          "port": 7000,
+          "protocol": "tcp"
+        },
+        {
+          "name": "Apple ASQUIC",
+          "port": 56868,
+          "protocol": "udp"
+        }
+      ],
+      "source": "lan"
+    },
+    {
+      "category": "unknown",
+      "confidence": "low",
+      "display_name": "192.168.1.127",
+      "has_management": false,
+      "hostname": null,
+      "ip": "192.168.1.127",
+      "mac": "02:30:1e:f1:2f:ee",
+      "notes": "Seen in neighbour cache only.",
+      "open_ports": [],
+      "role": "unknown",
+      "service_count": 0,
+      "source": "lan"
+    },
+    {
+      "category": "network",
+      "confidence": "high",
+      "display_name": "LTEModem-e860.lan",
+      "has_management": false,
+      "hostname": "LTEModem-e860.lan",
+      "ip": "192.168.1.129",
+      "mac": "18:58:80:9a:e8:60",
+      "notes": "Seen by hostname and neighbour cache.",
+      "open_ports": [],
+      "role": "lte_modem",
+      "service_count": 0,
+      "source": "lan"
+    },
+    {
+      "category": "server",
+      "confidence": "high",
+      "display_name": "jellyberry.lan",
+      "has_management": true,
+      "hostname": "jellyberry.lan",
+      "ip": "192.168.1.159",
+      "mac": "88:a2:9e:d9:ec:f8",
+      "notes": "Current Hermes host; also visible via mDNS as jellyberry.local.",
+      "open_ports": [
+        22
+      ],
+      "role": "scanner_host",
+      "service_count": 0,
+      "source": "lan"
+    },
+    {
+      "category": "unknown",
+      "confidence": "medium",
+      "display_name": "L-W11-CY300068W.lan",
+      "has_management": false,
+      "hostname": "L-W11-CY300068W.lan",
+      "ip": "192.168.1.166",
+      "mac": "24:eb:16:08:12:68",
+      "notes": "Needs manual identification.",
+      "open_ports": [],
+      "role": "unknown_named_client",
+      "service_count": 0,
+      "source": "lan"
+    },
+    {
+      "category": "client",
+      "confidence": "high",
+      "display_name": "Wheres-my-phone.local",
+      "has_management": false,
+      "hostname": "Wheres-my-phone.local",
+      "ip": "192.168.1.173",
+      "mac": "0a:4e:59:3a:87:98",
+      "notes": "Also resolved as iPhone.lan during reverse lookup.",
+      "open_ports": [],
+      "role": "iphone",
+      "service_count": 1,
+      "services": [
+        {
+          "name": "Apple mobile device service",
+          "port": 32498,
+          "protocol": "tcp"
+        }
+      ],
+      "source": "lan"
+    },
+    {
+      "category": "iot",
+      "confidence": "high",
+      "display_name": "Samsung.lan",
+      "has_management": false,
+      "hostname": "Samsung.lan",
+      "ip": "192.168.1.178",
+      "mac": "4c:57:39:3e:e0:eb",
+      "notes": "Identified by mDNS as 55-inch Neo QLED / Samsung.local.",
+      "open_ports": [],
+      "role": "samsung_neo_qled_tv",
+      "service_count": 2,
+      "services": [
+        {
+          "name": "AirPlay Remote Video",
+          "port": 7000,
+          "protocol": "tcp"
+        },
+        {
+          "name": "Amazon Alexa integration",
+          "port": 8296,
+          "protocol": "tcp"
+        }
+      ],
+      "source": "lan"
+    },
+    {
+      "category": "iot",
+      "confidence": "high",
+      "display_name": "Ring-19c7c3.lan",
+      "has_management": false,
+      "hostname": "Ring-19c7c3.lan",
+      "ip": "192.168.1.175",
+      "mac": "54:e0:19:19:c7:c3",
+      "notes": "Seen by hostname and neighbour cache.",
+      "open_ports": [],
+      "role": "ring_device",
+      "service_count": 0,
+      "source": "lan"
+    },
+    {
+      "category": "server_or_client",
+      "confidence": "medium",
+      "display_name": "homelap.lan",
+      "has_management": false,
+      "hostname": "homelap.lan",
+      "ip": "192.168.1.183",
+      "mac": "3c:55:76:f0:91:0b",
+      "notes": "Seen by hostname and neighbour cache.",
+      "open_ports": [],
+      "role": "homelab_or_laptop",
+      "service_count": 0,
+      "source": "lan"
+    },
+    {
+      "category": "iot",
+      "confidence": "medium",
+      "display_name": "54E0196F26D9-mysimplelink.lan",
+      "has_management": false,
+      "hostname": "54E0196F26D9-mysimplelink.lan",
+      "ip": "192.168.1.187",
+      "mac": "54:e0:19:6f:26:d9",
+      "notes": "SimpleLink naming suggests embedded/IoT device.",
+      "open_ports": [],
+      "role": "ti_simplelink_iot_device",
+      "service_count": 0,
+      "source": "lan"
+    },
+    {
+      "category": "unknown",
+      "confidence": "medium",
+      "display_name": "CMW-PW0701EY.lan",
+      "has_management": false,
+      "hostname": "CMW-PW0701EY.lan",
+      "ip": "192.168.1.194",
+      "mac": "cc:5e:f8:4a:f8:7f",
+      "notes": "Needs manual identification.",
+      "open_ports": [],
+      "role": "unknown_named_iot_or_client",
+      "service_count": 0,
+      "source": "lan"
+    },
+    {
+      "category": "iot",
+      "confidence": "high",
+      "display_name": "Levoit-Purifier.lan",
+      "has_management": false,
+      "hostname": "Levoit-Purifier.lan",
+      "ip": "192.168.1.218",
+      "mac": "94:b5:55:f1:7d:44",
+      "notes": "Seen by hostname and ICMP.",
+      "open_ports": [],
+      "role": "air_purifier",
+      "service_count": 0,
+      "source": "lan"
+    },
+    {
+      "category": "iot",
+      "confidence": "medium",
+      "display_name": "192.168.1.245",
+      "has_management": true,
+      "hostname": null,
+      "ip": "192.168.1.245",
+      "mac": "e4:fa:c4:18:fe:13",
+      "notes": "Same SHIP 2.0 HTTP signature as P100.lan; verify device label.",
+      "open_ports": [
+        80
+      ],
+      "role": "tp_link_smart_plug_or_switch_candidate",
+      "service_count": 1,
+      "services": [
+        {
+          "name": "SHIP 2.0",
+          "port": 80,
+          "protocol": "http"
+        }
+      ],
+      "source": "lan"
+    },
+    {
+      "category": "client",
+      "confidence": "high",
+      "display_name": "Xiaomi-Pad-7.lan",
+      "has_management": false,
+      "hostname": "Xiaomi-Pad-7.lan",
+      "ip": "192.168.1.248",
+      "mac": "32:e2:0d:a7:1c:ab",
+      "notes": "Seen by hostname and neighbour cache.",
+      "open_ports": [],
+      "role": "tablet",
+      "service_count": 0,
+      "source": "lan"
+    },
+    {
+      "category": "network",
+      "confidence": "high",
+      "display_name": "hub.home.arpa",
+      "has_management": true,
+      "hostname": "hub.home.arpa",
+      "ip": "192.168.1.254",
+      "mac": "60:8d:26:cb:11:12",
+      "notes": "Default gateway and mDNS bthomehub.local.",
+      "open_ports": [
+        53,
+        80,
+        443,
+        5000
+      ],
+      "role": "router_gateway",
+      "service_count": 4,
+      "services": [
+        {
+          "name": "DNS",
+          "port": 53,
+          "protocol": "tcp"
+        },
+        {
+          "name": "Hub Manager",
+          "port": 80,
+          "protocol": "http"
+        },
+        {
+          "name": "Hub Manager",
+          "port": 443,
+          "protocol": "https"
+        },
+        {
+          "name": "BT Indigo MQTT over TLS via mDNS",
+          "port": 8883,
+          "protocol": "tcp"
+        }
+      ],
+      "source": "lan"
+    }
+  ],
+  "network": {
+    "cidr": "192.168.1.0/24",
+    "gateway": "192.168.1.254",
+    "interface": "eth0",
+    "scanner_host": "jellyberry",
+    "scanner_ip": "192.168.1.159"
+  },
+  "summary": {
+    "categories": {
+      "client": 3,
+      "iot": 9,
+      "network": 2,
+      "server": 4,
+      "server_or_client": 1,
+      "unknown": 5
+    },
+    "lan_devices": 24,
+    "management_surfaces": 16,
+    "open_port_counts": {
+      "1883": 2,
+      "22": 9,
+      "3000": 4,
+      "443": 3,
+      "445": 1,
+      "5000": 2,
+      "53": 1,
+      "80": 7,
+      "8080": 2,
+      "8123": 2,
+      "9443": 2
+    },
+    "tailnet_peers": 9,
+    "total_items": 33
+  },
+  "tailnet_peers": [
+    {
+      "display_name": "jellyberry.cheetah-iwato.ts.net",
+      "has_management": true,
+      "hostname": "jellyberry.cheetah-iwato.ts.net",
+      "ip": "100.68.81.120",
+      "name": "jellyberry",
+      "notes": "Current scanner host on Tailscale.",
+      "open_ports": [
+        22
+      ],
+      "service_count": 0,
+      "source": "tailscale"
+    },
+    {
+      "display_name": "ai.cheetah-iwato.ts.net",
+      "has_management": true,
+      "hostname": "ai.cheetah-iwato.ts.net",
+      "ip": "100.66.185.90",
+      "name": "ai",
+      "open_ports": [
+        80,
+        443
+      ],
+      "service_count": 0,
+      "source": "tailscale"
+    },
+    {
+      "display_name": "dominics-macbook-air.cheetah-iwato.ts.net",
+      "has_management": true,
+      "hostname": "dominics-macbook-air.cheetah-iwato.ts.net",
+      "ip": "100.86.92.76",
+      "name": "dominics-macbook-air",
+      "open_ports": [
+        5000
+      ],
+      "service_count": 0,
+      "source": "tailscale"
+    },
+    {
+      "display_name": "domphone.cheetah-iwato.ts.net",
+      "has_management": false,
+      "hostname": "domphone.cheetah-iwato.ts.net",
+      "ip": "100.115.139.83",
+      "name": "domphone",
+      "open_ports": [],
+      "service_count": 0,
+      "source": "tailscale"
+    },
+    {
+      "display_name": "homelap.cheetah-iwato.ts.net",
+      "has_management": false,
+      "hostname": "homelap.cheetah-iwato.ts.net",
+      "ip": "100.122.230.90",
+      "name": "homelap",
+      "open_ports": [
+        445
+      ],
+      "service_count": 0,
+      "source": "tailscale"
+    },
+    {
+      "display_name": "jellybackup.cheetah-iwato.ts.net",
+      "has_management": true,
+      "hostname": "jellybackup.cheetah-iwato.ts.net",
+      "ip": "100.116.9.17",
+      "name": "jellybackup",
+      "open_ports": [
+        22
+      ],
+      "service_count": 0,
+      "source": "tailscale"
+    },
+    {
+      "display_name": "jellybase.cheetah-iwato.ts.net",
+      "has_management": true,
+      "hostname": "jellybase.cheetah-iwato.ts.net",
+      "ip": "100.125.86.118",
+      "name": "jellybase",
+      "open_ports": [
+        22,
+        3000,
+        8123
+      ],
+      "service_count": 0,
+      "source": "tailscale"
+    },
+    {
+      "display_name": "jellyhome.cheetah-iwato.ts.net",
+      "has_management": true,
+      "hostname": "jellyhome.cheetah-iwato.ts.net",
+      "ip": "100.90.175.59",
+      "name": "jellyhome",
+      "open_ports": [
+        22,
+        1883,
+        3000,
+        8080,
+        9443
+      ],
+      "service_count": 0,
+      "source": "tailscale"
+    },
+    {
+      "display_name": "lesters-mac-mini.cheetah-iwato.ts.net",
+      "has_management": false,
+      "hostname": "lesters-mac-mini.cheetah-iwato.ts.net",
+      "ip": "100.80.9.106",
+      "name": "lesters-mac-mini",
+      "open_ports": [],
+      "service_count": 0,
+      "source": "tailscale"
+    }
+  ]
+}

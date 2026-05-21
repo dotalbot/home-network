@@ -1,0 +1,326 @@
+# Home LAN inventory, first pass.
+# Source: safe discovery from jellyberry on 2026-05-21.
+# Methods: neighbour cache, one-packet ICMP sweep, mDNS, light TCP connect checks, HTTP title fetches.
+# Scope: 192.168.1.0/24 via eth0 only.
+
+network:
+  cidr: 192.168.1.0/24
+  gateway: 192.168.1.254
+  scanner_host: jellyberry
+  scanner_ip: 192.168.1.159
+  interface: eth0
+
+devices:
+  - ip: 192.168.1.1
+    hostname: null
+    role: docker_host_or_dashboard_node
+    category: server
+    mac: 2c:f0:5d:58:8e:09
+    open_ports: [22, 1883, 3000, 8080, 9443]
+    services:
+      - port: 3000
+        name: Home Network
+        protocol: http
+      - port: 8080
+        name: Dozzle
+        protocol: http
+      - port: 9443
+        name: Portainer
+        protocol: https
+      - port: 1883
+        name: MQTT
+        protocol: tcp
+    confidence: medium
+    notes: Important management node; verify hostname and owner.
+
+  - ip: 192.168.1.2
+    hostname: null
+    role: home_assistant_or_dashboard_node
+    category: server
+    mac: a0:ad:9f:5f:df:43
+    open_ports: [22, 3000, 8123]
+    services:
+      - port: 3000
+        name: Home Network
+        protocol: http
+      - port: 8123
+        name: Home Assistant
+        protocol: http
+    confidence: high
+    notes: mDNS advertises Home Assistant service on the LAN.
+
+  - ip: 192.168.1.73
+    hostname: Meross_Smart_Switch.lan
+    role: smart_switch
+    category: iot
+    mac: 48:e1:e9:ad:27:24
+    open_ports: [80]
+    confidence: high
+    notes: HTTP port closes without a normal page response.
+
+  - ip: 192.168.1.75
+    hostname: jellybackup.lan
+    role: backup_host
+    category: server
+    mac: dc:a6:32:d2:05:90
+    open_ports: [22]
+    confidence: high
+    notes: Also visible via mDNS as jellybackup.local.
+
+  - ip: 192.168.1.77
+    hostname: tado.lan
+    role: heating_or_climate_device
+    category: iot
+    mac: ec:e5:12:21:1b:aa
+    open_ports: [80]
+    confidence: high
+    notes: HTTP timed out during safe title fetch.
+
+  - ip: 192.168.1.84
+    hostname: null
+    role: unknown_http_ssh_device
+    category: unknown
+    mac: 00:31:92:aa:b6:5b
+    open_ports: [22, 80, 443]
+    confidence: low
+    notes: HTTP responds; HTTPS handshake failed. Needs owner/device identification.
+
+  - ip: 192.168.1.87
+    hostname: dreame_vacuum_r2449a.lan
+    role: robot_vacuum
+    category: iot
+    mac: 00:ae:f7:26:35:c0
+    open_ports: []
+    confidence: high
+    notes: Seen by hostname and ICMP only.
+
+  - ip: 192.168.1.97
+    hostname: P100.lan
+    role: tp_link_smart_plug_or_switch
+    category: iot
+    mac: e4:fa:c4:18:fd:46
+    open_ports: [80]
+    services:
+      - port: 80
+        name: SHIP 2.0
+        protocol: http
+    confidence: high
+    notes: SHIP 2.0 HTTP server observed.
+
+  - ip: 192.168.1.102
+    hostname: null
+    role: unknown
+    category: unknown
+    mac: 0a:79:56:7d:94:55
+    open_ports: []
+    confidence: low
+    notes: Seen in neighbour cache only.
+
+  - ip: 192.168.1.117
+    hostname: Dominics-MacBook-Air.local
+    role: macbook
+    category: client
+    mac: 06:67:dd:79:59:2a
+    open_ports: []
+    services:
+      - port: 7000
+        name: AirPlay / AirTunes
+        protocol: tcp
+      - port: 56868
+        name: Apple ASQUIC
+        protocol: udp
+    confidence: high
+    notes: mDNS identified MacBook Air; also appeared as unknown in neighbour cache.
+
+  - ip: 192.168.1.127
+    hostname: null
+    role: unknown
+    category: unknown
+    mac: 02:30:1e:f1:2f:ee
+    open_ports: []
+    confidence: low
+    notes: Seen in neighbour cache only.
+
+  - ip: 192.168.1.129
+    hostname: LTEModem-e860.lan
+    role: lte_modem
+    category: network
+    mac: 18:58:80:9a:e8:60
+    open_ports: []
+    confidence: high
+    notes: Seen by hostname and neighbour cache.
+
+  - ip: 192.168.1.159
+    hostname: jellyberry.lan
+    role: scanner_host
+    category: server
+    mac: 88:a2:9e:d9:ec:f8
+    open_ports: [22]
+    confidence: high
+    notes: Current Hermes host; also visible via mDNS as jellyberry.local.
+
+  - ip: 192.168.1.166
+    hostname: L-W11-CY300068W.lan
+    role: unknown_named_client
+    category: unknown
+    mac: 24:eb:16:08:12:68
+    open_ports: []
+    confidence: medium
+    notes: Needs manual identification.
+
+  - ip: 192.168.1.173
+    hostname: Wheres-my-phone.local
+    role: iphone
+    category: client
+    mac: 0a:4e:59:3a:87:98
+    open_ports: []
+    services:
+      - port: 32498
+        name: Apple mobile device service
+        protocol: tcp
+    confidence: high
+    notes: Also resolved as iPhone.lan during reverse lookup.
+
+  - ip: 192.168.1.178
+    hostname: Samsung.lan
+    role: samsung_neo_qled_tv
+    category: iot
+    mac: 4c:57:39:3e:e0:eb
+    open_ports: []
+    services:
+      - port: 7000
+        name: AirPlay Remote Video
+        protocol: tcp
+      - port: 8296
+        name: Amazon Alexa integration
+        protocol: tcp
+    confidence: high
+    notes: Identified by mDNS as 55-inch Neo QLED / Samsung.local.
+
+  - ip: 192.168.1.175
+    hostname: Ring-19c7c3.lan
+    role: ring_device
+    category: iot
+    mac: 54:e0:19:19:c7:c3
+    open_ports: []
+    confidence: high
+    notes: Seen by hostname and neighbour cache.
+
+  - ip: 192.168.1.183
+    hostname: homelap.lan
+    role: homelab_or_laptop
+    category: server_or_client
+    mac: 3c:55:76:f0:91:0b
+    open_ports: []
+    confidence: medium
+    notes: Seen by hostname and neighbour cache.
+
+  - ip: 192.168.1.187
+    hostname: 54E0196F26D9-mysimplelink.lan
+    role: ti_simplelink_iot_device
+    category: iot
+    mac: 54:e0:19:6f:26:d9
+    open_ports: []
+    confidence: medium
+    notes: SimpleLink naming suggests embedded/IoT device.
+
+  - ip: 192.168.1.194
+    hostname: CMW-PW0701EY.lan
+    role: unknown_named_iot_or_client
+    category: unknown
+    mac: cc:5e:f8:4a:f8:7f
+    open_ports: []
+    confidence: medium
+    notes: Needs manual identification.
+
+  - ip: 192.168.1.218
+    hostname: Levoit-Purifier.lan
+    role: air_purifier
+    category: iot
+    mac: 94:b5:55:f1:7d:44
+    open_ports: []
+    confidence: high
+    notes: Seen by hostname and ICMP.
+
+  - ip: 192.168.1.245
+    hostname: null
+    role: tp_link_smart_plug_or_switch_candidate
+    category: iot
+    mac: e4:fa:c4:18:fe:13
+    open_ports: [80]
+    services:
+      - port: 80
+        name: SHIP 2.0
+        protocol: http
+    confidence: medium
+    notes: Same SHIP 2.0 HTTP signature as P100.lan; verify device label.
+
+  - ip: 192.168.1.248
+    hostname: Xiaomi-Pad-7.lan
+    role: tablet
+    category: client
+    mac: 32:e2:0d:a7:1c:ab
+    open_ports: []
+    confidence: high
+    notes: Seen by hostname and neighbour cache.
+
+  - ip: 192.168.1.254
+    hostname: hub.home.arpa
+    role: router_gateway
+    category: network
+    mac: 60:8d:26:cb:11:12
+    open_ports: [53, 80, 443, 5000]
+    services:
+      - port: 53
+        name: DNS
+        protocol: tcp
+      - port: 80
+        name: Hub Manager
+        protocol: http
+      - port: 443
+        name: Hub Manager
+        protocol: https
+      - port: 8883
+        name: BT Indigo MQTT over TLS via mDNS
+        protocol: tcp
+    confidence: high
+    notes: Default gateway and mDNS bthomehub.local.
+
+tailnet_peers:
+  - ip: 100.68.81.120
+    hostname: jellyberry.cheetah-iwato.ts.net
+    name: jellyberry
+    open_ports: [22]
+    notes: Current scanner host on Tailscale.
+  - ip: 100.66.185.90
+    hostname: ai.cheetah-iwato.ts.net
+    name: ai
+    open_ports: [80, 443]
+  - ip: 100.86.92.76
+    hostname: dominics-macbook-air.cheetah-iwato.ts.net
+    name: dominics-macbook-air
+    open_ports: [5000]
+  - ip: 100.115.139.83
+    hostname: domphone.cheetah-iwato.ts.net
+    name: domphone
+    open_ports: []
+  - ip: 100.122.230.90
+    hostname: homelap.cheetah-iwato.ts.net
+    name: homelap
+    open_ports: [445]
+  - ip: 100.116.9.17
+    hostname: jellybackup.cheetah-iwato.ts.net
+    name: jellybackup
+    open_ports: [22]
+  - ip: 100.125.86.118
+    hostname: jellybase.cheetah-iwato.ts.net
+    name: jellybase
+    open_ports: [22, 3000, 8123]
+  - ip: 100.90.175.59
+    hostname: jellyhome.cheetah-iwato.ts.net
+    name: jellyhome
+    open_ports: [22, 1883, 3000, 8080, 9443]
+  - ip: 100.80.9.106
+    hostname: lesters-mac-mini.cheetah-iwato.ts.net
+    name: lesters-mac-mini
+    open_ports: []

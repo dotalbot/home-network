@@ -23,22 +23,54 @@ if [ ! -f "$SRC_HOST" ]; then
   exit 1
 fi
 
-sudo mkdir -p "$DEST_HOST_DIR"
+needs_sudo=0
+if [ ! -d "$DOCKER_DIR" ] || [ ! -w "$DOCKER_DIR" ]; then
+  needs_sudo=1
+fi
 
-sudo cp "$SRC_BASE" "$DEST_BASE"
-sudo cp "$SRC_HOST" "$DEST_HOST"
+run_privileged() {
+  if [ "$needs_sudo" -eq 1 ]; then
+    sudo "$@"
+  else
+    "$@"
+  fi
+}
 
-sudo chown root:"$DOCKER_GROUP" "$DEST_BASE" "$DEST_HOST"
-sudo chmod 664 "$DEST_BASE" "$DEST_HOST"
+set_managed_perms() {
+  local target="$1"
+  if [ "$needs_sudo" -eq 1 ]; then
+    sudo chown -R root:"$DOCKER_GROUP" "$target"
+  else
+    chgrp -R "$DOCKER_GROUP" "$target"
+  fi
+}
 
-echo "good"
+run_privileged mkdir -p "$DEST_HOST_DIR"
+
+run_privileged cp "$SRC_BASE" "$DEST_BASE"
+run_privileged cp "$SRC_HOST" "$DEST_HOST"
+
+set_managed_perms "$DEST_BASE"
+set_managed_perms "$DEST_HOST"
+run_privileged chmod 664 "$DEST_BASE" "$DEST_HOST"
 
 SRC_HOMEPAGE="${REPO_ROOT}/docker/appdata/homepage"
 DEST_HOMEPAGE="${DOCKER_DIR}/appdata/homepage"
+SRC_NETWORK_MAP="${REPO_ROOT}/docker/appdata/network-map"
+DEST_NETWORK_MAP="${DOCKER_DIR}/appdata/network-map"
 
 if [ -d "$SRC_HOMEPAGE" ]; then
-  sudo mkdir -p "$DEST_HOMEPAGE"
-  sudo rsync -a --delete "$SRC_HOMEPAGE"/ "$DEST_HOMEPAGE"/
-  sudo chown -R root:"$DOCKER_GROUP" "$DEST_HOMEPAGE"
-  sudo chmod -R 775 "$DEST_HOMEPAGE"
+  run_privileged mkdir -p "$DEST_HOMEPAGE"
+  run_privileged rsync -a --delete "$SRC_HOMEPAGE"/ "$DEST_HOMEPAGE"/
+  set_managed_perms "$DEST_HOMEPAGE"
+  run_privileged chmod -R 775 "$DEST_HOMEPAGE"
 fi
+
+if [ -d "$SRC_NETWORK_MAP" ]; then
+  run_privileged mkdir -p "$DEST_NETWORK_MAP"
+  run_privileged rsync -a --delete "$SRC_NETWORK_MAP"/ "$DEST_NETWORK_MAP"/
+  set_managed_perms "$DEST_NETWORK_MAP"
+  run_privileged chmod -R 775 "$DEST_NETWORK_MAP"
+fi
+
+echo "good"

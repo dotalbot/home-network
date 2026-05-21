@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Home Network Map</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="hero">
+    <div>
+      <p class="eyebrow">Home Network</p>
+      <h1>Interactive Network Map</h1>
+      <p class="subtitle">LAN and Tailscale inventory generated from discovery data.</p>
+    </div>
+    <div class="hero-actions">
+      <button id="refreshData">Reload data</button>
+      <a href="data/inventory.json">Raw JSON</a>
+    </div>
+  </header>
+
+  <main>
+    <section id="summary" class="summary-grid"></section>
+
+    <section class="toolbar">
+      <label>
+        Search
+        <input id="search" type="search" placeholder="hostname, IP, role, port..." />
+      </label>
+      <label>
+        Source
+        <select id="sourceFilter">
+          <option value="all">All</option>
+          <option value="lan">LAN</option>
+          <option value="tailscale">Tailscale</option>
+        </select>
+      </label>
+      <label>
+        Category
+        <select id="categoryFilter"><option value="all">All</option></select>
+      </label>
+      <label>
+        Port
+        <select id="portFilter"><option value="all">All</option></select>
+      </label>
+      <label class="toggle">
+        <input id="managementOnly" type="checkbox" />
+        Management surfaces only
+      </label>
+    </section>
+
+    <section class="layout">
+      <section>
+        <h2>Map</h2>
+        <div id="map" class="map"></div>
+      </section>
+      <aside>
+        <h2>Selected device</h2>
+        <div id="detail" class="detail muted">Select a device card.</div>
+      </aside>
+    </section>
+
+    <section>
+      <h2>Inventory</h2>
+      <div id="cards" class="cards"></div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
