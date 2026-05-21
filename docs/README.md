@@ -50,7 +50,8 @@ Unless stated otherwise, paths in this index are relative to the repository root
 
 Use `docs/roadmap/product-roadmap.md` as the active gap register. Current high-value gaps:
 
-1. Add service-specific restore runbooks for active stateful services.
-2. Document scheduled operations and alerting once implemented.
-3. Draft reverse proxy/TLS design before exposing services beyond direct LAN/Tailnet URLs.
-4. Add inventory validation for required service metadata.
+1. Complete Borg/Borgmatic setup and verification on every in-scope host.
+2. Add service-specific restore runbooks for active stateful services.
+3. Document scheduled operations and alerting once implemented.
+4. Draft reverse proxy/TLS design before exposing services beyond direct LAN/Tailnet URLs.
+5. Add inventory validation for required service metadata.

@@ -48,12 +48,14 @@ These stages are considered completed or substantially in place:
 9. Initial Borg/Borgmatic integration
    - `scripts/borg-check` exists.
    - Restore templates and rebuild runbooks exist under `docs/runbooks/`.
+   - Borg/Borgmatic is not yet fully installed, configured, and verified on every host.
    - Scheduled backup verification and restore drills remain roadmap items.
 
 ## Gap register
 
 | Gap | Why it matters | Target artifact |
 | --- | --- | --- |
+| Borg/Borgmatic host rollout | Borg/Borgmatic is not yet installed, configured, and verified on every host | host-by-host Borg/Borgmatic checklist and `borg-check` passing per host |
 | Service restore coverage | Stateful services need exact restore steps | `docs/runbooks/<service>-restore.md` or completed service templates |
 | Scheduled operations | Drift/backup/status checks are manual unless scheduled elsewhere | cron/systemd timers plus docs |
 | Alerting | Failed checks should notify instead of waiting for manual review | Discord/Hermes alert path or monitoring alerts |
@@ -187,24 +189,33 @@ Acceptance criteria:
 
 ## Phase 6 — Backup and restore maturity
 
-Goal: make every stateful service restorable from documented steps.
+Goal: make Borg/Borgmatic real on every host and make every stateful service restorable from documented steps.
 
 Actions:
 
-1. Normalize backup classes.
-2. Add database-aware backup steps for database-backed services.
-3. Create service restore runbooks for:
+1. Complete Borg/Borgmatic setup on each managed host:
+   - jellyhome;
+   - jellybase;
+   - jellyberry;
+   - jellybackup;
+   - seedbox, if it remains in backup scope.
+2. Verify each host has the expected Borg/Borgmatic packages, config, credentials, repositories, retention policy, and timer/schedule.
+3. Normalize backup classes.
+4. Add database-aware backup steps for database-backed services.
+5. Create service restore runbooks for:
    - Home Assistant;
    - Mosquitto;
    - Prometheus;
    - Grafana;
    - Portfolio Mission Control;
    - any media/library services before they become important.
-4. Run at least one restore test to a safe target.
-5. Record restore timing and gotchas.
+6. Run at least one restore test to a safe target.
+7. Record restore timing and gotchas.
 
 Acceptance criteria:
 
+- Borg/Borgmatic is installed, configured, scheduled, and verified on every in-scope host.
+- `just borg-check` or a host-specific equivalent passes for each in-scope host.
 - Every active stateful service has a restore path.
 - Restore docs identify source data, target paths, commands, verification, and rollback.
 - One restore drill has been completed and documented.
@@ -286,8 +297,9 @@ Acceptance criteria:
 
 ## Suggested immediate next actions
 
-1. Add service restore runbooks for Home Assistant and Mosquitto.
-2. Add scheduled drift/backup checks.
-3. Draft reverse proxy/TLS spec before exposing anything new.
-4. Define Netdata streaming topology.
-5. Add inventory validation for required service metadata.
+1. Complete Borg/Borgmatic setup and verification across in-scope hosts.
+2. Add service restore runbooks for Home Assistant and Mosquitto.
+3. Add scheduled drift/backup checks.
+4. Draft reverse proxy/TLS spec before exposing anything new.
+5. Define Netdata streaming topology.
+6. Add inventory validation for required service metadata.

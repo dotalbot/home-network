@@ -154,6 +154,8 @@ Backup classes currently include:
 - `appdata-and-source-repo`
 - `uploads-if-needed`
 
+Required Borg/Borgmatic host rollout is still incomplete. Each in-scope host needs packages installed, config and credentials in place, repositories initialized or reachable, retention policy configured, a timer/schedule enabled, and a successful verification check.
+
 Required restore flow for any managed service:
 
 1. Bootstrap or repair the target host.
@@ -191,6 +193,7 @@ Current operational capabilities:
 
 Target capabilities still to mature:
 
+- Borg/Borgmatic installation, configuration, and verification on every in-scope host;
 - scheduled status/backup/drift operations;
 - alerting for drift, failed backups, and host/service outages;
 - Netdata streaming parent/child design;
@@ -223,6 +226,7 @@ The platform is considered mature enough for regular structured operation when:
 - every managed host has accurate inventory and bootstrap notes;
 - every managed service has placement, URL, backup class, restore priority, and runbook link;
 - backup classes referenced by services all exist in `inventory/backups.yml`;
+- Borg/Borgmatic is installed, configured, scheduled, and verified on every in-scope host;
 - `just status`, `just drift-check-strict`, `just backup-policy-check`, and `just borg-check` run cleanly from the operator host;
 - Homepage and Network Map are generated from inventory without manual-only edits;
 - every stateful service has a restore runbook or a completed service-restore template;
