@@ -40,7 +40,17 @@ set_managed_perms() {
   local target="$1"
   if [ "$needs_sudo" -eq 1 ]; then
     sudo chown -R root:"$DOCKER_GROUP" "$target"
-  else
+    return
+  fi
+
+  if [ "$(id -u)" -eq 0 ]; then
+    chown -R root:"$DOCKER_GROUP" "$target"
+    return
+  fi
+
+  # Non-root dockerops operators can update group-writable files in /opt/docker,
+  # but cannot chgrp/chmod root-owned files. Treat matching group ownership as OK.
+  if [ "$(stat -c %G "$target")" != "$DOCKER_GROUP" ]; then
     chgrp -R "$DOCKER_GROUP" "$target"
   fi
 }
@@ -52,25 +62,39 @@ run_privileged cp "$SRC_HOST" "$DEST_HOST"
 
 set_managed_perms "$DEST_BASE"
 set_managed_perms "$DEST_HOST"
-run_privileged chmod 664 "$DEST_BASE" "$DEST_HOST"
+if [ "$needs_sudo" -eq 1 ] || [ "$(id -u)" -eq 0 ]; then
+  run_privileged chmod 664 "$DEST_BASE" "$DEST_HOST"
+else
+  [ -O "$DEST_BASE" ] && chmod 664 "$DEST_BASE"
+  [ -O "$DEST_HOST" ] && chmod 664 "$DEST_HOST"
+fi
 
 SRC_HOMEPAGE="${REPO_ROOT}/docker/appdata/homepage"
 DEST_HOMEPAGE="${DOCKER_DIR}/appdata/homepage"
 SRC_NETWORK_MAP="${REPO_ROOT}/docker/appdata/network-map"
 DEST_NETWORK_MAP="${DOCKER_DIR}/appdata/network-map"
+RSYNC_OPTS=(-rtD --delete --omit-dir-times --no-perms --no-owner --no-group)
 
 if [ -d "$SRC_HOMEPAGE" ]; then
   run_privileged mkdir -p "$DEST_HOMEPAGE"
-  run_privileged rsync -a --delete "$SRC_HOMEPAGE"/ "$DEST_HOMEPAGE"/
+  run_privileged rsync "${RSYNC_OPTS[@]}" --exclude "/logs/" "$SRC_HOMEPAGE"/ "$DEST_HOMEPAGE"/
   set_managed_perms "$DEST_HOMEPAGE"
-  run_privileged chmod -R 775 "$DEST_HOMEPAGE"
+  if [ "$needs_sudo" -eq 1 ] || [ "$(id -u)" -eq 0 ]; then
+    run_privileged chmod -R 775 "$DEST_HOMEPAGE"
+  elif [ -O "$DEST_HOMEPAGE" ]; then
+    chmod -R 775 "$DEST_HOMEPAGE"
+  fi
 fi
 
 if [ -d "$SRC_NETWORK_MAP" ]; then
   run_privileged mkdir -p "$DEST_NETWORK_MAP"
-  run_privileged rsync -a --delete "$SRC_NETWORK_MAP"/ "$DEST_NETWORK_MAP"/
+  run_privileged rsync "${RSYNC_OPTS[@]}" "$SRC_NETWORK_MAP"/ "$DEST_NETWORK_MAP"/
   set_managed_perms "$DEST_NETWORK_MAP"
-  run_privileged chmod -R 775 "$DEST_NETWORK_MAP"
+  if [ "$needs_sudo" -eq 1 ] || [ "$(id -u)" -eq 0 ]; then
+    run_privileged chmod -R 775 "$DEST_NETWORK_MAP"
+  elif [ -O "$DEST_NETWORK_MAP" ]; then
+    chmod -R 775 "$DEST_NETWORK_MAP"
+  fi
 fi
 
 echo "good"
