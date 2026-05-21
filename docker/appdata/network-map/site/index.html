@@ -49,14 +49,31 @@
       </label>
     </section>
 
+    <section class="inspiration-strip" aria-label="Visual inspiration">
+      <article>
+        <strong>LibreNMS style</strong>
+        <span>Clickable devices, neighbours, management surfaces, uptime/traffic placeholders.</span>
+      </article>
+      <article>
+        <strong>NetworkMaps style</strong>
+        <span>Diagram-first layout with LAN, Tailnet, service links, and spatial grouping.</span>
+      </article>
+    </section>
+
     <section class="layout">
       <section>
-        <h2>Map</h2>
-        <div id="map" class="map"></div>
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow small">Topology view</p>
+            <h2>Map</h2>
+          </div>
+          <p class="muted">Click a node to inspect it. Links are inferred from discovery source and known services.</p>
+        </div>
+        <div id="map" class="map topology-shell"></div>
       </section>
       <aside>
         <h2>Selected device</h2>
-        <div id="detail" class="detail muted">Select a device card.</div>
+        <div id="detail" class="detail muted">Select a map node, insight bar, or inventory card.</div>
       </aside>
     </section>
 
