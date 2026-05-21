@@ -5,10 +5,10 @@ services:
     container_name: homepage
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "80:3000"
     environment:
       TZ: ${TZ}
-      HOMEPAGE_ALLOWED_HOSTS: "jellyhome:3000,jellybase:3000,localhost:3000,127.0.0.1:3000"
+      HOMEPAGE_ALLOWED_HOSTS: "jellyhome,jellybase,localhost,127.0.0.1,jellyhome:80,jellybase:80,localhost:80,127.0.0.1:80,jellyhome:3000,jellybase:3000,localhost:3000,127.0.0.1:3000"
 
     volumes:
       - /opt/docker/appdata/homepage:/app/config
