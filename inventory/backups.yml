@@ -60,6 +60,41 @@ backup_classes:
       - /opt/docker/appdata/SERVICE/cache
     restore_priority: low
 
+  source-repo:
+    description: Service can be rebuilt from a separate source repository plus this repo's Compose/config metadata.
+    includes:
+      - source repository remote and branch
+      - compose config
+      - deployment notes
+    excludes:
+      - generated build artifacts
+      - caches
+    restore_priority: low
+
+  appdata-and-source-repo:
+    description: Service needs both its source repository and persistent appdata/runtime state.
+    includes:
+      - source repository remote and branch
+      - /opt/docker/appdata/SERVICE
+      - compose config
+      - deployment notes
+    excludes:
+      - caches
+      - logs
+      - temporary files
+    restore_priority: high
+
+  uploads-if-needed:
+    description: Ephemeral upload/helper service where app uploads are backed up only if the service becomes operationally important.
+    includes:
+      - /opt/docker/appdata/SERVICE/uploads when retention is required
+      - compose config
+    excludes:
+      - temporary uploads
+      - cache
+      - logs
+    restore_priority: low
+
 
 hosts:
 
@@ -144,4 +179,44 @@ restore_rules:
       - bootstrap host
       - restore config and persistent data from Borg
       - deploy service
+      - verify service health
+
+  config-and-cache:
+    method: restore_config_ignore_cache
+    steps:
+      - bootstrap host
+      - restore config from Borg or redeploy config from Git
+      - do not restore cache unless explicitly needed
+      - deploy service
+      - verify service health
+
+  source-repo:
+    method: restore_source_then_deploy
+    steps:
+      - bootstrap host
+      - restore or clone source directory recorded in service metadata
+      - verify build context and Dockerfile exist
+      - sync docker config
+      - build and deploy service
+      - verify service health
+
+  appdata-and-source-repo:
+    method: restore_source_and_appdata_then_deploy
+    steps:
+      - bootstrap host
+      - restore or clone source directory recorded in service metadata
+      - restore /opt/docker/appdata/SERVICE from Borg
+      - verify required host-local secrets exist
+      - sync docker config
+      - build and deploy service
+      - verify service health
+
+  uploads-if-needed:
+    method: restore_uploads_if_retained_then_deploy
+    steps:
+      - bootstrap host
+      - restore or clone source directory recorded in service metadata
+      - restore uploads from Borg only if retention is required
+      - sync docker config
+      - build and deploy service
       - verify service health

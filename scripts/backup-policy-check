@@ -35,8 +35,12 @@ with open(backups_file, "r", encoding="utf-8") as f:
 
 services = services_data.get("services", {})
 backup_classes = backups_data.get("backup_classes", {})
+restore_rules = backups_data.get("restore_rules", {})
+source_backed_classes = {"source-repo", "appdata-and-source-repo", "uploads-if-needed"}
+required_source_fields = {"type", "local_path", "build_context", "dockerfile", "restore_note"}
 
 bad = False
+referenced_backup_classes = set()
 
 for name, svc in services.items():
     backup_class = svc.get("backup")
@@ -46,8 +50,22 @@ for name, svc in services.items():
         bad = True
         continue
 
+    referenced_backup_classes.add(backup_class)
+
     if backup_class not in backup_classes:
         print(f"unknown backup class: {name} -> {backup_class}")
+        bad = True
+
+    if backup_class in source_backed_classes:
+        source = svc.get("source") or {}
+        missing_fields = sorted(required_source_fields - set(source))
+        if missing_fields:
+            print(f"missing source metadata: {name} -> {', '.join(missing_fields)}")
+            bad = True
+
+for backup_class in sorted(referenced_backup_classes):
+    if backup_class not in restore_rules:
+        print(f"missing restore rule for referenced backup class: {backup_class}")
         bad = True
 
 if bad:

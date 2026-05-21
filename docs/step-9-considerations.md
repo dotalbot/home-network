@@ -2,6 +2,16 @@
 
 This document captures the design considerations, architectural goals, and future evolution of the bootstrap layer for the `home-network` platform.
 
+Related current planning docs:
+
+```text
+docs/specs/home-network-platform-spec.md
+docs/roadmap/product-roadmap.md
+docs/README.md
+```
+
+Use this file for bootstrap-specific direction; use the roadmap for phase sequencing and gap tracking.
+
 The bootstrap system is intended to support:
 
 - fresh machine provisioning

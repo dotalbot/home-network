@@ -24,6 +24,18 @@ Secrets do not belong in git. Keep runtime secrets in host-local files such as:
 /home/jellybot/.hermes/.env
 ```
 
+## Platform specification and roadmap
+
+Use these as the current planning documents before starting the next structured work:
+
+```text
+docs/specs/home-network-platform-spec.md
+docs/roadmap/product-roadmap.md
+docs/README.md
+```
+
+The spec records what the platform is, what has already been built, and the operating rules. The roadmap records completed stages, known gaps, and the next phase sequence.
+
 ## Current shape
 
 ```text
@@ -96,6 +108,8 @@ http://jellyberry:8792  Image Pastebin
 ```
 
 ## Common commands
+
+Run these from a managed Docker/operator host with this repo checked out. Some commands also require `/opt/docker`, Docker, `/opt/docker/.env`, Borg config/secrets, and host-local service source trees to exist on that host.
 
 List available commands:
 
@@ -233,6 +247,19 @@ Backup policy lives in:
 
 ```text
 inventory/backups.yml
+```
+
+Backup/restore planning is now also captured in:
+
+```text
+docs/specs/home-network-platform-spec.md
+docs/roadmap/product-roadmap.md
+```
+
+Backup class alignment is validated by:
+
+```bash
+just backup-policy-check
 ```
 
 Runbooks live in:
