@@ -1,6 +1,6 @@
 - Core:
   - Homepage:
-      href: http://jellyhome:3000
+      href: http://jellyhome
       description: active-active | jellyhome, jellybase
   - Dozzle:
       href: http://jellyhome:8080

@@ -15,8 +15,14 @@ services:
       jellybase:
         - homepage
     urls:
-      primary: http://jellyhome:3000
-      secondary: http://jellybase:3000
+      primary: http://jellyhome
+      secondary: http://jellybase
+      jellyhome_lan: http://192.168.1.1
+      jellybase_lan: http://192.168.1.2
+      jellyhome_tailscale: http://100.90.175.59
+      jellybase_tailscale: http://100.125.86.118
+      jellyhome_magicdns: http://jellyhome.cheetah-iwato.ts.net
+      jellybase_magicdns: http://jellybase.cheetah-iwato.ts.net
     backup: config-only
     status: active
 

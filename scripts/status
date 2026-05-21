@@ -2,11 +2,11 @@
 set -u
 
 CHECKS=(
-  "Homepage primary|http://jellyhome:3000"
+  "Homepage primary|http://jellyhome"
   "Dozzle|http://jellyhome:8080"
   "Portainer|https://jellyhome:9443/api/status"
   "Netdata jellyhome|http://jellyhome:19999/api/v1/info"
-  "Homepage secondary|http://jellybase:3000"
+  "Homepage secondary|http://jellybase"
   "Netdata jellybase|http://jellybase:19999/api/v1/info"
   "Prometheus|http://jellybase:9090/-/ready"
   "Grafana|http://jellybase:3001/api/health"
