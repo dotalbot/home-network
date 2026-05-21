@@ -11,6 +11,7 @@ Complete Borg/Borgmatic setup across the in-scope home-network hosts and verify 
 
 - Primary backup target: `jellybackup`
 - Target LAN IP: `192.168.1.75`
+- Backup SSH user: `jellybackup`
 - Use the LAN IP in Borg/Borgmatic repository URLs.
 - Do not use the FQDN for backup traffic because it resolves over Tailscale and is too taxing on the Raspberry Pi backup host.
 - `ssh-copy-id` has already been completed from:
@@ -40,7 +41,7 @@ Optional/future:
 Use this shape from each client:
 
 ```text
-ssh://<backup-user>@192.168.1.75/<absolute/path/to/server-specific/repo>
+ssh://jellybackup@192.168.1.75/<absolute/path/to/server-specific/repo>
 ```
 
 Do not use:
@@ -117,15 +118,19 @@ Last checked from the Hermes execution environment on `jellyberry` as user `jell
 
 - `jellyberry` is present in `inventory/backups.yml` and has `borg_enabled: true`.
 - `/opt/docker` exists on `jellyberry`.
-- `borg` is not currently installed or not on `PATH` for the checked user.
-- `borgmatic` is not currently installed or not on `PATH` for the checked user.
+- `borg` is installed and available to the checked user.
+- `borgmatic` is installed and available to the checked user.
+- Passwordless SSH to `jellybackup@192.168.1.75` works.
+- The expected per-host repository directories exist on `jellybackup`:
+  - `/home/jellybackup/externaldisk/borg_jellyhome`
+  - `/home/jellybackup/externaldisk/borg_jellybase`
+  - `/home/jellybackup/externaldisk/borg_jellyberry`
 - No standard Borgmatic config was found at:
   - `/etc/borgmatic/config.yaml`
   - `/etc/borgmatic.d/*.yaml`
   - `/home/jellybot/.config/borgmatic/config.yaml`
-- Passwordless SSH from `jellybot@jellyberry` to `192.168.1.75` failed for common candidate users (`jellybot`, `jellyfish`, `borg`, `backup`, `borgbackup`). This does not disprove SSH trust for the intended operational user; it means the Hermes runtime user cannot complete the rollout remotely yet.
 
-Implication: the next implementation step needs either the intended backup SSH user/repo paths or execution from the host/user that has the deployed SSH key.
+Implication: installation and SSH are now verified from `jellyberry`; the next implementation step is writing host-specific Borgmatic config and initializing/verifying repositories if needed.
 
 ## Data to confirm before writing final configs
 
@@ -133,9 +138,9 @@ For each client host, confirm:
 
 | Host | Backup repo path on jellybackup | Backup user | Include paths | Exclude paths | Timer/schedule |
 | --- | --- | --- | --- | --- | --- |
-| jellyhome | TBD | TBD | `/opt/docker`, relevant repos/data | caches/logs/temp | TBD |
-| jellybase | TBD | TBD | `/opt/docker`, relevant repos/data | caches/logs/temp | TBD |
-| jellyberry | TBD | TBD | `/opt/docker`, Hermes/runtime appdata as needed | caches/logs/temp | TBD |
+| jellyhome | `/home/jellybackup/externaldisk/borg_jellyhome` | `jellybackup` | `/opt/docker`, relevant repos/data | caches/logs/temp | TBD |
+| jellybase | `/home/jellybackup/externaldisk/borg_jellybase` | `jellybackup` | `/opt/docker`, relevant repos/data | caches/logs/temp | TBD |
+| jellyberry | `/home/jellybackup/externaldisk/borg_jellyberry` | `jellybackup` | `/opt/docker`, Hermes/runtime appdata as needed | caches/logs/temp | TBD |
 
 ## Acceptance criteria
 

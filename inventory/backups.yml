@@ -99,6 +99,7 @@ backup_classes:
 primary_target:
   host: jellybackup
   lan_ip: 192.168.1.75
+  ssh_user: jellybackup
   transport: ssh
   address_policy: use_lan_ip_not_fqdn
   reason: FQDN resolves over Tailscale and is too taxing on the Raspberry Pi backup host.
@@ -110,6 +111,7 @@ hosts:
   jellyhome:
     borg_enabled: true
     role: primary-docker-dev-host
+    repository_path: /home/jellybackup/externaldisk/borg_jellyhome
     important_paths:
       - /opt/docker
       - /home/jellyfish/repo
@@ -121,6 +123,7 @@ hosts:
   jellybase:
     borg_enabled: true
     role: secondary-monitoring-host
+    repository_path: /home/jellybackup/externaldisk/borg_jellybase
     important_paths:
       - /opt/docker
       - /home/jellyfish/repo
@@ -131,6 +134,7 @@ hosts:
   jellyberry:
     borg_enabled: true
     role: raspberry-pi-lightweight-node
+    repository_path: /home/jellybackup/externaldisk/borg_jellyberry
     important_paths:
       - /opt/docker
     notes:

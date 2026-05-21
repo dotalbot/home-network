@@ -160,9 +160,13 @@ Required Borg/Borgmatic host rollout is still incomplete. Each in-scope host nee
 Current backup target notes:
 
 - primary backup target is `jellybackup` at `192.168.1.75`;
+- backup SSH user is `jellybackup`;
 - Borg/Borgmatic configs should use the LAN IP, not FQDN, because FQDN routes over Tailscale and is too taxing on the Raspberry Pi backup host;
 - `ssh-copy-id` has already been completed from `jellyhome`, `jellybase`, and `jellyberry` to `jellybackup`;
-- destination repository directories already exist on `jellybackup`, one per server.
+- destination repository directories already exist on `jellybackup`, one per server:
+  - `jellyhome`: `/home/jellybackup/externaldisk/borg_jellyhome`
+  - `jellybase`: `/home/jellybackup/externaldisk/borg_jellybase`
+  - `jellyberry`: `/home/jellybackup/externaldisk/borg_jellyberry`
 
 Required restore flow for any managed service:
 
