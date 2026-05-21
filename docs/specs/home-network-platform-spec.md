@@ -156,6 +156,13 @@ Backup classes currently include:
 
 Required Borg/Borgmatic host rollout is still incomplete. Each in-scope host needs packages installed, config and credentials in place, repositories initialized or reachable, retention policy configured, a timer/schedule enabled, and a successful verification check.
 
+Current backup target notes:
+
+- primary backup target is `jellybackup` at `192.168.1.75`;
+- Borg/Borgmatic configs should use the LAN IP, not FQDN, because FQDN routes over Tailscale and is too taxing on the Raspberry Pi backup host;
+- `ssh-copy-id` has already been completed from `jellyhome`, `jellybase`, and `jellyberry` to `jellybackup`;
+- destination repository directories already exist on `jellybackup`, one per server.
+
 Required restore flow for any managed service:
 
 1. Bootstrap or repair the target host.

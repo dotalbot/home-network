@@ -55,7 +55,7 @@ These stages are considered completed or substantially in place:
 
 | Gap | Why it matters | Target artifact |
 | --- | --- | --- |
-| Borg/Borgmatic host rollout | Borg/Borgmatic is not yet installed, configured, and verified on every host | host-by-host Borg/Borgmatic checklist and `borg-check` passing per host |
+| Borg/Borgmatic host rollout | Borg/Borgmatic is not yet installed, configured, and verified on every host | `docs/operations/borgmatic-host-rollout.md` plus `borg-check` passing per host |
 | Service restore coverage | Stateful services need exact restore steps | `docs/runbooks/<service>-restore.md` or completed service templates |
 | Scheduled operations | Drift/backup/status checks are manual unless scheduled elsewhere | cron/systemd timers plus docs |
 | Alerting | Failed checks should notify instead of waiting for manual review | Discord/Hermes alert path or monitoring alerts |
@@ -199,18 +199,22 @@ Actions:
    - jellyberry;
    - jellybackup;
    - seedbox, if it remains in backup scope.
-2. Verify each host has the expected Borg/Borgmatic packages, config, credentials, repositories, retention policy, and timer/schedule.
-3. Normalize backup classes.
-4. Add database-aware backup steps for database-backed services.
-5. Create service restore runbooks for:
+2. Use `jellybackup` at `192.168.1.75` as the primary backup target. Do not use FQDN for backup traffic because it resolves over Tailscale and is too taxing on the Pi backup host.
+3. Reuse the existing SSH trust and destination directories:
+   - `ssh-copy-id` is already completed from jellyhome, jellybase, and jellyberry;
+   - destination repository directories already exist on jellybackup, one per server.
+4. Verify each host has the expected Borg/Borgmatic packages, config, credentials, repositories, retention policy, and timer/schedule.
+5. Normalize backup classes.
+6. Add database-aware backup steps for database-backed services.
+7. Create service restore runbooks for:
    - Home Assistant;
    - Mosquitto;
    - Prometheus;
    - Grafana;
    - Portfolio Mission Control;
    - any media/library services before they become important.
-6. Run at least one restore test to a safe target.
-7. Record restore timing and gotchas.
+8. Run at least one restore test to a safe target.
+9. Record restore timing and gotchas.
 
 Acceptance criteria:
 

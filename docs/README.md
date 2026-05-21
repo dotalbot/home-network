@@ -17,6 +17,7 @@ Unless stated otherwise, paths in this index are relative to the repository root
 
 ## Operations docs
 
+- `docs/operations/borgmatic-host-rollout.md` — Borg/Borgmatic host rollout checklist and LAN backup target notes.
 - `docs/operations/docker-host-bootstrap.md` — bootstrap a Docker host into the `/opt/docker` model.
 - `docs/operations/jellyberry-docker-host-bootstrap.md` — jellyberry-specific bootstrap/deploy notes.
 - `docs/operations/network-map-dashboard.md` — Network Map operations.
