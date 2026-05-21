@@ -10,6 +10,15 @@
 
 ---
 
+## Product inspiration notes
+
+The first visual pass borrows two ideas from established network-map products:
+
+- **LibreNMS:** device-first inspection, clickable neighbours, management-surface focus, and room for future SNMP/LLDP/CDP-derived uptime/traffic data.
+- **NetworkMaps:** diagram-first topology with spatial grouping, visible links, and browser-native interaction.
+
+This repo should stay lightweight: the current map uses inferred links from inventory/source data instead of pretending to have true SNMP/xDP topology. Future discovery can replace those inferred links when real router/switch telemetry is available.
+
 ## Task 1: Add static network map generator
 
 **Objective:** Convert `inventory/devices.yml` into a browser-friendly JSON data file and copy static assets into the Docker appdata tree.
