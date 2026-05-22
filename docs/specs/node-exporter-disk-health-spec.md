@@ -47,6 +47,20 @@ Future hosts should be added through inventory and generated setup stages rather
 Use `inventory/hosts.yml` for host monitoring metadata. Proposed future fields:
 
 ```yaml
+monitoring_defaults:
+  node_exporter:
+    enabled: false
+    scrape_port: 9100
+    scrape_scheme: http
+    textfile_collector_dir: /var/lib/node_exporter/textfile_collector
+    disk_health: best-effort
+    disk_devices:
+      - auto
+    pi_early_warning: false
+    allowed_scrapers:
+      - host: jellybase
+        role: prometheus
+
 hosts:
   jellypi:
     roles:
@@ -55,17 +69,10 @@ hosts:
       - borg-client
       - node-exporter-client
     monitoring:
-      node_exporter: true
-      scrape_host: jellypi
-      scrape_port: 9100
-      textfile_collector_dir: /var/lib/node_exporter/textfile_collector
-      disk_health: best-effort
-      disk_devices:
-        - auto
-      allowed_scrapers:
-        - host: jellybase
-          lan_ip: 192.168.1.2
-          role: prometheus
+      node_exporter:
+        enabled: true
+        scrape_host: jellypi
+        pi_early_warning: true
 ```
 
 The implementation may start with defaults for existing hosts and add richer schema validation in a later phase.

@@ -31,6 +31,8 @@ Out of scope for this review draft:
 
 ### Task 1: Add monitoring inventory defaults
 
+Status: implemented in `inventory/hosts.yml`, `scripts/host-monitoring-policy-check`, and `just host-monitoring-policy-check`.
+
 **Objective:** Make monitored hosts discoverable from inventory.
 
 **Files:**
