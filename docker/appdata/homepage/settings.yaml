@@ -1,17 +1,41 @@
 ---
 title: Home Network
+description: Jelly homelab cockpit for services, telemetry, docs, and projects.
 theme: dark
 color: slate
+target: _blank
+headerStyle: boxedWidgets
+statusStyle: dot
+cardBlur: sm
+hideVersion: true
+useEqualHeights: true
+quicklaunch:
+  searchDescriptions: true
+  hideInternetSearch: true
+  showSearchSuggestions: false
 layout:
   Core:
     style: row
     columns: 4
   Monitoring:
     style: row
-    columns: 4
-  Media:
-    style: row
     columns: 3
   IoT:
     style: row
     columns: 3
+  Projects:
+    style: row
+    columns: 3
+  Study:
+    style: row
+    columns: 3
+  Tools:
+    style: row
+    columns: 3
+  Media:
+    style: row
+    columns: 3
+  Operations:
+    style: row
+    columns: 4
+    iconsOnly: true

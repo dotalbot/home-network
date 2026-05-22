@@ -1,2 +1,18 @@
 ---
-[]
+- Operations:
+    - Home Network Repo:
+        - icon: github.png
+          href: https://github.com/dotalbot/home-network
+          description: Source of truth
+    - Roadmap:
+        - icon: mdi-map-outline
+          href: https://github.com/dotalbot/home-network/blob/feat/home-network-rollout/docs/roadmap/product-roadmap.md
+          description: Current platform roadmap
+    - Ops Docs:
+        - icon: mdi-book-open-page-variant-outline
+          href: https://github.com/dotalbot/home-network/tree/feat/home-network-rollout/docs/operations
+          description: Runbooks and operations notes
+    - Network Map Docs:
+        - icon: mdi-lan
+          href: https://github.com/dotalbot/home-network/blob/feat/home-network-rollout/docs/operations/network-map-dashboard.md
+          description: Dashboard operations guide
