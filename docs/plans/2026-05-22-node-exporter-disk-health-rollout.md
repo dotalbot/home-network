@@ -93,20 +93,13 @@ bash -n bootstrap/bootstrap-ubuntu.sh bootstrap/bootstrap-pi.sh
 stage-00-preflight.sh
 stage-01-install-packages.sh
 stage-02-configure-node-exporter.sh
-stage-03-configure-access-control.sh
-stage-04-install-disk-health-probe.sh
-stage-05-enable-disk-health-timer.sh
-stage-06-verify-local-metrics.sh
-stage-07-prometheus-target-note.sh
+stage-03-install-disk-health-probe.sh
+stage-04-enable-disk-health-timer.sh
+stage-05-verify-local-metrics.sh
+stage-06-prometheus-target-note.sh
 ```
 
-**Access control stage behavior:**
-
-- Default deny inbound TCP `9100`.
-- Allow only approved Prometheus scraper hosts, initially `jellybase`.
-- Prefer UFW when active.
-- If UFW is inactive, print recommended rules and require explicit approval before changing nftables/iptables.
-- Verify denied access from non-approved hosts where practical.
+**First working pass:** get node_exporter, backup textfile metrics, filesystem metrics, and disk-health textfile metrics working first. Access-control hardening is tracked as a follow-up task below so firewall changes do not block initial visibility.
 
 **Verification:**
 
@@ -118,38 +111,7 @@ bash -n /tmp/node-exporter-rollout-jellybase/stage-*.sh
 bash -n /tmp/node-exporter-rollout-jellyberry/stage-*.sh
 ```
 
-### Task 4: Add node_exporter access-control stage
-
-**Objective:** Ensure only approved hosts can scrape node_exporter.
-
-**Files:**
-- Modify: `scripts/node-exporter-rollout-generate`
-- Modify: `docs/operations/node-exporter-disk-health.md`
-
-**Default policy:**
-
-```text
-allow TCP 9100 from jellybase / Prometheus host
-deny TCP 9100 from everything else
-```
-
-**Implementation notes:**
-
-- Use inventory-driven allowed scraper metadata, with `jellybase` as the default Prometheus scraper.
-- On hosts with UFW active, add UFW allow/deny rules.
-- On hosts without UFW active, do not silently rewrite firewall policy; print the exact recommended rule and require an explicit override for mutation.
-- On `jellybase`, account for Prometheus running locally/in Docker by allowing `127.0.0.1` and the selected Docker/host-gateway path only if needed.
-
-**Verification:**
-
-```bash
-sudo ./stage-03-configure-access-control.sh
-curl -fsS http://127.0.0.1:9100/metrics >/dev/null
-# From jellybase, verify remote scrape works for each target.
-# From a non-approved host, verify TCP 9100 is blocked or refused.
-```
-
-### Task 5: Add sanitized disk health probe
+### Task 4: Add sanitized disk health probe
 
 **Objective:** Write numeric disk-health metrics without leaking serial numbers or raw SMART JSON.
 
@@ -172,7 +134,7 @@ sudo /usr/local/sbin/home-network-disk-health-prometheus
 curl -fsS http://127.0.0.1:9100/metrics | grep home_network_disk_health
 ```
 
-### Task 6: Add systemd timer for disk health probe
+### Task 5: Add systemd timer for disk health probe
 
 **Objective:** Run disk health probe periodically without relying on cron.
 
@@ -192,7 +154,7 @@ systemctl list-timers '*disk-health*' --all --no-pager
 systemctl status home-network-disk-health.timer --no-pager
 ```
 
-### Task 7: Add Prometheus scrape target documentation
+### Task 6: Add Prometheus scrape target documentation
 
 **Objective:** Make it obvious how metrics flow into Prometheus on `jellybase`.
 
@@ -207,7 +169,7 @@ systemctl status home-network-disk-health.timer --no-pager
 git diff --check
 ```
 
-### Task 8: Run independent review before host rollout
+### Task 7: Run independent review before host rollout
 
 **Objective:** Catch operational/security issues before sudo scripts run.
 
@@ -219,6 +181,32 @@ git diff --check
 - Pi SMART limitations;
 - systemd overwrite guards;
 - Prometheus label correctness.
+
+## Deferred hardening task: restrict node_exporter scrape access
+
+**Objective:** After initial metrics are working, restrict TCP `9100` so only approved scraper hosts can access node_exporter.
+
+**Default policy:**
+
+```text
+allow TCP 9100 from jellybase / Prometheus host
+deny TCP 9100 from everything else
+```
+
+**Implementation notes:**
+
+- Add a later generated stage such as `stage-07-configure-access-control.sh`, or a separate hardening generator if we want to keep firewall work isolated.
+- Use inventory-driven allowed scraper metadata, with `jellybase` as the default Prometheus scraper.
+- Prefer UFW when active.
+- If UFW is inactive, do not silently rewrite firewall policy; print the exact recommended nftables/iptables rules and require explicit approval for mutation.
+- On `jellybase`, account for Prometheus running locally/in Docker by allowing `127.0.0.1` and the selected Docker/host-gateway path only if needed.
+
+**Verification:**
+
+```bash
+# From jellybase, verify remote scrape works for each target.
+# From a non-approved host, verify TCP 9100 is blocked or refused.
+```
 
 ## Review decision needed before implementation
 
@@ -232,5 +220,5 @@ Please choose/confirm:
    - Recommended: after first three, then add `jellybackup` because it is critical.
 4. Prometheus target addressing: hostnames vs LAN IPs.
    - Recommended: hostnames first, fallback to LAN IPs if DNS/routing misbehaves.
-5. Access control default: firewall allowlist vs node_exporter TLS/basic auth.
-   - Recommended: firewall allowlist first; only `jellybase`/Prometheus can reach TCP `9100`.
+5. Access-control timing.
+   - Decision: defer until after the first working metrics pass; track as hardening task.

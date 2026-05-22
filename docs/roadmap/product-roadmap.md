@@ -132,27 +132,34 @@ Goal: make outages, backup failures, and drift visible before they become archae
 Actions:
 
 1. Define alert severity levels.
-2. Implement node_exporter rollout for `jellyhome`, `jellybase`, and `jellyberry`:
+2. Implement first working node_exporter rollout for `jellyhome`, `jellybase`, and `jellyberry`:
    - install `prometheus-node-exporter`, `smartmontools`, `nvme-cli`, and related OS tools through bootstrap scripts;
    - enable node_exporter textfile collector;
    - expose Borgmatic backup stats from existing sanitized `.prom` files;
+   - expose filesystem/disk capacity metrics;
    - add best-effort disk health metrics, including explicit `unknown` status where Pi/USB/microSD hardware cannot expose SMART.
-3. Decide alert destinations for:
+3. Add node_exporter access-control hardening after the first metrics pass:
+   - default deny inbound TCP `9100`;
+   - allow only approved Prometheus scraper hosts, initially `jellybase`;
+   - prefer UFW when active;
+   - keep firewall changes staged and operator-controlled.
+4. Decide alert destinations for:
    - service down;
    - container drift;
    - backup stale/failing;
    - host unreachable;
    - disk pressure;
    - certificate expiry once TLS exists.
-4. Extend `scripts/status` or add a separate alert summarizer.
-5. Connect alerts to Discord/Hermes or monitoring-native alerts.
-6. Document noise control and acknowledgement expectations.
+5. Extend `scripts/status` or add a separate alert summarizer.
+6. Connect alerts to Discord/Hermes or monitoring-native alerts.
+7. Document noise control and acknowledgement expectations.
 
 Acceptance criteria:
 
 - Critical failures are reported automatically.
 - Node exporter metrics are available for every in-scope monitored host.
 - Disk pressure and disk health have defined Prometheus queries, including best-effort/unknown handling for Pi storage.
+- Node exporter access-control hardening is tracked as a staged follow-up after metrics are working.
 - Alerts include host, service, failed check, and suggested next command.
 - Known/ignored drift stays explicit in inventory.
 

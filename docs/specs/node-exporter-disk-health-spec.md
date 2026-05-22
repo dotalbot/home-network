@@ -120,6 +120,17 @@ Therefore disk health is defined as best-effort:
 
 This keeps Pi support honest: no SMART, no problem, but no fibbing. A lying disk is a bad sector with a PR team.
 
+## First working pass output
+
+The initial rollout is intended to make these results visible in Prometheus:
+
+1. Backup results from Borgmatic status textfile metrics.
+2. Disk capacity/filesystem pressure from standard node_exporter filesystem metrics.
+3. Best-effort disk/device health from a custom disk health textfile probe.
+4. Basic host metrics such as CPU, memory, load, network, and disk I/O from node_exporter.
+
+So yes: the first useful dashboard/query set should cover both backup results and disk results.
+
 ## Metrics
 
 ### Existing Borgmatic metrics
@@ -291,11 +302,11 @@ Backup stale:
 time() - borgmatic_last_run_timestamp_seconds > 93600
 ```
 
-## Access control and security model
+## Later hardening: access control and security model
 
 Node exporter does not provide application-level authorization by default in the Debian/Ubuntu package flow. Treat it as a host-local metrics endpoint protected by network policy.
 
-Recommended default:
+This is tracked for after the first working metrics pass. Recommended default:
 
 1. Install node_exporter as an OS/systemd service.
 2. Keep it reachable only on LAN/Tailnet, never from the public internet.
@@ -337,10 +348,14 @@ Optional stronger pattern later:
 - Textfile metrics should be world-readable only if they contain sanitized numeric status.
 - Disk probe script should run as root only if needed for device access; output remains sanitized.
 
+Later hardening acceptance criteria:
+
+- Node exporter is reachable only from approved Prometheus scraper hosts.
+- Non-approved hosts cannot connect to TCP `9100`.
+
 ## Acceptance criteria
 
-- `jellyhome`, `jellybase`, and `jellyberry` each expose node_exporter on port 9100 only to approved scraper hosts.
-- Non-approved hosts cannot connect to TCP `9100`.
+- `jellyhome`, `jellybase`, and `jellyberry` each expose node_exporter metrics for the first working pass.
 - Each host exposes Borgmatic textfile metrics when status exists.
 - Each host exposes standard filesystem metrics.
 - Each host exposes custom disk health metrics, even if health is `unknown` on Pi/USB/microSD hardware.
