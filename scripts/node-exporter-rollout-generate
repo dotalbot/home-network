@@ -395,18 +395,61 @@ echo "good: packages installed/verified"
         "stage-02-configure-node-exporter.sh": base + '''
 echo "Configure node_exporter textfile collector for $EXPECTED_HOST"
 install -d -m 755 -o root -g root "$TEXTFILE_DIR"
-if [ -f "$NODE_EXPORTER_DEFAULT" ] && ! grep -q 'home-network managed node_exporter args' "$NODE_EXPORTER_DEFAULT"; then
-  if [ "${ALLOW_OVERWRITE_NODE_EXPORTER_DEFAULT:-0}" != "1" ]; then
-    echo "not good: $NODE_EXPORTER_DEFAULT exists and is not home-network managed" >&2
-    echo "Review it, then re-run with: sudo ALLOW_OVERWRITE_NODE_EXPORTER_DEFAULT=1 $0" >&2
-    exit 1
-  fi
+if [ -f "$NODE_EXPORTER_DEFAULT" ]; then
   cp -a "$NODE_EXPORTER_DEFAULT" "${NODE_EXPORTER_DEFAULT}.bak.$(date +%Y%m%d-%H%M%S)"
+else
+  touch "$NODE_EXPORTER_DEFAULT"
 fi
-cat > "$NODE_EXPORTER_DEFAULT" <<EOF
-# home-network managed node_exporter args
-ARGS="--web.listen-address=0.0.0.0:${SCRAPE_PORT} --collector.textfile.directory=${TEXTFILE_DIR}"
-EOF
+python3 - "$NODE_EXPORTER_DEFAULT" "$SCRAPE_PORT" "$TEXTFILE_DIR" <<'PY'
+import shlex
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+port = sys.argv[2]
+textfile_dir = sys.argv[3]
+content = path.read_text(encoding="utf-8") if path.exists() else ""
+lines = content.splitlines()
+marker = "# home-network managed node_exporter args"
+args_parts = []
+kept_lines = []
+for line in lines:
+    stripped = line.lstrip()
+    if stripped == marker:
+        continue
+    if stripped.startswith("ARGS="):
+        raw = stripped[len("ARGS="):].strip()
+        try:
+            parsed = shlex.split(raw)
+            if len(parsed) == 1:
+                parsed = shlex.split(parsed[0])
+            args_parts.extend(parsed)
+        except ValueError:
+            raise SystemExit(f"not good: cannot parse existing ARGS line in {path}; fix quoting and rerun")
+    else:
+        kept_lines.append(line)
+filtered = []
+skip_next = False
+for idx, part in enumerate(args_parts):
+    if skip_next:
+        skip_next = False
+        continue
+    if part in ("--web.listen-address", "--collector.textfile.directory"):
+        skip_next = True
+        continue
+    if part.startswith("--web.listen-address=") or part.startswith("--collector.textfile.directory="):
+        continue
+    filtered.append(part)
+filtered.extend([
+    f"--web.listen-address=0.0.0.0:{port}",
+    f"--collector.textfile.directory={textfile_dir}",
+])
+new_args = "ARGS=" + shlex.quote(" ".join(filtered))
+if kept_lines and kept_lines[-1].strip():
+    kept_lines.append("")
+kept_lines.extend([marker, new_args])
+path.write_text("\\n".join(kept_lines) + "\\n", encoding="utf-8")
+PY
 chmod 644 "$NODE_EXPORTER_DEFAULT"
 systemctl daemon-reload
 systemctl enable --now prometheus-node-exporter.service
@@ -601,7 +644,6 @@ sudo ./stage-06-prometheus-target-note.sh
 Overwrite safety flags, only after reviewing existing files:
 
 ```bash
-sudo ALLOW_OVERWRITE_NODE_EXPORTER_DEFAULT=1 ./stage-02-configure-node-exporter.sh
 sudo ALLOW_OVERWRITE_DISK_HEALTH_PROBE=1 ./stage-03-install-disk-health-probe.sh
 sudo ALLOW_OVERWRITE_DISK_HEALTH_TIMER=1 ./stage-04-enable-disk-health-timer.sh
 ```
