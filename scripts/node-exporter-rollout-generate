@@ -1,0 +1,651 @@
+#!/usr/bin/env python3
+"""Generate inventory-driven node_exporter and disk-health rollout scripts.
+
+This creates /tmp/node-exporter-rollout-<host>/stage-*.sh scripts for every
+host in inventory/hosts.yml with role node-exporter-client and
+monitoring.node_exporter.enabled=true. Stages are operator-controlled and are
+intended to be run manually with sudo on the matching host.
+"""
+
+from __future__ import annotations
+
+import os
+import re
+import shutil
+import sys
+from pathlib import Path
+from typing import Any
+
+try:
+    import yaml
+except ImportError:  # pragma: no cover - operator environment
+    print("not good: missing python3-yaml", file=sys.stderr)
+    raise SystemExit(1)
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+DEFAULT_INVENTORY = REPO_ROOT / "inventory" / "hosts.yml"
+SAFE_HOST_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9-]{0,62}$")
+SAFE_SCHEME_RE = re.compile(r"^https?$")
+SAFE_ABSOLUTE_PATH_RE = re.compile(r"^/[A-Za-z0-9._+/@:-]+$")
+
+
+def fail(message: str) -> None:
+    raise ValueError(message)
+
+
+def validate_host_name(value: str, field: str = "host") -> str:
+    if not isinstance(value, str) or not SAFE_HOST_RE.fullmatch(value):
+        fail(f"{field} has unsafe value: {value!r}")
+    return value
+
+
+def validate_abs_path(value: str, field: str) -> str:
+    if not isinstance(value, str) or not SAFE_ABSOLUTE_PATH_RE.fullmatch(value):
+        fail(f"{field} must be a safe absolute path, got {value!r}")
+    if "//" in value or "/../" in value or value.endswith("/.."):
+        fail(f"{field} must not contain path traversal, got {value!r}")
+    return value
+
+
+def validate_port(value: Any, field: str) -> int:
+    if not isinstance(value, int) or value < 1 or value > 65535:
+        fail(f"{field} must be a TCP port number, got {value!r}")
+    return value
+
+
+def shell_single_quote(value: str) -> str:
+    return "'" + value.replace("'", "'\\''") + "'"
+
+
+def merge_node_exporter(defaults: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
+    merged = dict(defaults)
+    merged.update(override)
+    return merged
+
+
+DISK_HEALTH_PROBE = r'''#!/usr/bin/env python3
+"""Write sanitized home-network disk-health metrics for node_exporter."""
+
+from __future__ import annotations
+
+import json
+import os
+import re
+import subprocess
+import sys
+import tempfile
+import time
+from pathlib import Path
+
+HOST = "__HOST__"
+TEXTFILE_DIR = Path("__TEXTFILE_DIR__")
+PROM_FILE = TEXTFILE_DIR / "disk_health.prom"
+PI_EARLY_WARNING = __PI_EARLY_WARNING__
+PROBE_DIR = Path("/var/lib/home-network/disk-health")
+SAFE_LABEL_RE = re.compile(r"[^A-Za-z0-9_./:-]")
+
+
+def label(value: str) -> str:
+    return SAFE_LABEL_RE.sub("_", str(value)).replace('"', "_")[:160]
+
+
+def run(cmd: list[str], timeout: int = 12) -> tuple[int, str, str]:
+    try:
+        proc = subprocess.run(cmd, text=True, capture_output=True, timeout=timeout)
+        return proc.returncode, proc.stdout, proc.stderr
+    except FileNotFoundError:
+        return 127, "", f"missing command: {cmd[0]}"
+    except subprocess.TimeoutExpired:
+        return 124, "", "timeout"
+
+
+def metric_line(name: str, labels: dict[str, str], value: float | int) -> str:
+    parts = ",".join(f'{k}="{label(v)}"' for k, v in sorted(labels.items()))
+    return f"{name}{{{parts}}} {value}"
+
+
+def discover_block_devices() -> list[str]:
+    rc, out, _ = run(["lsblk", "-dn", "-o", "NAME,TYPE"], timeout=8)
+    devices: list[str] = []
+    if rc == 0:
+        for line in out.splitlines():
+            fields = line.split()
+            if len(fields) >= 2 and fields[1] == "disk":
+                devices.append(f"/dev/{fields[0]}")
+    return sorted(set(devices))
+
+
+def smart_health(device: str) -> tuple[int, str, dict[str, float]]:
+    # Return status: 1 healthy, 0 failing, -1 unknown.
+    modes = [None, "sat", "scsi", "auto"]
+    for mode in modes:
+        cmd = ["smartctl", "-H", "-A", "-j"]
+        if mode:
+            cmd += ["-d", mode]
+        cmd.append(device)
+        rc, out, _ = run(cmd, timeout=18)
+        if rc == 127:
+            return -1, "missing-smartctl", {}
+        if not out.strip().startswith("{"):
+            continue
+        try:
+            data = json.loads(out)
+        except json.JSONDecodeError:
+            continue
+        passed = ((data.get("smart_status") or {}).get("passed"))
+        source = "smartctl" if mode is None else f"smartctl-{mode}"
+        extras: dict[str, float] = {}
+        temp = (((data.get("temperature") or {}).get("current")))
+        if isinstance(temp, (int, float)):
+            extras["temperature"] = float(temp)
+        power_hours = (((data.get("power_on_time") or {}).get("hours")))
+        if isinstance(power_hours, (int, float)):
+            extras["power_on_hours"] = float(power_hours)
+        if passed is True:
+            return 1, source, extras
+        if passed is False:
+            return 0, source, extras
+    return -1, "unknown", {}
+
+
+def nvme_health(device: str) -> tuple[int, str, dict[str, float]]:
+    if "nvme" not in device:
+        return -1, "unknown", {}
+    rc, out, _ = run(["nvme", "smart-log", "--output-format=json", device], timeout=18)
+    if rc == 127:
+        return -1, "missing-nvme", {}
+    if rc != 0 or not out.strip().startswith("{"):
+        return -1, "unknown", {}
+    try:
+        data = json.loads(out)
+    except json.JSONDecodeError:
+        return -1, "unknown", {}
+    critical_warning = data.get("critical_warning", 0)
+    status = 0 if critical_warning not in (0, "0", "0x0") else 1
+    extras: dict[str, float] = {}
+    for key, metric in [
+        ("temperature", "temperature"),
+        ("power_on_hours", "power_on_hours"),
+        ("percentage_used", "percentage_used"),
+    ]:
+        value = data.get(key)
+        if isinstance(value, (int, float)):
+            extras[metric] = float(value)
+    return status, "nvme", extras
+
+
+def readonly_mounts() -> list[str]:
+    important = ["/", "/boot", "/boot/firmware", "/opt/docker", "/var/lib"]
+    readonly: list[str] = []
+    try:
+        with open("/proc/mounts", "r", encoding="utf-8") as f:
+            for line in f:
+                parts = line.split()
+                if len(parts) < 4:
+                    continue
+                mountpoint = parts[1].replace("\\040", " ")
+                options = parts[3].split(",")
+                if mountpoint in important and "ro" in options:
+                    readonly.append(mountpoint)
+    except OSError:
+        pass
+    return readonly
+
+
+def journal_count(pattern: str) -> int:
+    rc, out, _ = run(["journalctl", "-k", "--since", "24 hours ago", "--no-pager", "-o", "cat"], timeout=20)
+    if rc != 0:
+        return -1
+    regex = re.compile(pattern, re.IGNORECASE)
+    return sum(1 for line in out.splitlines() if regex.search(line))
+
+
+def vcgencmd_metrics(lines: list[str]) -> None:
+    rc, out, _ = run(["vcgencmd", "get_throttled"], timeout=8)
+    if rc == 0:
+        match = re.search(r"0x([0-9a-fA-F]+)", out)
+        if match:
+            flags = int(match.group(1), 16)
+            lines.append(metric_line("home_network_pi_undervoltage_now", {"host": HOST}, 1 if flags & 0x1 else 0))
+            lines.append(metric_line("home_network_pi_undervoltage_seen", {"host": HOST}, 1 if flags & 0x10000 else 0))
+            lines.append(metric_line("home_network_pi_throttled_seen", {"host": HOST}, 1 if flags & 0x20000 else 0))
+    rc, out, _ = run(["vcgencmd", "measure_temp"], timeout=8)
+    if rc == 0:
+        match = re.search(r"([0-9]+(?:\.[0-9]+)?)", out)
+        if match:
+            lines.append(metric_line("home_network_pi_temperature_celsius", {"host": HOST, "source": "vcgencmd"}, float(match.group(1))))
+
+
+def storage_probe(lines: list[str]) -> None:
+    start = time.monotonic()
+    ok = 0
+    try:
+        PROBE_DIR.mkdir(parents=True, exist_ok=True)
+        path = PROBE_DIR / ".probe"
+        token = f"{HOST} {time.time()}\n"
+        path.write_text(token, encoding="utf-8")
+        read_back = path.read_text(encoding="utf-8")
+        ok = 1 if read_back == token else 0
+    except OSError:
+        ok = 0
+    latency = time.monotonic() - start
+    lines.append(metric_line("home_network_storage_probe_success", {"host": HOST, "path": str(PROBE_DIR)}, ok))
+    lines.append(metric_line("home_network_storage_probe_latency_seconds", {"host": HOST, "path": str(PROBE_DIR)}, round(latency, 6)))
+
+
+def main() -> int:
+    now = int(time.time())
+    lines = [
+        "# HELP home_network_disk_health_status Disk health status: 1 pass, 0 fail, -1 unknown.",
+        "# TYPE home_network_disk_health_status gauge",
+    ]
+    unknown = 0
+    probe_success = 1
+    devices = discover_block_devices()
+    if not devices:
+        unknown += 1
+        lines.append(metric_line("home_network_disk_health_status", {"host": HOST, "device": "none", "source": "unknown"}, -1))
+    for device in devices:
+        if "nvme" in device:
+            status, source, extras = nvme_health(device)
+            if status == -1:
+                status, source, extras = smart_health(device)
+        else:
+            status, source, extras = smart_health(device)
+        if status == -1:
+            unknown += 1
+        lines.append(metric_line("home_network_disk_health_status", {"host": HOST, "device": device, "source": source}, status))
+        if "temperature" in extras:
+            lines.append(metric_line("home_network_disk_temperature_celsius", {"host": HOST, "device": device, "source": source}, extras["temperature"]))
+        if "power_on_hours" in extras:
+            lines.append(metric_line("home_network_disk_power_on_hours", {"host": HOST, "device": device, "source": source}, extras["power_on_hours"]))
+        if "percentage_used" in extras:
+            lines.append(metric_line("home_network_disk_percentage_used", {"host": HOST, "device": device, "source": source}, extras["percentage_used"]))
+    lines.extend([
+        "# HELP home_network_disk_health_last_run_timestamp_seconds Last disk-health probe timestamp.",
+        "# TYPE home_network_disk_health_last_run_timestamp_seconds gauge",
+        metric_line("home_network_disk_health_last_run_timestamp_seconds", {"host": HOST}, now),
+        "# HELP home_network_disk_health_probe_success Disk-health probe success, 1 for success and 0 for failure.",
+        "# TYPE home_network_disk_health_probe_success gauge",
+        metric_line("home_network_disk_health_probe_success", {"host": HOST}, probe_success),
+        "# HELP home_network_disk_health_unknown_devices Count of devices with unknown health.",
+        "# TYPE home_network_disk_health_unknown_devices gauge",
+        metric_line("home_network_disk_health_unknown_devices", {"host": HOST}, unknown),
+    ])
+    if PI_EARLY_WARNING:
+        ro_mounts = readonly_mounts()
+        lines.append(metric_line("home_network_filesystem_readonly", {"host": HOST, "mountpoint": "any"}, 1 if ro_mounts else 0))
+        for mountpoint in ["/", "/boot", "/boot/firmware", "/opt/docker", "/var/lib"]:
+            lines.append(metric_line("home_network_filesystem_readonly", {"host": HOST, "mountpoint": mountpoint}, 1 if mountpoint in ro_mounts else 0))
+        io_errors = journal_count(r"I/O error|Buffer I/O error|EXT4-fs error|mmcblk")
+        usb_resets = journal_count(r"reset .*USB device|uas_eh_abort_handler|USB disconnect")
+        lines.append(metric_line("home_network_disk_kernel_error_count", {"host": HOST, "window": "24h"}, io_errors))
+        lines.append(metric_line("home_network_usb_storage_reset_count", {"host": HOST, "window": "24h"}, usb_resets))
+        vcgencmd_metrics(lines)
+        storage_probe(lines)
+    TEXTFILE_DIR.mkdir(parents=True, exist_ok=True)
+    content = "\n".join(lines) + "\n"
+    with tempfile.NamedTemporaryFile("w", dir=str(TEXTFILE_DIR), delete=False, encoding="utf-8") as tmp:
+        tmp.write(content)
+        tmp_path = Path(tmp.name)
+    os.chmod(tmp_path, 0o644)
+    os.replace(tmp_path, PROM_FILE)
+    print(f"wrote {PROM_FILE}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
+'''
+
+
+def header(host: str, textfile_dir: str, scrape_port: int, scheme: str, scrape_host: str, pi_early: bool) -> str:
+    return f'''#!/usr/bin/env bash
+set -euo pipefail
+
+EXPECTED_HOST={shell_single_quote(host)}
+TEXTFILE_DIR={shell_single_quote(textfile_dir)}
+SCRAPE_PORT={scrape_port}
+SCRAPE_SCHEME={shell_single_quote(scheme)}
+SCRAPE_HOST={shell_single_quote(scrape_host)}
+PI_EARLY_WARNING={str(pi_early).lower()}
+DISK_HEALTH_SCRIPT="/usr/local/sbin/home-network-disk-health-prometheus"
+DISK_HEALTH_SERVICE="/etc/systemd/system/home-network-disk-health.service"
+DISK_HEALTH_TIMER="/etc/systemd/system/home-network-disk-health.timer"
+NODE_EXPORTER_DEFAULT="/etc/default/prometheus-node-exporter"
+
+require_root() {{
+  if [ "$(id -u)" -ne 0 ]; then
+    echo "not good: run with sudo/root" >&2
+    exit 1
+  fi
+}}
+
+require_host() {{
+  local actual
+  actual="$(hostname -s)"
+  if [ "$actual" != "$EXPECTED_HOST" ]; then
+    echo "not good: this script is for $EXPECTED_HOST, current host is $actual" >&2
+    exit 1
+  fi
+}}
+
+require_root
+require_host
+'''
+
+
+def disk_probe_for_host(host: str, textfile_dir: str, pi_early: bool) -> str:
+    return (
+        DISK_HEALTH_PROBE.replace("__HOST__", host)
+        .replace("__TEXTFILE_DIR__", textfile_dir)
+        .replace("__PI_EARLY_WARNING__", "True" if pi_early else "False")
+    )
+
+
+def stages(host: str, cfg: dict[str, Any], scrape_targets: list[str]) -> dict[str, str]:
+    textfile_dir = cfg["textfile_collector_dir"]
+    scrape_port = cfg["scrape_port"]
+    scheme = cfg["scrape_scheme"]
+    scrape_host = cfg["scrape_host"]
+    pi_early = bool(cfg.get("pi_early_warning", False))
+    packages = "prometheus-node-exporter smartmontools nvme-cli util-linux"
+    if pi_early:
+        packages += " usbutils hdparm mmc-utils sysstat"
+    probe = disk_probe_for_host(host, textfile_dir, pi_early)
+    target_lines = "\n".join(f"          - {target}" for target in scrape_targets)
+    base = header(host, textfile_dir, scrape_port, scheme, scrape_host, pi_early)
+    return {
+        "stage-00-preflight.sh": base + f'''
+echo "Preflight node_exporter rollout for $EXPECTED_HOST"
+echo "host: $EXPECTED_HOST"
+echo "scrape endpoint: $SCRAPE_SCHEME://$SCRAPE_HOST:$SCRAPE_PORT/metrics"
+echo "textfile collector: $TEXTFILE_DIR"
+for cmd in systemctl python3 curl install; do
+  command -v "$cmd" >/dev/null || {{ echo "not good: missing $cmd" >&2; exit 1; }}
+done
+if ! command -v prometheus-node-exporter >/dev/null 2>&1 && ! command -v node_exporter >/dev/null 2>&1; then
+  echo "warning: node_exporter binary not found yet; stage-01 can install it"
+fi
+if systemctl list-unit-files prometheus-node-exporter.service >/dev/null 2>&1; then
+  echo "found prometheus-node-exporter.service"
+else
+  echo "warning: prometheus-node-exporter.service not found yet; stage-01 can install it"
+fi
+mkdir -p "$TEXTFILE_DIR"
+stat -c '%A %U:%G %n' "$TEXTFILE_DIR"
+echo "good: preflight complete"
+''',
+        "stage-01-install-packages.sh": base + f'''
+echo "Install/verify node_exporter and disk-health packages for $EXPECTED_HOST"
+export DEBIAN_FRONTEND=noninteractive
+apt-get update
+apt-get install -y {packages}
+if [ "$PI_EARLY_WARNING" = "true" ] && ! command -v vcgencmd >/dev/null 2>&1; then
+  echo "Installing vcgencmd provider if available"
+  apt-get install -y raspi-utils || apt-get install -y libraspberrypi-bin || echo "warning: vcgencmd provider unavailable"
+fi
+command -v smartctl >/dev/null || {{ echo "not good: smartctl missing after install" >&2; exit 1; }}
+if ! command -v prometheus-node-exporter >/dev/null 2>&1 && ! command -v node_exporter >/dev/null 2>&1; then
+  echo "not good: node_exporter binary missing after install" >&2
+  exit 1
+fi
+echo "good: packages installed/verified"
+''',
+        "stage-02-configure-node-exporter.sh": base + '''
+echo "Configure node_exporter textfile collector for $EXPECTED_HOST"
+install -d -m 755 -o root -g root "$TEXTFILE_DIR"
+if [ -f "$NODE_EXPORTER_DEFAULT" ] && ! grep -q 'home-network managed node_exporter args' "$NODE_EXPORTER_DEFAULT"; then
+  if [ "${ALLOW_OVERWRITE_NODE_EXPORTER_DEFAULT:-0}" != "1" ]; then
+    echo "not good: $NODE_EXPORTER_DEFAULT exists and is not home-network managed" >&2
+    echo "Review it, then re-run with: sudo ALLOW_OVERWRITE_NODE_EXPORTER_DEFAULT=1 $0" >&2
+    exit 1
+  fi
+  cp -a "$NODE_EXPORTER_DEFAULT" "${NODE_EXPORTER_DEFAULT}.bak.$(date +%Y%m%d-%H%M%S)"
+fi
+cat > "$NODE_EXPORTER_DEFAULT" <<EOF
+# home-network managed node_exporter args
+ARGS="--web.listen-address=0.0.0.0:${SCRAPE_PORT} --collector.textfile.directory=${TEXTFILE_DIR}"
+EOF
+chmod 644 "$NODE_EXPORTER_DEFAULT"
+systemctl daemon-reload
+systemctl enable --now prometheus-node-exporter.service
+systemctl restart prometheus-node-exporter.service
+systemctl --no-pager --full status prometheus-node-exporter.service || true
+curl -fsS "http://127.0.0.1:${SCRAPE_PORT}/metrics" | grep -E '^(node_exporter_build_info|node_uname_info|node_filesystem_size_bytes)' >/dev/null
+echo "good: node_exporter is serving local metrics on port ${SCRAPE_PORT}"
+''',
+        "stage-03-install-disk-health-probe.sh": base + f'''
+echo "Install disk-health textfile probe for $EXPECTED_HOST"
+install -d -m 755 -o root -g root "$TEXTFILE_DIR" /var/lib/home-network/disk-health
+if [ -f "$DISK_HEALTH_SCRIPT" ] && ! grep -q 'Write sanitized home-network disk-health metrics' "$DISK_HEALTH_SCRIPT"; then
+  if [ "${{ALLOW_OVERWRITE_DISK_HEALTH_PROBE:-0}}" != "1" ]; then
+    echo "not good: $DISK_HEALTH_SCRIPT exists and is not home-network managed" >&2
+    echo "Review it, then re-run with: sudo ALLOW_OVERWRITE_DISK_HEALTH_PROBE=1 $0" >&2
+    exit 1
+  fi
+  cp -a "$DISK_HEALTH_SCRIPT" "${{DISK_HEALTH_SCRIPT}}.bak.$(date +%Y%m%d-%H%M%S)"
+fi
+cat > "$DISK_HEALTH_SCRIPT" <<'PY'
+{probe}
+PY
+chown root:root "$DISK_HEALTH_SCRIPT"
+chmod 755 "$DISK_HEALTH_SCRIPT"
+python3 -m py_compile "$DISK_HEALTH_SCRIPT"
+"$DISK_HEALTH_SCRIPT"
+test -f "$TEXTFILE_DIR/disk_health.prom"
+grep -E '^home_network_disk_health_' "$TEXTFILE_DIR/disk_health.prom" >/dev/null
+echo "good: disk-health probe installed and produced metrics"
+''',
+        "stage-04-enable-disk-health-timer.sh": base + '''
+echo "Install and enable disk-health systemd timer for $EXPECTED_HOST"
+for path in "$DISK_HEALTH_SERVICE" "$DISK_HEALTH_TIMER"; do
+  if [ -f "$path" ] && ! grep -q 'home-network managed disk health' "$path"; then
+    if [ "${ALLOW_OVERWRITE_DISK_HEALTH_TIMER:-0}" != "1" ]; then
+      echo "not good: $path exists and is not home-network managed" >&2
+      echo "Review it, then re-run with: sudo ALLOW_OVERWRITE_DISK_HEALTH_TIMER=1 $0" >&2
+      exit 1
+    fi
+    cp -a "$path" "${path}.bak.$(date +%Y%m%d-%H%M%S)"
+  fi
+done
+cat > "$DISK_HEALTH_SERVICE" <<EOF
+# home-network managed disk health
+[Unit]
+Description=Home Network disk health Prometheus textfile probe
+After=local-fs.target
+
+[Service]
+Type=oneshot
+ExecStart=${DISK_HEALTH_SCRIPT}
+EOF
+cat > "$DISK_HEALTH_TIMER" <<EOF
+# home-network managed disk health
+[Unit]
+Description=Run Home Network disk health probe hourly
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=1h
+RandomizedDelaySec=10min
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+EOF
+chmod 644 "$DISK_HEALTH_SERVICE" "$DISK_HEALTH_TIMER"
+systemctl daemon-reload
+systemctl enable --now home-network-disk-health.timer
+systemctl start home-network-disk-health.service
+systemctl list-timers '*disk-health*' --all --no-pager
+systemctl --no-pager --full status home-network-disk-health.service || true
+echo "good: disk-health timer enabled"
+''',
+        "stage-05-verify-local-metrics.sh": base + '''
+echo "Verify local node_exporter and textfile metrics for $EXPECTED_HOST"
+"$DISK_HEALTH_SCRIPT"
+metrics="$(curl -fsS "http://127.0.0.1:${SCRAPE_PORT}/metrics")"
+printf '%s\n' "$metrics" | grep -E '^node_filesystem_size_bytes' >/dev/null
+printf '%s\n' "$metrics" | grep -E '^node_disk_' >/dev/null
+printf '%s\n' "$metrics" | grep -E '^home_network_disk_health_' >/dev/null
+if [ "$PI_EARLY_WARNING" = "true" ]; then
+  printf '%s\n' "$metrics" | grep -E '^home_network_(filesystem_readonly|disk_kernel_error_count|storage_probe_success)' >/dev/null
+fi
+if compgen -G "$TEXTFILE_DIR/borgmatic_*.prom" >/dev/null; then
+  printf '%s\n' "$metrics" | grep -E '^borgmatic_last_run_' >/dev/null || echo "warning: borgmatic .prom files exist but borgmatic metrics were not scraped yet"
+else
+  echo "note: no borgmatic_*.prom files found yet; backup metrics will appear after Borgmatic stage/timer writes them"
+fi
+echo "good: local metrics verified"
+''',
+        "stage-06-prometheus-target-note.sh": (base + '''
+echo "Prometheus target for $EXPECTED_HOST"
+echo "  - ${SCRAPE_HOST}:${SCRAPE_PORT}"
+echo
+echo "Add to Prometheus on jellybase when ready:"
+cat <<EOF
+scrape_configs:
+  - job_name: node_exporter
+    static_configs:
+      - targets:
+__SCRAPE_TARGETS__
+EOF
+echo
+echo "Current local endpoint: ${SCRAPE_SCHEME}://${SCRAPE_HOST}:${SCRAPE_PORT}/metrics"
+echo "Security note: TCP 9100 hardening is intentionally deferred until first visibility works."
+''').replace("__SCRAPE_TARGETS__", target_lines),
+    }
+
+
+def load_inventory(path: Path) -> dict[str, Any]:
+    with path.open("r", encoding="utf-8") as f:
+        data = yaml.safe_load(f) or {}
+    if not isinstance(data, dict):
+        fail("inventory root must be a mapping")
+    return data
+
+
+def monitored_hosts(data: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    defaults_root = data.get("monitoring_defaults") or {}
+    if not isinstance(defaults_root, dict):
+        fail("monitoring_defaults must be a mapping")
+    defaults = defaults_root.get("node_exporter") or {}
+    if not isinstance(defaults, dict):
+        fail("monitoring_defaults.node_exporter must be a mapping")
+    hosts = data.get("hosts") or {}
+    if not isinstance(hosts, dict):
+        fail("hosts must be a mapping")
+    result: dict[str, dict[str, Any]] = {}
+    for raw_host, raw_cfg in sorted(hosts.items()):
+        host = validate_host_name(str(raw_host), "hosts key")
+        if not isinstance(raw_cfg, dict):
+            print(f"warning: skipping {host}: host config is not a mapping", file=sys.stderr)
+            continue
+        roles = raw_cfg.get("roles") or []
+        if not isinstance(roles, list):
+            fail(f"hosts.{host}.roles must be a list")
+        monitoring = raw_cfg.get("monitoring") or {}
+        if not isinstance(monitoring, dict):
+            fail(f"hosts.{host}.monitoring must be a mapping")
+        override = monitoring.get("node_exporter") or {}
+        if not isinstance(override, dict):
+            fail(f"hosts.{host}.monitoring.node_exporter must be a mapping")
+        cfg = merge_node_exporter(defaults, override)
+        enabled = cfg.get("enabled") is True
+        has_role = "node-exporter-client" in roles
+        if enabled and not has_role:
+            fail(f"hosts.{host} enables node_exporter without node-exporter-client role")
+        if not (enabled and has_role):
+            continue
+        cfg["host"] = host
+        cfg["scrape_host"] = validate_host_name(str(cfg.get("scrape_host") or host), f"hosts.{host}.monitoring.node_exporter.scrape_host")
+        cfg["scrape_port"] = validate_port(cfg.get("scrape_port"), f"hosts.{host}.monitoring.node_exporter.scrape_port")
+        scheme = cfg.get("scrape_scheme")
+        if not isinstance(scheme, str) or not SAFE_SCHEME_RE.fullmatch(scheme):
+            fail(f"hosts.{host}.monitoring.node_exporter.scrape_scheme must be http or https")
+        cfg["textfile_collector_dir"] = validate_abs_path(str(cfg.get("textfile_collector_dir")), f"hosts.{host}.monitoring.node_exporter.textfile_collector_dir")
+        if cfg.get("disk_health") != "best-effort":
+            fail(f"hosts.{host}.monitoring.node_exporter.disk_health must be best-effort")
+        devices = cfg.get("disk_devices")
+        if devices != ["auto"]:
+            fail(f"hosts.{host}.monitoring.node_exporter.disk_devices must currently be [auto]")
+        if "pi" in roles and cfg.get("pi_early_warning") is not True:
+            fail(f"hosts.{host} is a Pi node_exporter client but pi_early_warning is not true")
+        result[host] = cfg
+    return result
+
+
+def write_stage(path: Path, content: str) -> None:
+    path.write_text(content, encoding="utf-8")
+    path.chmod(0o755)
+
+
+def render_readme(out_dir: Path, host: str, cfg: dict[str, Any]) -> str:
+    return f"""# node_exporter rollout for {host}
+
+Generated by `scripts/node-exporter-rollout-generate`.
+
+Run these manually on `{host}` as the operator, reviewing each step first:
+
+```bash
+cd {out_dir}
+sudo ./stage-00-preflight.sh
+sudo ./stage-01-install-packages.sh
+sudo ./stage-02-configure-node-exporter.sh
+sudo ./stage-03-install-disk-health-probe.sh
+sudo ./stage-04-enable-disk-health-timer.sh
+sudo ./stage-05-verify-local-metrics.sh
+sudo ./stage-06-prometheus-target-note.sh
+```
+
+Overwrite safety flags, only after reviewing existing files:
+
+```bash
+sudo ALLOW_OVERWRITE_NODE_EXPORTER_DEFAULT=1 ./stage-02-configure-node-exporter.sh
+sudo ALLOW_OVERWRITE_DISK_HEALTH_PROBE=1 ./stage-03-install-disk-health-probe.sh
+sudo ALLOW_OVERWRITE_DISK_HEALTH_TIMER=1 ./stage-04-enable-disk-health-timer.sh
+```
+
+Expected local metrics endpoint:
+
+```text
+{cfg['scrape_scheme']}://{cfg['scrape_host']}:{cfg['scrape_port']}/metrics
+```
+
+Security note: TCP 9100 access-control hardening is intentionally deferred until first visibility works.
+"""
+
+
+def generate(inventory: Path) -> list[Path]:
+    data = load_inventory(inventory)
+    hosts = monitored_hosts(data)
+    if not hosts:
+        fail("no enabled node-exporter-client hosts found")
+    outputs: list[Path] = []
+    scrape_targets = [f"{cfg['scrape_host']}:{cfg['scrape_port']}" for cfg in hosts.values()]
+    for host, cfg in hosts.items():
+        out_dir = Path("/tmp") / f"node-exporter-rollout-{host}"
+        if out_dir.exists():
+            shutil.rmtree(out_dir)
+        out_dir.mkdir(parents=True, exist_ok=True)
+        for name, content in stages(host, cfg, scrape_targets).items():
+            write_stage(out_dir / name, content)
+        (out_dir / "README.md").write_text(render_readme(out_dir, host, cfg), encoding="utf-8")
+        outputs.append(out_dir)
+    return outputs
+
+
+def main(argv: list[str]) -> int:
+    inventory = Path(argv[1]) if len(argv) > 1 else DEFAULT_INVENTORY
+    outputs = generate(inventory)
+    for path in outputs:
+        print(path)
+    return 0
+
+
+if __name__ == "__main__":
+    try:
+        raise SystemExit(main(sys.argv))
+    except ValueError as exc:
+        print(f"not good: {exc}", file=sys.stderr)
+        raise SystemExit(1)
