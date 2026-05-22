@@ -1,0 +1,106 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+HOSTS_FILE="${REPO_ROOT}/inventory/hosts.yml"
+
+if [ ! -f "$HOSTS_FILE" ]; then
+  echo "not good: missing $HOSTS_FILE"
+  exit 1
+fi
+
+if ! python3 -c "import yaml" >/dev/null 2>&1; then
+  echo "not good: missing python3-yaml"
+  exit 1
+fi
+
+python3 - "$HOSTS_FILE" <<'PY'
+import sys
+import yaml
+
+hosts_file = sys.argv[1]
+
+with open(hosts_file, "r", encoding="utf-8") as f:
+    data = yaml.safe_load(f) or {}
+
+hosts = data.get("hosts", {})
+defaults_raw = (data.get("monitoring_defaults") or {})
+if not isinstance(defaults_raw, dict):
+    defaults_raw = {}
+defaults = defaults_raw.get("node_exporter") or {}
+
+bad = False
+
+def fail(message: str) -> None:
+    global bad
+    print(message)
+    bad = True
+
+if not isinstance(hosts, dict) or not hosts:
+    fail("missing hosts mapping")
+    hosts = {}
+
+if not isinstance(defaults, dict):
+    fail("monitoring_defaults.node_exporter must be a mapping")
+else:
+    if defaults.get("enabled") is not False:
+        fail("monitoring_defaults.node_exporter.enabled must default to false")
+    if defaults.get("scrape_port") != 9100:
+        fail("monitoring_defaults.node_exporter.scrape_port must be 9100")
+    if defaults.get("scrape_scheme") != "http":
+        fail("monitoring_defaults.node_exporter.scrape_scheme must be http")
+    if defaults.get("textfile_collector_dir") != "/var/lib/node_exporter/textfile_collector":
+        fail("monitoring_defaults.node_exporter.textfile_collector_dir must be /var/lib/node_exporter/textfile_collector")
+    if defaults.get("disk_health") != "best-effort":
+        fail("monitoring_defaults.node_exporter.disk_health must be best-effort")
+    if defaults.get("disk_devices") != ["auto"]:
+        fail("monitoring_defaults.node_exporter.disk_devices must default to [auto]")
+    allowed_scrapers = defaults.get("allowed_scrapers") or []
+    if not isinstance(allowed_scrapers, list):
+        fail("monitoring_defaults.node_exporter.allowed_scrapers must be a list")
+        allowed_scrapers = []
+    if not any(isinstance(item, dict) and item.get("host") == "jellybase" for item in allowed_scrapers):
+        fail("monitoring_defaults.node_exporter.allowed_scrapers must include jellybase")
+    for item in allowed_scrapers:
+        if not isinstance(item, dict) or not isinstance(item.get("host"), str) or not item.get("host"):
+            fail("monitoring_defaults.node_exporter.allowed_scrapers entries must include host")
+
+expected_first_pass = {"jellyhome", "jellybase", "jellyberry"}
+found_first_pass = set()
+
+for host, cfg in sorted(hosts.items()):
+    if not isinstance(cfg, dict):
+        fail(f"hosts.{host} must be a mapping")
+        continue
+
+    roles = cfg.get("roles") or []
+    if not isinstance(roles, list):
+        fail(f"hosts.{host}.roles must be a list")
+        continue
+
+    monitoring = ((cfg.get("monitoring") or {}).get("node_exporter") or {})
+    has_role = "node-exporter-client" in roles
+    enabled = monitoring.get("enabled") is True
+
+    if has_role:
+        found_first_pass.add(host)
+        if not enabled:
+            fail(f"hosts.{host} has node-exporter-client role but monitoring.node_exporter.enabled is not true")
+        scrape_host = monitoring.get("scrape_host")
+        if not isinstance(scrape_host, str) or not scrape_host:
+            fail(f"hosts.{host} node_exporter scrape_host is required")
+        if "pi" in roles and monitoring.get("pi_early_warning") is not True:
+            fail(f"hosts.{host} is a pi node-exporter-client but pi_early_warning is not true")
+    elif enabled:
+        fail(f"hosts.{host} enables node_exporter without node-exporter-client role")
+
+missing = sorted(expected_first_pass - found_first_pass)
+if missing:
+    fail("missing node-exporter-client role for first-pass host(s): " + ", ".join(missing))
+
+if bad:
+    print("not good")
+    sys.exit(1)
+
+print("good")
+PY
