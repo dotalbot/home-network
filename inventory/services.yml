@@ -4,6 +4,7 @@ services:
 
   homepage:
     display_name: Homepage
+    icon: homepage.png
     category: Core
     mode: active-active
     hosts:
@@ -28,6 +29,7 @@ services:
 
   dozzle:
     display_name: Dozzle
+    icon: dozzle.png
     category: Core
     mode: central-ui-plus-agents
     hosts:
@@ -47,6 +49,7 @@ services:
 
   portainer:
     display_name: Portainer
+    icon: portainer.png
     category: Core
     mode: central-ui-plus-agents
     hosts:
@@ -66,6 +69,7 @@ services:
 
   network-map:
     display_name: Network Map
+    icon: mdi-lan
     category: Core
     mode: single-primary
     hosts:
@@ -81,6 +85,7 @@ services:
 
   portfolio-mission-control-v2:
     display_name: Portfolio Mission Control
+    icon: mdi-view-dashboard-outline
     category: Projects
     mode: single-primary-home-network-compose
     hosts:
@@ -103,6 +108,7 @@ services:
 
   sc401-study-hub:
     display_name: SC-401 Study Hub
+    icon: mdi-school-outline
     category: Study
     mode: single-primary-home-network-compose
     hosts:
@@ -125,6 +131,7 @@ services:
 
   image-pastebin:
     display_name: Image Pastebin
+    icon: mdi-image-plus-outline
     category: Tools
     mode: single-primary-home-network-compose
     hosts:
@@ -147,6 +154,7 @@ services:
 
   netdata:
     display_name: Netdata
+    icon: netdata.png
     category: Monitoring
     mode: duplicated-parents
     hosts:
@@ -165,6 +173,7 @@ services:
 
   prometheus:
     display_name: Prometheus
+    icon: prometheus.png
     category: Monitoring
     mode: single-primary
     hosts:
@@ -179,6 +188,7 @@ services:
 
   grafana:
     display_name: Grafana
+    icon: grafana.png
     category: Monitoring
     mode: single-primary
     hosts:
@@ -193,6 +203,7 @@ services:
 
   homeassistant:
     display_name: Home Assistant
+    icon: home-assistant.png
     category: IoT
     mode: single-primary
     hosts:
@@ -208,6 +219,7 @@ services:
 
   calibre-web-automated:
     display_name: Calibre Web Automated
+    icon: calibre-web.png
     category: Media
     mode: single-primary
     hosts:
@@ -222,6 +234,7 @@ services:
 
   mosquitto:
     display_name: Mosquitto MQTT
+    icon: eclipse-mosquitto.png
     category: IoT
     mode: single-primary
     hosts:

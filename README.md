@@ -154,6 +154,8 @@ just backup-policy-check
 just borg-check
 just borgmatic-rollout-discovery
 just borgmatic-rollout-generate
+just host-monitoring-policy-check
+just node-exporter-rollout-generate
 ```
 
 Restart a managed service:
@@ -242,6 +244,42 @@ docs/operations/safe-network-discovery.md
 ```
 
 Note: Network Map exposes internal topology. Keep it LAN/Tailnet-only unless auth or a protected reverse proxy is added.
+
+## Monitoring and observability
+
+Prometheus and Grafana run on `jellybase`:
+
+```text
+http://jellybase:9090  Prometheus
+http://jellybase:3001  Grafana
+```
+
+Current first-pass host telemetry is implemented for:
+
+```text
+jellyhome:9100   node_exporter
+jellybase:9100   node_exporter
+jellyberry:9100  node_exporter
+```
+
+Prometheus scrapes these under job `node_exporter`. In the current Docker scrape path, `jellybase` may appear as `host.docker.internal:9100` while the metric `host` label remains `jellybase`.
+
+Visible metric families include standard node_exporter host metrics, sanitized Borgmatic textfile metrics, and `home_network_disk_health_*` disk-health metrics. Grafana is reachable, but source-managed dashboard/provisioning files remain follow-up work. TCP `9100` access-control hardening is also still a staged follow-up; keep endpoints LAN/Tailnet-only.
+
+Operational docs:
+
+```text
+docs/operations/node-exporter-disk-health.md
+docs/specs/node-exporter-disk-health-spec.md
+docs/plans/2026-05-22-node-exporter-disk-health-rollout.md
+```
+
+Useful checks:
+
+```bash
+just host-monitoring-policy-check
+just node-exporter-rollout-generate
+```
 
 ## Backups and restore
 

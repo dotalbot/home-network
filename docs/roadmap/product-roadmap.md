@@ -1,7 +1,7 @@
 # Home Network Platform Roadmap
 
-Status: draft
-Last updated: 2026-05-21
+Status: active source of truth
+Last updated: 2026-05-22
 
 ## North star
 
@@ -29,6 +29,7 @@ These stages are considered completed or substantially in place:
 
 4. Shared management stack
    - Homepage, Dozzle, Portainer, Netdata, Prometheus, and Grafana are represented in service inventory and Compose/runtime docs.
+   - Prometheus is reachable on `jellybase:9090`; Grafana is reachable on `jellybase:3001`.
 
 5. Homepage generation
    - `scripts/homepage-render` renders Homepage config from inventory.
@@ -48,8 +49,15 @@ These stages are considered completed or substantially in place:
 9. Initial Borg/Borgmatic integration
    - `scripts/borg-check` exists.
    - Restore templates and rebuild runbooks exist under `docs/runbooks/`.
-   - Borg/Borgmatic is not yet fully installed, configured, and verified on every host.
+   - Borg/Borgmatic status is now exposed as sanitized node_exporter textfile metrics on `jellyhome`, `jellybase`, and `jellyberry`.
    - Scheduled backup verification and restore drills remain roadmap items.
+
+10. First-pass node_exporter, disk-health, and Prometheus visibility
+   - `inventory/hosts.yml` marks `jellyhome`, `jellybase`, and `jellyberry` as `node-exporter-client` hosts.
+   - `scripts/node-exporter-rollout-generate` and `just node-exporter-rollout-generate` generate staged, operator-controlled setup scripts.
+   - node_exporter endpoints currently answer on `jellyhome:9100`, `jellybase:9100`, and `jellyberry:9100`.
+   - Prometheus on `jellybase` scrapes all three node_exporter targets under job `node_exporter`.
+   - Disk-health textfile metrics and Borgmatic status metrics are visible in Prometheus for all three hosts.
 
 ## Gap register
 
@@ -59,7 +67,8 @@ These stages are considered completed or substantially in place:
 | Service restore coverage | Stateful services need exact restore steps | `docs/runbooks/<service>-restore.md` or completed service templates |
 | Scheduled operations | Drift/backup/status checks are manual unless scheduled elsewhere | cron/systemd timers plus docs |
 | Alerting | Failed checks should notify instead of waiting for manual review | Discord/Hermes alert path or monitoring alerts |
-| Node exporter and disk health | Host metrics, backup telemetry, filesystem pressure, and best-effort disk health need a generic rollout path | `docs/specs/node-exporter-disk-health-spec.md`, generated staged scripts, Prometheus scrape targets |
+| Node exporter access-control hardening | First-pass node_exporter and disk-health metrics are live; TCP `9100` still needs staged allowlist hardening | later `stage-07`/hardening generator plus verification from approved and non-approved hosts |
+| Monitoring alert rules and dashboard polish | Prometheus has the metrics, but alert rules/Grafana dashboards still need explicit source-managed definitions | alert rule files, Grafana dashboard provisioning, and docs |
 | Netdata streaming design | Parent/child topology is not yet fully documented | `docs/specs/netdata-streaming-spec.md` or operations doc |
 | Reverse proxy + TLS | Needed before safe broader access | proxy/TLS spec, Compose changes, rollback notes |
 | Metadata maturity | Inventory needs richer fields for automation | inventory schema notes and validation checks |
@@ -132,12 +141,12 @@ Goal: make outages, backup failures, and drift visible before they become archae
 Actions:
 
 1. Define alert severity levels.
-2. Implement first working node_exporter rollout for `jellyhome`, `jellybase`, and `jellyberry`:
-   - install `prometheus-node-exporter`, `smartmontools`, `nvme-cli`, and related OS tools through bootstrap scripts;
-   - enable node_exporter textfile collector;
-   - expose Borgmatic backup stats from existing sanitized `.prom` files;
-   - expose filesystem/disk capacity metrics;
-   - add best-effort disk health metrics, including explicit `unknown` status where Pi/USB/microSD hardware cannot expose SMART.
+2. Maintain the implemented first working node_exporter rollout for `jellyhome`, `jellybase`, and `jellyberry`:
+   - node_exporter answers on TCP `9100` for all three hosts;
+   - Prometheus on `jellybase` scrapes the targets as job `node_exporter`;
+   - Borgmatic backup stats are visible from sanitized `.prom` files;
+   - standard filesystem/disk capacity metrics are visible;
+   - best-effort disk-health metrics are visible, including explicit `unknown` status where Pi/USB/microSD hardware cannot expose SMART.
 3. Add node_exporter access-control hardening after the first metrics pass:
    - default deny inbound TCP `9100`;
    - allow only approved Prometheus scraper hosts, initially `jellybase`;
@@ -157,8 +166,8 @@ Actions:
 Acceptance criteria:
 
 - Critical failures are reported automatically.
-- Node exporter metrics are available for every in-scope monitored host.
-- Disk pressure and disk health have defined Prometheus queries, including best-effort/unknown handling for Pi storage.
+- Node exporter metrics are available for every in-scope monitored host. Completed for `jellyhome`, `jellybase`, and `jellyberry`.
+- Disk pressure and disk health have defined Prometheus queries, including best-effort/unknown handling for Pi storage. First-pass metrics are live; alert rules remain to be source-managed.
 - Node exporter access-control hardening is tracked as a staged follow-up after metrics are working.
 - Alerts include host, service, failed check, and suggested next command.
 - Known/ignored drift stays explicit in inventory.
@@ -316,10 +325,11 @@ Acceptance criteria:
 
 ## Suggested immediate next actions
 
-1. Complete Borg/Borgmatic setup and verification across in-scope hosts.
-2. Review `docs/specs/node-exporter-disk-health-spec.md` and approve node_exporter/disk-health rollout choices.
-3. Add service restore runbooks for Home Assistant and Mosquitto.
-4. Add scheduled drift/backup checks.
-5. Draft reverse proxy/TLS spec before exposing anything new.
-6. Define Netdata streaming topology.
-7. Add inventory validation for required service metadata.
+1. Add staged access-control hardening for node_exporter TCP `9100` so only the Prometheus scraper path can reach it.
+2. Source-manage Prometheus alert rules and Grafana dashboard/provisioning for backup freshness, backup failures, disk pressure, disk-health failures, and stale probes.
+3. Complete Borg/Borgmatic setup and verification for any remaining in-scope hosts, especially `jellybackup` if it joins the monitored/backup-client scope.
+4. Add service restore runbooks for Home Assistant and Mosquitto.
+5. Add scheduled drift/backup/status checks and route failures to an alert channel.
+6. Draft reverse proxy/TLS spec before exposing anything new.
+7. Define Netdata streaming topology.
+8. Add inventory validation for required service metadata.

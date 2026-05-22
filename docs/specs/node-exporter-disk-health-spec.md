@@ -1,6 +1,6 @@
 # Node Exporter and Disk Health Spec
 
-Status: review draft
+Status: first-pass implemented; hardening/dashboard follow-up
 Last updated: 2026-05-22
 
 ## Goal
@@ -41,6 +41,19 @@ jellyberry:9100
 ```
 
 Future hosts should be added through inventory and generated setup stages rather than hand-built scripts.
+
+## Current implementation snapshot
+
+As of 2026-05-22, the first working pass is implemented for `jellyhome`, `jellybase`, and `jellyberry`:
+
+- each host answers node_exporter metrics on TCP `9100`;
+- Prometheus on `jellybase:9090` scrapes all three targets under job `node_exporter`;
+- the `jellybase` scrape target may appear as `host.docker.internal:9100` because Prometheus runs in Docker, while the emitted `host` label remains `jellybase`;
+- sanitized Borgmatic textfile metrics are visible for all three hosts;
+- `home_network_disk_health_*` metrics are visible for all three hosts;
+- Grafana is reachable on `jellybase:3001`, but source-managed dashboards/provisioning are still follow-up work.
+
+The remaining work is hardening TCP `9100`, source-managing alert rules and dashboards, and adding additional hosts such as `jellybackup` if desired.
 
 ## Source of truth
 
@@ -284,9 +297,9 @@ home_network_disk_percentage_used{host="jellybase",device="/dev/nvme0",source="n
 
 Do not emit serial numbers. They are not needed for dashboard/alerts and can be treated as unnecessary device identity leakage.
 
-## Proposed generated stages
+## Generated stages
 
-Add a new generator, separate from Borgmatic rollout, to avoid mixing backup repo setup with host monitoring setup:
+The generator is implemented separately from Borgmatic rollout, to avoid mixing backup repo setup with host monitoring setup:
 
 ```text
 scripts/node-exporter-rollout-generate
@@ -339,7 +352,7 @@ Stages:
 
 ## Prometheus integration
 
-Prometheus config should eventually include a node_exporter scrape job such as:
+Prometheus config includes a node_exporter scrape job equivalent to:
 
 ```yaml
 scrape_configs:
@@ -354,6 +367,8 @@ scrape_configs:
 If DNS is unreliable, use LAN IPs from inventory where available. Avoid Tailscale-only routing unless explicitly chosen.
 
 ## Alert ideas for later implementation
+
+These queries still need to become source-managed Prometheus alert rules and/or Grafana dashboard panels.
 
 Disk pressure:
 
@@ -467,13 +482,11 @@ Later hardening acceptance criteria:
 - OS bootstrap scripts include required packages.
 - Docs explain limitations and verification steps.
 
-## Open review questions
+## Remaining review questions
 
-1. Should node_exporter be installed directly on the host via apt, or containerized under `/opt/docker`?
-   - Recommendation: apt/system package, because it needs host filesystem and device visibility.
-2. Should Prometheus targets use hostnames or LAN IPs?
-   - Recommendation: hostnames if reliable; LAN IPs if DNS/Tailscale routing gets weird.
-3. Should disk health probe run every 30 minutes, hourly, or daily?
-   - Recommendation: hourly. Disk SMART data does not need minute-by-minute scraping.
-4. Should `jellybackup` also be included now?
-   - Recommendation: yes soon, because it is the backup target, but current user request says `jellyberry`, `jellybase`, and `jellyhome`.
+1. Should `jellybackup` be added to the node_exporter/disk-health monitoring rollout now?
+   - Recommendation: yes soon, because it is the backup target.
+2. Should TCP `9100` hardening be implemented as a new stage in this generator or a separate hardening generator?
+   - Recommendation: separate or clearly optional staged hardening so first-pass visibility remains easy to reason about.
+3. Which Grafana dashboards and Prometheus alert rules should be source-managed first?
+   - Recommendation: backup freshness/failure, node_exporter scrape down, disk pressure, disk-health failure/unknown/stale, and Pi early-warning conditions.

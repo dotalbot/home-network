@@ -2,6 +2,7 @@
 
 import sys
 from pathlib import Path
+from urllib.parse import urlparse
 
 try:
     import yaml
@@ -21,6 +22,17 @@ WIDGETS_OUT = OUT_DIR / "widgets.yaml"
 BOOKMARKS_OUT = OUT_DIR / "bookmarks.yaml"
 DOCKER_OUT = OUT_DIR / "docker.yaml"
 
+CATEGORY_ORDER = [
+    "Core",
+    "Monitoring",
+    "IoT",
+    "Projects",
+    "Study",
+    "Tools",
+    "Media",
+    "Other",
+]
+
 
 def host_summary(hosts):
     if isinstance(hosts, dict):
@@ -39,6 +51,31 @@ def host_summary(hosts):
         return str(hosts)
 
     return "unknown host"
+
+
+def primary_or_first_url(urls):
+    primary_url = urls.get("primary")
+    if primary_url and primary_url != "pending":
+        return primary_url
+
+    for value in urls.values():
+        if value and value != "pending":
+            return value
+
+    return None
+
+
+def should_site_monitor(url):
+    parsed = urlparse(url)
+    # Keep this conservative: plain HTTP is safe; HTTPS may be self-signed and
+    # non-HTTP schemes such as MQTT are not Homepage site monitors.
+    return parsed.scheme == "http"
+
+
+def ordered_categories(groups):
+    known = [category for category in CATEGORY_ORDER if category in groups]
+    unknown = sorted(category for category in groups if category not in CATEGORY_ORDER)
+    return known + unknown
 
 
 def main():
@@ -63,27 +100,34 @@ def main():
         hosts = svc.get("hosts", [])
 
         urls = svc.get("urls", {})
-        primary_url = urls.get("primary")
+        primary_url = primary_or_first_url(urls)
 
-        if not primary_url or primary_url == "pending":
+        if not primary_url:
             continue
 
         description = svc.get("description")
         if not description:
             description = f"{mode} | {host_summary(hosts)}"
 
+        service_config = {
+            "href": primary_url,
+            "description": description,
+        }
+
+        icon = svc.get("icon")
+        if icon:
+            service_config["icon"] = icon
+
+        if should_site_monitor(primary_url):
+            service_config["siteMonitor"] = primary_url
+
         groups.setdefault(category, [])
 
-        groups[category].append({
-            display_name: {
-                "href": primary_url,
-                "description": description,
-            }
-        })
+        groups[category].append({display_name: service_config})
 
     homepage_services = []
 
-    for category in sorted(groups.keys()):
+    for category in ordered_categories(groups):
         homepage_services.append({
             category: groups[category]
         })
@@ -98,21 +142,45 @@ def main():
     SETTINGS_OUT.write_text(
         """---
 title: Home Network
+description: Jelly homelab cockpit for services, telemetry, docs, and projects.
 theme: dark
 color: slate
+target: _blank
+headerStyle: boxedWidgets
+statusStyle: dot
+cardBlur: sm
+hideVersion: true
+useEqualHeights: true
+quicklaunch:
+  searchDescriptions: true
+  hideInternetSearch: true
+  showSearchSuggestions: false
 layout:
   Core:
     style: row
     columns: 4
   Monitoring:
     style: row
-    columns: 4
-  Media:
-    style: row
     columns: 3
   IoT:
     style: row
     columns: 3
+  Projects:
+    style: row
+    columns: 3
+  Study:
+    style: row
+    columns: 3
+  Tools:
+    style: row
+    columns: 3
+  Media:
+    style: row
+    columns: 3
+  Operations:
+    style: row
+    columns: 4
+    iconsOnly: true
 """,
         encoding="utf-8",
     )
@@ -120,16 +188,36 @@ layout:
     WIDGETS_OUT.write_text(
         """---
 - resources:
+    label: Jellyberry
     cpu: true
     memory: true
     disk: /
+- search:
+    provider: duckduckgo
+    target: _blank
 """,
         encoding="utf-8",
     )
 
     BOOKMARKS_OUT.write_text(
         """---
-[]
+- Operations:
+    - Home Network Repo:
+        - icon: github.png
+          href: https://github.com/dotalbot/home-network
+          description: Source of truth
+    - Roadmap:
+        - icon: mdi-map-outline
+          href: https://github.com/dotalbot/home-network/blob/feat/home-network-rollout/docs/roadmap/product-roadmap.md
+          description: Current platform roadmap
+    - Ops Docs:
+        - icon: mdi-book-open-page-variant-outline
+          href: https://github.com/dotalbot/home-network/tree/feat/home-network-rollout/docs/operations
+          description: Runbooks and operations notes
+    - Network Map Docs:
+        - icon: mdi-lan
+          href: https://github.com/dotalbot/home-network/blob/feat/home-network-rollout/docs/operations/network-map-dashboard.md
+          description: Dashboard operations guide
 """,
         encoding="utf-8",
     )
