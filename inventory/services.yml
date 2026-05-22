@@ -16,8 +16,8 @@ services:
       jellybase:
         - homepage
     urls:
-      primary: http://jellyhome
-      secondary: http://jellybase
+      primary: http://192.168.1.1
+      secondary: http://192.168.1.2
       jellyhome_lan: http://192.168.1.1
       jellybase_lan: http://192.168.1.2
       jellyhome_tailscale: http://100.90.175.59
@@ -43,7 +43,7 @@ services:
       jellybase:
         - dozzle-agent
     urls:
-      primary: http://jellyhome:8080
+      primary: http://192.168.1.1:8080
     backup: config-only
     status: active
 
@@ -63,7 +63,7 @@ services:
       jellybase:
         - portainer-agent
     urls:
-      primary: https://jellyhome:9443
+      primary: https://192.168.1.1:9443
     backup: appdata
     status: active
 
@@ -78,7 +78,7 @@ services:
       jellyberry:
         - network-map
     urls:
-      primary: http://jellyberry:8788
+      primary: http://192.168.1.159:8788
     description: interactive inventory | LAN and Tailscale discovery
     backup: config-only
     status: active
@@ -94,7 +94,7 @@ services:
       jellyberry:
         - portfolio-mission-control-v2
     urls:
-      primary: http://jellyberry:8787
+      primary: http://192.168.1.159:8787
     description: portfolio dashboard | home-network managed on jellyberry
     source:
       type: git
@@ -117,7 +117,7 @@ services:
       jellyberry:
         - sc401-study-hub
     urls:
-      primary: http://jellyberry:8791
+      primary: http://192.168.1.159:8791
     description: certification study hub | home-network managed on jellyberry
     source:
       type: local-directory
@@ -140,7 +140,7 @@ services:
       jellyberry:
         - image-pastebin
     urls:
-      primary: http://jellyberry:8792
+      primary: http://192.168.1.159:8792
     description: unauthenticated LAN upload helper | home-network managed on jellyberry
     source:
       type: local-directory
@@ -166,8 +166,8 @@ services:
       jellybase:
         - netdata
     urls:
-      jellyhome: http://jellyhome:19999
-      jellybase: http://jellybase:19999
+      jellyhome: http://192.168.1.1:19999
+      jellybase: http://192.168.1.2:19999
     backup: config-and-cache
     status: active
 
@@ -182,7 +182,7 @@ services:
       jellybase:
         - prometheus
     urls:
-      primary: http://jellybase:9090
+      primary: http://192.168.1.2:9090
     backup: appdata
     status: active
 
@@ -197,7 +197,7 @@ services:
       jellybase:
         - grafana
     urls:
-      primary: http://jellybase:3001
+      primary: http://192.168.1.2:3001
     backup: appdata
     status: active
 
@@ -212,7 +212,7 @@ services:
       jellybase:
         - homeassistant
     urls:
-      primary: http://jellybase:8123
+      primary: http://192.168.1.2:8123
     description: smart home controller | jellybase host-network container
     backup: appdata
     status: active
@@ -243,8 +243,8 @@ services:
       jellyhome:
         - mqtt-mosquitto
     urls:
-      primary: mqtt://jellyhome:1883
-      websocket: ws://jellyhome:9001
+      primary: mqtt://192.168.1.1:1883
+      websocket: ws://192.168.1.1:9001
     description: MQTT broker | jellyhome
     backup: config-and-persistence
     status: active
