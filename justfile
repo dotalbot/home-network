@@ -78,3 +78,6 @@ borgmatic-rollout-discovery:
 
 borgmatic-rollout-generate:
     ./scripts/borgmatic-rollout-generate
+
+node-exporter-rollout-generate:
+    ./scripts/node-exporter-rollout-generate

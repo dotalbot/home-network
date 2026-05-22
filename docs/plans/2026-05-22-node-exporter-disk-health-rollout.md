@@ -82,6 +82,8 @@ bash -n bootstrap/bootstrap-ubuntu.sh bootstrap/bootstrap-pi.sh
 
 ### Task 3: Create node_exporter rollout generator
 
+Status: implemented in `scripts/node-exporter-rollout-generate` and `just node-exporter-rollout-generate`.
+
 **Objective:** Generate operator-controlled staged scripts for each monitored host.
 
 **Files:**
