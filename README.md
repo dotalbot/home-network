@@ -153,6 +153,7 @@ Check Borg backup policy and local rollout readiness:
 just backup-policy-check
 just borg-check
 just borgmatic-rollout-discovery
+just borgmatic-rollout-generate
 ```
 
 Restart a managed service:
@@ -262,6 +263,7 @@ Backup class alignment and local rollout readiness are validated by:
 ```bash
 just backup-policy-check
 just borgmatic-rollout-discovery
+just borgmatic-rollout-generate
 ```
 
 Runbooks live in:

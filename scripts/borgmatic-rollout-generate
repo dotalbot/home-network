@@ -1,0 +1,459 @@
+#!/usr/bin/env python3
+"""Generate host-specific Borgmatic rollout scripts.
+
+This creates /tmp/borgmatic-rollout-<host>/stage-*.sh scripts that are meant to
+be copied/run on the matching host with sudo.
+"""
+
+from __future__ import annotations
+
+import os
+import stat
+from pathlib import Path
+
+HOSTS = {
+    "jellyhome": {
+        "repo_path": "/home/jellybackup/externaldisk/borg_jellyhome",
+        "include_extra": ["/home/jellyfish/repo"],
+    },
+    "jellybase": {
+        "repo_path": "/home/jellybackup/externaldisk/borg_jellybase",
+        "include_extra": ["/home/jellyfish/repo"],
+    },
+}
+
+TARGET_IP = "192.168.1.75"
+BACKUP_USER = "jellybackup"
+
+HEADER = r'''#!/usr/bin/env bash
+set -euo pipefail
+
+EXPECTED_HOST="__HOST__"
+BACKUP_USER="jellybackup"
+TARGET_IP="192.168.1.75"
+REPO_PATH="__REPO_PATH__"
+REPO="ssh://${BACKUP_USER}@${TARGET_IP}${REPO_PATH}"
+SECRETS_DIR="/opt/docker/.secrets"
+PASSPHRASE_FILE="${SECRETS_DIR}/borgmatic-passphrase"
+KEY_EXPORT_FILE="${SECRETS_DIR}/borg-${EXPECTED_HOST}-repokey.txt"
+CONFIG_DIR="/etc/borgmatic"
+CONFIG_FILE="${CONFIG_DIR}/config.yaml"
+STATUS_DIR="/var/lib/home-network/backup-status"
+STATUS_FILE="${STATUS_DIR}/${EXPECTED_HOST}.json"
+LOG_DIR="/var/log/home-network-borgmatic"
+TEXTFILE_DIR="/var/lib/node_exporter/textfile_collector"
+PROM_FILE="${TEXTFILE_DIR}/borgmatic_${EXPECTED_HOST}.prom"
+
+require_root() {
+  if [ "$(id -u)" -ne 0 ]; then
+    echo "not good: run with sudo/root" >&2
+    exit 1
+  fi
+}
+
+require_host() {
+  local actual
+  actual="$(hostname -s)"
+  if [ "$actual" != "$EXPECTED_HOST" ]; then
+    echo "not good: this script is for ${EXPECTED_HOST}, current host is ${actual}" >&2
+    exit 1
+  fi
+}
+
+write_status() {
+  local status="$1"
+  local exit_code="$2"
+  local archive="${3:-}"
+  local message="${4:-}"
+  install -d -m 755 -o root -g root "$STATUS_DIR"
+  python3 - "$STATUS_FILE" "$EXPECTED_HOST" "$REPO" "$status" "$exit_code" "$archive" "$message" <<'PY'
+import json, sys, time
+from datetime import datetime, timezone
+path, host, repo, status, exit_code, archive, message = sys.argv[1:]
+data = {
+    "host": host,
+    "repository": repo,
+    "updated_at": datetime.now(timezone.utc).isoformat(),
+    "status": status,
+    "exit_code": int(exit_code),
+    "archive_name": archive or None,
+    "message": message or None,
+}
+with open(path, "w", encoding="utf-8") as f:
+    json.dump(data, f, indent=2, sort_keys=True)
+    f.write("\n")
+PY
+  chmod 644 "$STATUS_FILE"
+}
+
+write_prometheus() {
+  local status="$1"
+  local exit_code="$2"
+  local duration="${3:-0}"
+  if [ ! -d "$TEXTFILE_DIR" ]; then
+    echo "prometheus textfile collector dir not present, skipped: $TEXTFILE_DIR"
+    return 0
+  fi
+  local ok=0
+  [ "$status" = "success" ] && ok=1
+  local now
+  now="$(date +%s)"
+  local tmp
+  tmp="${PROM_FILE}.$$"
+  cat > "$tmp" <<EOF
+# HELP borgmatic_last_run_timestamp_seconds Last Borgmatic run timestamp.
+# TYPE borgmatic_last_run_timestamp_seconds gauge
+borgmatic_last_run_timestamp_seconds{host="${EXPECTED_HOST}"} ${now}
+# HELP borgmatic_last_run_success Last Borgmatic run success, 1 for success and 0 for failure.
+# TYPE borgmatic_last_run_success gauge
+borgmatic_last_run_success{host="${EXPECTED_HOST}"} ${ok}
+# HELP borgmatic_last_run_exit_code Last Borgmatic run exit code.
+# TYPE borgmatic_last_run_exit_code gauge
+borgmatic_last_run_exit_code{host="${EXPECTED_HOST}"} ${exit_code}
+# HELP borgmatic_last_run_duration_seconds Last Borgmatic run duration in seconds.
+# TYPE borgmatic_last_run_duration_seconds gauge
+borgmatic_last_run_duration_seconds{host="${EXPECTED_HOST}"} ${duration}
+EOF
+  mv "$tmp" "$PROM_FILE"
+  chmod 644 "$PROM_FILE"
+  echo "wrote prometheus metrics: $PROM_FILE"
+}
+
+require_root
+require_host
+'''
+
+STAGES = {
+"stage-01-preflight.sh": r'''
+echo "Preflight for ${EXPECTED_HOST}"
+command -v borg >/dev/null || { echo "missing borg" >&2; exit 1; }
+command -v borgmatic >/dev/null || { echo "missing borgmatic" >&2; exit 1; }
+test -d /opt/docker || { echo "missing /opt/docker" >&2; exit 1; }
+__EXTRA_PREFLIGHT__
+ssh -o BatchMode=yes -o ConnectTimeout=5 -o StrictHostKeyChecking=yes "${BACKUP_USER}@${TARGET_IP}" 'hostname && whoami && pwd'
+ssh -o BatchMode=yes -o ConnectTimeout=5 -o StrictHostKeyChecking=yes "${BACKUP_USER}@${TARGET_IP}" "test -d '${REPO_PATH}' && stat -c '%A %U:%G %n' '${REPO_PATH}'"
+echo "good: preflight passed for ${EXPECTED_HOST}"
+''',
+"stage-02-secrets.sh": r'''
+install -d -m 700 -o root -g root "$SECRETS_DIR"
+if [ -f "$PASSPHRASE_FILE" ]; then
+  echo "passphrase file already exists, not replacing: $PASSPHRASE_FILE"
+else
+  openssl rand -base64 48 > "$PASSPHRASE_FILE"
+  echo "created passphrase file: $PASSPHRASE_FILE"
+fi
+chown root:root "$PASSPHRASE_FILE"
+chmod 600 "$PASSPHRASE_FILE"
+stat -c '%A %U:%G %n' "$SECRETS_DIR" "$PASSPHRASE_FILE"
+echo "Save the passphrase in your password manager with label: Borg passphrase - ${EXPECTED_HOST}"
+echo "View it with: sudo cat ${PASSPHRASE_FILE}"
+''',
+"stage-03-init-repo.sh": r'''
+if ssh -o BatchMode=yes -o ConnectTimeout=5 -o StrictHostKeyChecking=yes "${BACKUP_USER}@${TARGET_IP}" "test -f '${REPO_PATH}/config'"; then
+  echo "repo already initialized: ${REPO_PATH}"
+  exit 0
+fi
+BORG_PASSPHRASE="$(cat "$PASSPHRASE_FILE")" borg init --encryption=repokey-blake2 "$REPO"
+echo "good: initialized ${REPO}"
+''',
+"stage-04-export-key.sh": r'''
+if [ -f "$KEY_EXPORT_FILE" ]; then
+  echo "key export already exists, not replacing: $KEY_EXPORT_FILE"
+else
+  umask 077
+  BORG_PASSPHRASE="$(cat "$PASSPHRASE_FILE")" borg key export "$REPO" "$KEY_EXPORT_FILE"
+  echo "exported repo key: $KEY_EXPORT_FILE"
+fi
+chown root:root "$KEY_EXPORT_FILE"
+chmod 600 "$KEY_EXPORT_FILE"
+stat -c '%A %U:%G %n' "$KEY_EXPORT_FILE"
+echo "Save this key file in your password manager with label: Borg repo key - ${EXPECTED_HOST}"
+echo "View it with: sudo cat ${KEY_EXPORT_FILE}"
+''',
+"stage-05-configure-borgmatic.sh": r'''
+install -d -m 755 -o root -g root "$CONFIG_DIR"
+if [ -f "$CONFIG_FILE" ]; then
+  if [ "${ALLOW_OVERWRITE_BORGMATIC_CONFIG:-0}" != "1" ]; then
+    echo "not good: config already exists: $CONFIG_FILE" >&2
+    echo "Re-run with: sudo ALLOW_OVERWRITE_BORGMATIC_CONFIG=1 $0" >&2
+    exit 1
+  fi
+  backup="${CONFIG_FILE}.bak.$(date +%Y%m%d-%H%M%S)"
+  cp -a "$CONFIG_FILE" "$backup"
+  echo "backed up existing config: $backup"
+fi
+cat > "$CONFIG_FILE" <<YAML
+source_directories:
+  - /opt/docker
+__EXTRA_SOURCES__
+repositories:
+  - path: ${REPO}
+    label: ${EXPECTED_HOST}
+
+encryption_passcommand: "cat ${PASSPHRASE_FILE}"
+
+archive_name_format: '${EXPECTED_HOST}-{now:%Y-%m-%dT%H:%M:%S}'
+
+keep_daily: 7
+keep_weekly: 4
+keep_monthly: 6
+
+checks:
+  - name: repository
+  - name: archives
+    frequency: 2 weeks
+
+exclude_patterns:
+  - /opt/docker/.secrets
+  - /opt/docker/.secrets/**
+  - /opt/docker/appdata/*/cache
+  - /opt/docker/appdata/*/logs
+  - /opt/docker/appdata/*/tmp
+  - /opt/docker/appdata/*/temp
+  - /opt/docker/**/.cache
+  - /opt/docker/**/node_modules
+  - /opt/docker/**/.venv
+YAML
+chown root:root "$CONFIG_FILE"
+chmod 600 "$CONFIG_FILE"
+borgmatic config validate
+stat -c '%A %U:%G %n' "$CONFIG_FILE"
+echo "good: borgmatic config written and validated"
+''',
+"stage-06-manual-backup.sh": r'''
+install -d -m 755 -o root -g root "$LOG_DIR" "$STATUS_DIR"
+start="$(date +%s)"
+log="${LOG_DIR}/${EXPECTED_HOST}-create-$(date +%Y%m%d-%H%M%S).log"
+set +e
+borgmatic create --stats 2>&1 | tee "$log"
+rc=${PIPESTATUS[0]}
+set -e
+end="$(date +%s)"
+duration=$((end - start))
+archive=""
+if [ "$rc" -eq 0 ]; then
+  archive="$(borgmatic list 2>/dev/null | awk '/^'"${EXPECTED_HOST}"'-/{name=$1} END{print name}')"
+  write_status "success" 0 "$archive" "manual backup completed"
+  write_prometheus "success" 0 "$duration"
+  echo "good: backup completed; archive=${archive}; log=${log}"
+else
+  write_status "failure" "$rc" "" "manual backup failed; see ${log}"
+  write_prometheus "failure" "$rc" "$duration"
+  echo "not good: backup failed; rc=${rc}; log=${log}" >&2
+  exit "$rc"
+fi
+''',
+"stage-07-check-and-restore-test.sh": r'''
+borgmatic check
+restore_source="/opt/docker/hosts/${EXPECTED_HOST}.yaml"
+if [ ! -f "$restore_source" ]; then
+  restore_source="/opt/docker/docker-compose.yml"
+fi
+if [ ! -f "$restore_source" ]; then
+  echo "not good: no restore-test source found for ${EXPECTED_HOST}" >&2
+  echo "checked: /opt/docker/hosts/${EXPECTED_HOST}.yaml and /opt/docker/docker-compose.yml" >&2
+  exit 1
+fi
+archive_path="${restore_source#/}"
+restore_dir="/tmp/borgmatic-restore-test-${EXPECTED_HOST}-$(date +%Y%m%d-%H%M%S)"
+mkdir -p "$restore_dir"
+borgmatic extract --archive latest --path "$archive_path" --destination "$restore_dir"
+diff -q "$restore_source" "${restore_dir}/${archive_path}"
+write_status "success" 0 "$(borgmatic list 2>/dev/null | awk '/^'"${EXPECTED_HOST}"'-/{name=$1} END{print name}')" "check and restore test passed: ${restore_source} -> ${restore_dir}"
+echo "RESTORE_TEST_OK ${restore_dir}"
+''',
+"stage-08-enable-timer.sh": r"""
+WRAPPER="/usr/local/sbin/home-network-borgmatic-run-${EXPECTED_HOST}"
+SERVICE="/etc/systemd/system/home-network-borgmatic-${EXPECTED_HOST}.service"
+TIMER="/etc/systemd/system/home-network-borgmatic-${EXPECTED_HOST}.timer"
+cat > "$WRAPPER" <<'SH'
+#!/usr/bin/env bash
+set -euo pipefail
+EXPECTED_HOST="__HOST__"
+REPO="ssh://jellybackup@192.168.1.75__REPO_PATH__"
+STATUS_DIR="/var/lib/home-network/backup-status"
+STATUS_FILE="${STATUS_DIR}/${EXPECTED_HOST}.json"
+LOG_DIR="/var/log/home-network-borgmatic"
+TEXTFILE_DIR="/var/lib/node_exporter/textfile_collector"
+PROM_FILE="${TEXTFILE_DIR}/borgmatic_${EXPECTED_HOST}.prom"
+write_status() {
+  local status="$1" exit_code="$2" archive="${3:-}" message="${4:-}" duration="${5:-0}"
+  install -d -m 755 -o root -g root "$STATUS_DIR"
+  python3 - "$STATUS_FILE" "$EXPECTED_HOST" "$REPO" "$status" "$exit_code" "$archive" "$message" "$duration" <<'PY'
+import json, sys
+from datetime import datetime, timezone
+path, host, repo, status, exit_code, archive, message, duration = sys.argv[1:]
+data = {
+  "host": host,
+  "repository": repo,
+  "updated_at": datetime.now(timezone.utc).isoformat(),
+  "status": status,
+  "exit_code": int(exit_code),
+  "archive_name": archive or None,
+  "message": message or None,
+  "duration_seconds": int(duration),
+}
+with open(path, "w", encoding="utf-8") as f:
+    json.dump(data, f, indent=2, sort_keys=True)
+    f.write("\n")
+PY
+  chmod 644 "$STATUS_FILE"
+}
+write_prometheus() {
+  local status="$1" exit_code="$2" duration="${3:-0}"
+  [ -d "$TEXTFILE_DIR" ] || return 0
+  local ok=0 now tmp
+  [ "$status" = "success" ] && ok=1
+  now="$(date +%s)"
+  tmp="${PROM_FILE}.$$"
+  cat > "$tmp" <<EOF
+# HELP borgmatic_last_run_timestamp_seconds Last Borgmatic run timestamp.
+# TYPE borgmatic_last_run_timestamp_seconds gauge
+borgmatic_last_run_timestamp_seconds{host="${EXPECTED_HOST}"} ${now}
+# HELP borgmatic_last_run_success Last Borgmatic run success, 1 for success and 0 for failure.
+# TYPE borgmatic_last_run_success gauge
+borgmatic_last_run_success{host="${EXPECTED_HOST}"} ${ok}
+# HELP borgmatic_last_run_exit_code Last Borgmatic run exit code.
+# TYPE borgmatic_last_run_exit_code gauge
+borgmatic_last_run_exit_code{host="${EXPECTED_HOST}"} ${exit_code}
+# HELP borgmatic_last_run_duration_seconds Last Borgmatic run duration in seconds.
+# TYPE borgmatic_last_run_duration_seconds gauge
+borgmatic_last_run_duration_seconds{host="${EXPECTED_HOST}"} ${duration}
+EOF
+  mv "$tmp" "$PROM_FILE"
+  chmod 644 "$PROM_FILE"
+}
+install -d -m 755 -o root -g root "$LOG_DIR" "$STATUS_DIR"
+start="$(date +%s)"
+log="${LOG_DIR}/${EXPECTED_HOST}-scheduled-$(date +%Y%m%d-%H%M%S).log"
+set +e
+{
+  borgmatic create --stats
+  create_rc=$?
+  [ "$create_rc" -eq 0 ] && borgmatic prune
+  prune_rc=$?
+  [ "$create_rc" -eq 0 ] && [ "$prune_rc" -eq 0 ] && borgmatic compact
+  compact_rc=$?
+  [ "$create_rc" -eq 0 ] && [ "$prune_rc" -eq 0 ] && [ "$compact_rc" -eq 0 ] && borgmatic check
+  check_rc=$?
+  if [ "$create_rc" -ne 0 ]; then exit "$create_rc"; fi
+  if [ "$prune_rc" -ne 0 ]; then exit "$prune_rc"; fi
+  if [ "$compact_rc" -ne 0 ]; then exit "$compact_rc"; fi
+  if [ "$check_rc" -ne 0 ]; then exit "$check_rc"; fi
+} > >(tee "$log") 2>&1
+rc=$?
+set -e
+end="$(date +%s)"
+duration=$((end - start))
+archive="$(borgmatic list 2>/dev/null | awk '/^'"${EXPECTED_HOST}"'-/{name=$1} END{print name}')"
+if [ "$rc" -eq 0 ]; then
+  write_status "success" 0 "$archive" "scheduled backup completed; log=${log}" "$duration"
+  write_prometheus "success" 0 "$duration"
+else
+  write_status "failure" "$rc" "$archive" "scheduled backup failed; log=${log}" "$duration"
+  write_prometheus "failure" "$rc" "$duration"
+fi
+exit "$rc"
+SH
+sed -i "s#__HOST__#${EXPECTED_HOST}#g; s#__REPO_PATH__#${REPO_PATH}#g" "$WRAPPER"
+chmod 750 "$WRAPPER"
+chown root:root "$WRAPPER"
+cat > "$SERVICE" <<EOF
+[Unit]
+Description=Home Network Borgmatic backup for ${EXPECTED_HOST}
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=${WRAPPER}
+EOF
+cat > "$TIMER" <<EOF
+[Unit]
+Description=Daily Home Network Borgmatic backup for ${EXPECTED_HOST}
+
+[Timer]
+OnCalendar=*-*-* 03:00:00
+RandomizedDelaySec=30m
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+EOF
+systemctl daemon-reload
+if systemctl is-enabled --quiet borgmatic.timer 2>/dev/null || systemctl is-active --quiet borgmatic.timer 2>/dev/null; then
+  if [ "${ALLOW_DISABLE_STOCK_BORGMATIC_TIMER:-0}" != "1" ]; then
+    echo "not good: stock borgmatic.timer is enabled or active" >&2
+    echo "This managed timer replaces it to avoid duplicate backups." >&2
+    echo "Re-run with: sudo ALLOW_DISABLE_STOCK_BORGMATIC_TIMER=1 $0" >&2
+    exit 1
+  fi
+  systemctl disable --now borgmatic.timer
+fi
+systemctl enable --now "home-network-borgmatic-${EXPECTED_HOST}.timer"
+systemctl list-timers "*borgmatic*" --all --no-pager
+echo "good: managed backup timer enabled for ${EXPECTED_HOST}"
+""",
+"stage-09-status-summary.sh": r'''
+echo "Status JSON: $STATUS_FILE"
+if [ -f "$STATUS_FILE" ]; then
+  python3 -m json.tool "$STATUS_FILE"
+else
+  echo "missing status file"
+  exit 1
+fi
+read -r status exit_code duration <<EOF
+$(python3 - "$STATUS_FILE" <<'PY'
+import json, sys
+data=json.load(open(sys.argv[1], encoding='utf-8'))
+print(data.get('status','unknown'), data.get('exit_code', 1), data.get('duration_seconds', 0))
+PY
+)
+EOF
+write_prometheus "$status" "$exit_code" "$duration"
+''',
+}
+
+
+def render_header(host: str, repo_path: str) -> str:
+    return HEADER.replace("__HOST__", host).replace("__REPO_PATH__", repo_path)
+
+
+def render_stage(content: str, extra_sources: list[str]) -> str:
+    if "__EXTRA_SOURCES__" in content:
+        extra = "".join(f"  - {p}\n" for p in extra_sources if p)
+        content = content.replace("__EXTRA_SOURCES__", extra)
+    if "__EXTRA_PREFLIGHT__" in content:
+        extra = "".join(f"test -d {p} || echo 'warning: optional source path missing: {p}'\n" for p in extra_sources if p)
+        content = content.replace("__EXTRA_PREFLIGHT__", extra)
+    return content.lstrip()
+
+
+def write_host(host: str, cfg: dict[str, object], base: Path) -> None:
+    out = base / f"borgmatic-rollout-{host}"
+    out.mkdir(parents=True, exist_ok=True)
+    for name, body in STAGES.items():
+        path = out / name
+        text = render_header(host, str(cfg["repo_path"])) + render_stage(body, list(cfg.get("include_extra", [])))
+        path.write_text(text, encoding="utf-8")
+        path.chmod(path.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+    readme = out / "README.txt"
+    readme.write_text(
+        f"Borgmatic rollout scripts for {host}\n\n"
+        "Run in order on the matching host with sudo:\n"
+        + "\n".join(f"  sudo ./{name}" for name in STAGES)
+        + "\n\nDo not paste passphrases or exported keys into chat/logs.\n",
+        encoding="utf-8",
+    )
+    print(out)
+
+
+def main() -> int:
+    base = Path(os.environ.get("BORG_ROLLOUT_OUTPUT_DIR", "/tmp"))
+    for host, cfg in HOSTS.items():
+        write_host(host, cfg, base)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

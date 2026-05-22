@@ -112,6 +112,61 @@ systemctl --user status borgmatic.timer
 systemctl --user status borgmatic.service
 ```
 
+## Repeatable rollout scripts
+
+Generate host-specific sudo scripts for the remaining hosts from the repository root:
+
+```bash
+scripts/borgmatic-rollout-generate
+```
+
+This writes:
+
+- `/tmp/borgmatic-rollout-jellyhome/`
+- `/tmp/borgmatic-rollout-jellybase/`
+
+Each directory contains staged scripts to run in order on the matching host:
+
+1. `stage-01-preflight.sh`
+2. `stage-02-secrets.sh`
+3. `stage-03-init-repo.sh`
+4. `stage-04-export-key.sh`
+5. `stage-05-configure-borgmatic.sh`
+6. `stage-06-manual-backup.sh`
+7. `stage-07-check-and-restore-test.sh`
+8. `stage-08-enable-timer.sh`
+9. `stage-09-status-summary.sh`
+
+Run each stage with `sudo`. The scripts refuse to run on the wrong host and do not print passphrases, private keys, or exported Borg keys.
+
+The managed timer stage installs a host-specific wrapper service:
+
+- `/usr/local/sbin/home-network-borgmatic-run-<host>`
+- `/etc/systemd/system/home-network-borgmatic-<host>.service`
+- `/etc/systemd/system/home-network-borgmatic-<host>.timer`
+
+It refuses to disable an existing stock `borgmatic.timer` unless explicitly approved with `ALLOW_DISABLE_STOCK_BORGMATIC_TIMER=1`, then enables the managed timer. This prevents accidental duplicate schedules or silent replacement of existing backup automation.
+
+`stage-05-configure-borgmatic.sh` also refuses to overwrite an existing `/etc/borgmatic/config.yaml` unless explicitly approved with `ALLOW_OVERWRITE_BORGMATIC_CONFIG=1`.
+
+## Backup result telemetry
+
+Root remains responsible for running Borgmatic. Automation should expose sanitized status to non-root consumers instead of sharing secrets.
+
+Status file for Hermes/Discord summaries:
+
+```text
+/var/lib/home-network/backup-status/<host>.json
+```
+
+Optional Prometheus textfile metrics, when node_exporter textfile collector exists:
+
+```text
+/var/lib/node_exporter/textfile_collector/borgmatic_<host>.prom
+```
+
+Prometheus does not scrape MQTT natively. MQTT can still be added later as a retained event/state bus, but Prometheus should consume either node_exporter textfile metrics or a dedicated MQTT exporter. Phase 1 uses JSON + textfile metrics because it is simpler and keeps Borg secrets unreadable by Hermes, Prometheus, and MQTT.
+
 ## Current rollout result
 
 Last checked from `jellyberry` during the rollout:

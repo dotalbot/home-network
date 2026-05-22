@@ -72,3 +72,6 @@ borg-check:
 
 borgmatic-rollout-discovery:
     ./scripts/borgmatic-rollout-discovery
+
+borgmatic-rollout-generate:
+    ./scripts/borgmatic-rollout-generate
