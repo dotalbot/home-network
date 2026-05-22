@@ -135,6 +135,15 @@ hosts:
     borg_enabled: true
     role: raspberry-pi-lightweight-node
     repository_path: /home/jellybackup/externaldisk/borg_jellyberry
+    rollout_status:
+      package_status: installed
+      root_ssh_status: verified
+      repository_status: initialized
+      config_status: validated
+      latest_verified_archive: jellyberry-2026-05-22T07:17:03
+      check_status: passed
+      restore_test_status: passed
+      timer_status: enabled
     important_paths:
       - /opt/docker
     notes:

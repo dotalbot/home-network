@@ -112,25 +112,30 @@ systemctl --user status borgmatic.timer
 systemctl --user status borgmatic.service
 ```
 
-## Current discovery result
+## Current rollout result
 
-Last checked from the Hermes execution environment on `jellyberry` as user `jellybot`:
+Last checked from `jellyberry` during the rollout:
 
 - `jellyberry` is present in `inventory/backups.yml` and has `borg_enabled: true`.
 - `/opt/docker` exists on `jellyberry`.
-- `borg` is installed and available to the checked user.
-- `borgmatic` is installed and available to the checked user.
-- Passwordless SSH to `jellybackup@192.168.1.75` works.
+- `borg` is installed.
+- `borgmatic` is installed.
+- Root passwordless SSH to `jellybackup@192.168.1.75` works.
 - The expected per-host repository directories exist on `jellybackup`:
   - `/home/jellybackup/externaldisk/borg_jellyhome`
   - `/home/jellybackup/externaldisk/borg_jellybase`
   - `/home/jellybackup/externaldisk/borg_jellyberry`
-- No standard Borgmatic config was found at:
-  - `/etc/borgmatic/config.yaml`
-  - `/etc/borgmatic.d/*.yaml`
-  - `/home/jellybot/.config/borgmatic/config.yaml`
+- `jellyberry` Borg repository is initialized with `repokey-blake2`.
+- `jellyberry` passphrase and exported repo key were stored outside git.
+- `jellyberry` Borgmatic config is present at `/etc/borgmatic/config.yaml` and validates cleanly.
+- `/opt/docker/.secrets` is excluded from backups.
+- Initial archive containing the passphrase was deleted and the repository was compacted.
+- Clean verified archive: `jellyberry-2026-05-22T07:17:03`.
+- `borgmatic check` completed successfully.
+- Restore test to `/tmp/borgmatic-restore-test-20260522-072051` restored `/opt/docker/hosts/jellyberry.yaml` and matched the live file.
+- `borgmatic.timer` is enabled; next observed run was `2026-05-23 00:36:46 BST`.
 
-Implication: installation and SSH are now verified from `jellyberry`; the next implementation step is writing host-specific Borgmatic config and initializing/verifying repositories if needed.
+Implication: `jellyberry` is the first completed host pattern. Repeat this rollout for `jellyhome` and `jellybase`, using their own passphrase, exported key, repo path, config, clean backup, check, timer, and restore test.
 
 ## Data to confirm before writing final configs
 
@@ -140,7 +145,7 @@ For each client host, confirm:
 | --- | --- | --- | --- | --- | --- |
 | jellyhome | `/home/jellybackup/externaldisk/borg_jellyhome` | `jellybackup` | `/opt/docker`, relevant repos/data | caches/logs/temp | TBD |
 | jellybase | `/home/jellybackup/externaldisk/borg_jellybase` | `jellybackup` | `/opt/docker`, relevant repos/data | caches/logs/temp | TBD |
-| jellyberry | `/home/jellybackup/externaldisk/borg_jellyberry` | `jellybackup` | `/opt/docker`, Hermes/runtime appdata as needed | caches/logs/temp | TBD |
+| jellyberry | `/home/jellybackup/externaldisk/borg_jellyberry` | `jellybackup` | `/opt/docker`, Hermes/runtime appdata as needed | caches/logs/temp/secrets | `borgmatic.timer` enabled |
 
 ## Acceptance criteria
 
@@ -155,4 +160,4 @@ For each client host, confirm:
 
 ## Next action
 
-Discover the exact destination repository paths and backup user on `jellybackup`, then generate host-specific Borgmatic configs for `jellyhome`, `jellybase`, and `jellyberry`.
+Repeat the completed `jellyberry` pattern for `jellyhome` and `jellybase`, then run a restore test on each host.
