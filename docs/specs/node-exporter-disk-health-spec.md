@@ -62,6 +62,10 @@ hosts:
       disk_health: best-effort
       disk_devices:
         - auto
+      allowed_scrapers:
+        - host: jellybase
+          lan_ip: 192.168.1.2
+          role: prometheus
 ```
 
 The implementation may start with defaults for existing hosts and add richer schema validation in a later phase.
@@ -287,17 +291,56 @@ Backup stale:
 time() - borgmatic_last_run_timestamp_seconds > 93600
 ```
 
+## Access control and security model
+
+Node exporter does not provide application-level authorization by default in the Debian/Ubuntu package flow. Treat it as a host-local metrics endpoint protected by network policy.
+
+Recommended default:
+
+1. Install node_exporter as an OS/systemd service.
+2. Keep it reachable only on LAN/Tailnet, never from the public internet.
+3. Add host firewall rules so only the Prometheus scraper can reach TCP `9100`.
+4. Keep Prometheus on `jellybase` as the first allowed scraper.
+5. Do not route node_exporter through public reverse proxies.
+
+For this network, the first-pass allowlist should be:
+
+```text
+allowed to scrape TCP 9100: jellybase / Prometheus host
+denied by default: all other hosts
+```
+
+Implementation detail:
+
+- On `jellyhome` and `jellyberry`, allow TCP `9100` only from the `jellybase` LAN IP, and optionally from the `jellybase` Tailscale IP if Prometheus is explicitly configured to scrape over Tailnet.
+- On `jellybase`, allow local scraping from `127.0.0.1`; if Prometheus runs in Docker bridge mode and scrapes the host via bridge/gateway, allow only the required Docker bridge subnet or use a host-network/explicit host-gateway pattern.
+- If UFW is active, generated rollout should use UFW rules. If UFW is not active, generated rollout should either configure nftables/iptables only after explicit approval or print the exact recommended rule without mutating firewall state.
+
+Example UFW intent, not blindly copy/paste for every host:
+
+```bash
+sudo ufw deny 9100/tcp
+sudo ufw allow from 192.168.1.2 to any port 9100 proto tcp comment 'Prometheus scrape from jellybase'
+```
+
+Optional stronger pattern later:
+
+- Scrape over Tailscale only and enforce Tailscale ACLs so only `jellybase` can connect to `*:9100`.
+- Add node_exporter `web.config` TLS/basic-auth only if the installed package version and Prometheus config support it cleanly. This is more moving parts than firewall allowlisting and is not needed for the first LAN-only rollout.
+
 ## Security and privacy
 
 - Keep node_exporter bound to LAN/Tailnet-reachable interfaces only by firewall/network policy.
 - Do not expose node_exporter to the public internet.
+- Deny TCP `9100` by default and allow only Prometheus scraper hosts.
 - Do not emit secrets, serial numbers, Borg repo URLs with credentials, SMART raw JSON, or root logs.
 - Textfile metrics should be world-readable only if they contain sanitized numeric status.
 - Disk probe script should run as root only if needed for device access; output remains sanitized.
 
 ## Acceptance criteria
 
-- `jellyhome`, `jellybase`, and `jellyberry` each expose node_exporter on port 9100.
+- `jellyhome`, `jellybase`, and `jellyberry` each expose node_exporter on port 9100 only to approved scraper hosts.
+- Non-approved hosts cannot connect to TCP `9100`.
 - Each host exposes Borgmatic textfile metrics when status exists.
 - Each host exposes standard filesystem metrics.
 - Each host exposes custom disk health metrics, even if health is `unknown` on Pi/USB/microSD hardware.
