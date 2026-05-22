@@ -2,6 +2,16 @@
 
 This document records the setup decisions and commands agreed so far for the `home-network` repo and the first stage of the homelab control-plane setup.
 
+Current planning docs now live in:
+
+```text
+docs/specs/home-network-platform-spec.md
+docs/roadmap/product-roadmap.md
+docs/README.md
+```
+
+Treat this file as historical setup context. Use the spec and roadmap above for current next-step planning.
+
 The goal is to create a simple, repeatable, Git-backed structure for managing Docker services, host roles, service placement, recovery, and future automation.
 
 ---

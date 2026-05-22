@@ -91,6 +91,13 @@ services:
     urls:
       primary: http://jellyberry:8787
     description: portfolio dashboard | home-network managed on jellyberry
+    source:
+      type: git
+      local_path: /home/jellybot/portfolio-intel
+      remote: git@github.com:dotalbot/portfolio-intel.git
+      build_context: /home/jellybot/portfolio-intel
+      dockerfile: Dockerfile
+      restore_note: Requires the source repository plus `/opt/docker/appdata/portfolio-mission-control-v2/data` and `/home/jellybot/.hermes/.env` on the host.
     backup: appdata-and-source-repo
     status: active
 
@@ -106,6 +113,13 @@ services:
     urls:
       primary: http://jellyberry:8791
     description: certification study hub | home-network managed on jellyberry
+    source:
+      type: local-directory
+      local_path: /home/jellybot/sc-100-prep/study-web
+      remote: TBD
+      build_context: /home/jellybot/sc-100-prep/study-web
+      dockerfile: Dockerfile
+      restore_note: Requires the study-web source directory; no git remote is currently recorded in this repo.
     backup: source-repo
     status: active
 
@@ -121,6 +135,13 @@ services:
     urls:
       primary: http://jellyberry:8792
     description: unauthenticated LAN upload helper | home-network managed on jellyberry
+    source:
+      type: local-directory
+      local_path: /home/jellybot/image-pastebin
+      remote: TBD
+      build_context: /home/jellybot/image-pastebin
+      dockerfile: Dockerfile
+      restore_note: Requires the image-pastebin source directory; uploads live under `/opt/docker/appdata/image-pastebin/uploads` if retention is needed.
     backup: uploads-if-needed
     status: active
 

@@ -1,0 +1,218 @@
+# Borg/Borgmatic Host Rollout
+
+Status: draft
+Last updated: 2026-05-21
+
+## Purpose
+
+Complete Borg/Borgmatic setup across the in-scope home-network hosts and verify that primary backups land on `jellybackup` over the LAN.
+
+## Current known facts
+
+- Primary backup target: `jellybackup`
+- Target LAN IP: `192.168.1.75`
+- Backup SSH user: `jellybackup`
+- Use the LAN IP in Borg/Borgmatic repository URLs.
+- Do not use the FQDN for backup traffic because it resolves over Tailscale and is too taxing on the Raspberry Pi backup host.
+- `ssh-copy-id` has already been completed from:
+  - `jellyhome`
+  - `jellybase`
+  - `jellyberry`
+- Destination repository directories already exist on `jellybackup`, one per server.
+
+## In-scope hosts
+
+Primary clients:
+
+- `jellyhome`
+- `jellybase`
+- `jellyberry`
+
+Backup server:
+
+- `jellybackup` at `192.168.1.75`
+
+Optional/future:
+
+- `seedbox`, if it remains in backup scope
+
+## Repository URL rule
+
+Use this shape from each client:
+
+```text
+ssh://jellybackup@192.168.1.75/<absolute/path/to/server-specific/repo>
+```
+
+Do not use:
+
+```text
+ssh://<backup-user>@jellybackup.../<repo>
+ssh://<backup-user>@<tailscale-name-or-magicdns>/<repo>
+```
+
+Reason: FQDN/MagicDNS paths may route over Tailscale instead of LAN and overload the Pi backup host.
+
+## Host-by-host rollout checklist
+
+For each client host:
+
+1. Confirm SSH connectivity to `192.168.1.75`.
+2. Confirm the server-specific destination repo path exists on `jellybackup`.
+3. Confirm Borg is installed.
+4. Confirm Borgmatic is installed.
+5. Create or verify Borgmatic config.
+6. Ensure repository URL uses `192.168.1.75`.
+7. Configure retention policy.
+8. Configure passphrase/credential handling outside git.
+9. Run a dry-run or info check.
+10. Run the first backup.
+11. List archives from the client.
+12. Verify the archive appears under the expected destination repo.
+13. Enable and verify the timer/schedule.
+14. Record the verified repo path and schedule in inventory/docs.
+
+## Suggested per-host verification commands
+
+Run the safe discovery helper on each client host first. It does not initialize repositories, run backups, alter configuration, or print secrets.
+
+```bash
+just borgmatic-rollout-discovery
+```
+
+Once the backup SSH user and repo path are known, run:
+
+```bash
+./scripts/borgmatic-rollout-discovery --backup-user <backup-user> --repo-path <absolute/repo/path/on/jellybackup>
+```
+
+Then run the Borg/Borgmatic checks on each client host, adjusting user and repo path once confirmed:
+
+```bash
+ssh <backup-user>@192.168.1.75 'hostname && pwd'
+borg --version
+borgmatic --version
+borgmatic config validate
+borgmatic info
+borgmatic list
+systemctl list-timers '*borg*' --all
+```
+
+If using system-level Borgmatic timers:
+
+```bash
+systemctl status borgmatic.timer
+systemctl status borgmatic.service
+```
+
+If using user-level Borgmatic timers:
+
+```bash
+systemctl --user status borgmatic.timer
+systemctl --user status borgmatic.service
+```
+
+## Repeatable rollout scripts
+
+Generate host-specific sudo scripts for the remaining hosts from the repository root:
+
+```bash
+scripts/borgmatic-rollout-generate
+```
+
+This writes:
+
+- `/tmp/borgmatic-rollout-jellyhome/`
+- `/tmp/borgmatic-rollout-jellybase/`
+
+Each directory contains staged scripts to run in order on the matching host:
+
+1. `stage-01-preflight.sh`
+2. `stage-02-secrets.sh`
+3. `stage-03-init-repo.sh`
+4. `stage-04-export-key.sh`
+5. `stage-05-configure-borgmatic.sh`
+6. `stage-06-manual-backup.sh`
+7. `stage-07-check-and-restore-test.sh`
+8. `stage-08-enable-timer.sh`
+9. `stage-09-status-summary.sh`
+
+Run each stage with `sudo`. The scripts refuse to run on the wrong host and do not print passphrases, private keys, or exported Borg keys.
+
+The managed timer stage installs a host-specific wrapper service:
+
+- `/usr/local/sbin/home-network-borgmatic-run-<host>`
+- `/etc/systemd/system/home-network-borgmatic-<host>.service`
+- `/etc/systemd/system/home-network-borgmatic-<host>.timer`
+
+It refuses to disable an existing stock `borgmatic.timer` unless explicitly approved with `ALLOW_DISABLE_STOCK_BORGMATIC_TIMER=1`, then enables the managed timer. This prevents accidental duplicate schedules or silent replacement of existing backup automation.
+
+`stage-05-configure-borgmatic.sh` also refuses to overwrite an existing `/etc/borgmatic/config.yaml` unless explicitly approved with `ALLOW_OVERWRITE_BORGMATIC_CONFIG=1`.
+
+## Backup result telemetry
+
+Root remains responsible for running Borgmatic. Automation should expose sanitized status to non-root consumers instead of sharing secrets.
+
+Status file for Hermes/Discord summaries:
+
+```text
+/var/lib/home-network/backup-status/<host>.json
+```
+
+Optional Prometheus textfile metrics, when node_exporter textfile collector exists:
+
+```text
+/var/lib/node_exporter/textfile_collector/borgmatic_<host>.prom
+```
+
+Prometheus does not scrape MQTT natively. MQTT can still be added later as a retained event/state bus, but Prometheus should consume either node_exporter textfile metrics or a dedicated MQTT exporter. Phase 1 uses JSON + textfile metrics because it is simpler and keeps Borg secrets unreadable by Hermes, Prometheus, and MQTT.
+
+## Current rollout result
+
+Last checked from `jellyberry` during the rollout:
+
+- `jellyberry` is present in `inventory/backups.yml` and has `borg_enabled: true`.
+- `/opt/docker` exists on `jellyberry`.
+- `borg` is installed.
+- `borgmatic` is installed.
+- Root passwordless SSH to `jellybackup@192.168.1.75` works.
+- The expected per-host repository directories exist on `jellybackup`:
+  - `/home/jellybackup/externaldisk/borg_jellyhome`
+  - `/home/jellybackup/externaldisk/borg_jellybase`
+  - `/home/jellybackup/externaldisk/borg_jellyberry`
+- `jellyberry` Borg repository is initialized with `repokey-blake2`.
+- `jellyberry` passphrase and exported repo key were stored outside git.
+- `jellyberry` Borgmatic config is present at `/etc/borgmatic/config.yaml` and validates cleanly.
+- `/opt/docker/.secrets` is excluded from backups.
+- Initial archive containing the passphrase was deleted and the repository was compacted.
+- Clean verified archive: `jellyberry-2026-05-22T07:17:03`.
+- `borgmatic check` completed successfully.
+- Restore test to `/tmp/borgmatic-restore-test-20260522-072051` restored `/opt/docker/hosts/jellyberry.yaml` and matched the live file.
+- `borgmatic.timer` is enabled; next observed run was `2026-05-23 00:36:46 BST`.
+
+Implication: `jellyberry` is the first completed host pattern. Repeat this rollout for `jellyhome` and `jellybase`, using their own passphrase, exported key, repo path, config, clean backup, check, timer, and restore test.
+
+## Data to confirm before writing final configs
+
+For each client host, confirm:
+
+| Host | Backup repo path on jellybackup | Backup user | Include paths | Exclude paths | Timer/schedule |
+| --- | --- | --- | --- | --- | --- |
+| jellyhome | `/home/jellybackup/externaldisk/borg_jellyhome` | `jellybackup` | `/opt/docker`, relevant repos/data | caches/logs/temp | TBD |
+| jellybase | `/home/jellybackup/externaldisk/borg_jellybase` | `jellybackup` | `/opt/docker`, relevant repos/data | caches/logs/temp | TBD |
+| jellyberry | `/home/jellybackup/externaldisk/borg_jellyberry` | `jellybackup` | `/opt/docker`, Hermes/runtime appdata as needed | caches/logs/temp/secrets | `borgmatic.timer` enabled |
+
+## Acceptance criteria
+
+- Every in-scope client uses `192.168.1.75` in Borg/Borgmatic repository URLs.
+- Every in-scope client can connect to `jellybackup` without password prompts.
+- Every in-scope client has Borg and Borgmatic installed.
+- Every in-scope client has validated Borgmatic config.
+- Every in-scope client has completed one successful backup.
+- Every in-scope client can list its archives.
+- Every in-scope client has a timer/schedule enabled or an explicitly documented reason not to.
+- `just borg-check` or a host-specific equivalent passes.
+
+## Next action
+
+Repeat the completed `jellyberry` pattern for `jellyhome` and `jellybase`, then run a restore test on each host.
