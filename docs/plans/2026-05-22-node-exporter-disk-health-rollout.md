@@ -2,7 +2,7 @@
 
 > **For Hermes:** Use subagent-driven-development skill to implement this plan task-by-task after user review/approval.
 
-**Goal:** Add generic stage-based node_exporter setup and disk health telemetry for `jellyhome`, `jellybase`, and `jellyberry`, with future-host support from inventory.
+**Goal:** Add generic stage-based node_exporter setup and disk health telemetry for `jellyhome`, `jellybase`, and `jellyberry`, with future-host support from inventory. First-pass rollout is implemented and visible in Prometheus; hardening and dashboard/alert provisioning remain follow-up work.
 
 **Architecture:** Keep monitoring rollout separate from Borgmatic repository setup. Generate per-host staged scripts from inventory. Install node_exporter and disk-health tooling on the host OS, write sanitized disk-health metrics via node_exporter textfile collector, and let Prometheus scrape each host.
 
@@ -22,8 +22,8 @@ In scope:
 
 Out of scope for this review draft:
 
-- Running node_exporter setup on the hosts.
-- Changing Prometheus live config.
+- Running additional node_exporter setup beyond the first-pass host rollout already completed.
+- Adding node_exporter access-control hardening rules.
 - Adding Grafana dashboards.
 - Adding alertmanager routes.
 
@@ -122,6 +122,8 @@ bash -n /tmp/node-exporter-rollout-jellyberry/stage-*.sh
 
 ### Task 4: Add sanitized disk health probe
 
+Status: implemented through the generated stage scripts and live textfile metrics on `jellyhome`, `jellybase`, and `jellyberry`.
+
 **Objective:** Write numeric disk-health metrics without leaking serial numbers or raw SMART JSON.
 
 **Files:**
@@ -154,6 +156,8 @@ curl -fsS http://127.0.0.1:9100/metrics | grep home_network_disk_health
 
 ### Task 5: Add systemd timer for disk health probe
 
+Status: implemented through the generated stage scripts and producing fresh Prometheus metrics on the first-pass hosts.
+
 **Objective:** Run disk health probe periodically without relying on cron.
 
 **Files:**
@@ -173,6 +177,8 @@ systemctl status home-network-disk-health.timer --no-pager
 ```
 
 ### Task 6: Add Prometheus scrape target documentation
+
+Status: implemented in `docs/operations/node-exporter-disk-health.md`, `docs/README.md`, root `README.md`, and this roadmap refresh. Prometheus currently scrapes the first-pass hosts under job `node_exporter`.
 
 **Objective:** Make it obvious how metrics flow into Prometheus on `jellybase`.
 
@@ -226,17 +232,24 @@ deny TCP 9100 from everything else
 # From a non-approved host, verify TCP 9100 is blocked or refused.
 ```
 
-## Review decision needed before implementation
+## Current branch/state after first-pass rollout
+
+- Working branch: `feat/home-network-rollout`.
+- Source of truth remains this repo, with runtime copies deployed to the managed hosts.
+- Prometheus ready endpoint answers on `jellybase:9090`.
+- Grafana health endpoint answers on `jellybase:3001`.
+- `jellyhome:9100`, `jellybase:9100`, and `jellyberry:9100` answer node_exporter metrics.
+- Prometheus query `up{job="node_exporter"}` returns three healthy targets.
+- Prometheus query `home_network_disk_health_last_run_timestamp_seconds` returns all three host labels.
+- Prometheus query `borgmatic_last_run_success` returns all three host labels.
+
+## Remaining review decisions for follow-up implementation
 
 Please choose/confirm:
 
-1. Install method: apt/system package vs Docker container.
-   - Recommended: apt/system package.
-2. Disk health timer cadence: 30 minutes, hourly, or daily.
-   - Recommended: hourly.
-3. Include `jellybackup` now or after the first three hosts.
-   - Recommended: after first three, then add `jellybackup` because it is critical.
-4. Prometheus target addressing: hostnames vs LAN IPs.
-   - Recommended: hostnames first, fallback to LAN IPs if DNS/routing misbehaves.
-5. Access-control timing.
-   - Decision: defer until after the first working metrics pass; track as hardening task.
+1. Add `jellybackup` to node_exporter/disk-health monitoring now that the first three hosts work?
+   - Recommendation: yes soon, because it is the backup target.
+2. How should TCP `9100` be hardened on each host?
+   - Recommendation: staged allowlist with `jellybase`/Prometheus as the approved scraper path, using UFW only where active and printing nftables/iptables guidance otherwise.
+3. Which Prometheus alert rules and Grafana dashboards should be source-managed first?
+   - Recommendation: backup success/staleness, disk pressure, disk-health failure/unknown/stale, and host scrape down.
