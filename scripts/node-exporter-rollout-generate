@@ -455,8 +455,21 @@ systemctl daemon-reload
 systemctl enable --now prometheus-node-exporter.service
 systemctl restart prometheus-node-exporter.service
 systemctl --no-pager --full status prometheus-node-exporter.service || true
-curl -fsS "http://127.0.0.1:${SCRAPE_PORT}/metrics" | grep -E '^(node_exporter_build_info|node_uname_info|node_filesystem_size_bytes)' >/dev/null
-echo "good: node_exporter is serving local metrics on port ${SCRAPE_PORT}"
+
+# Some Raspberry Pi / Debian systems report the service active a moment before
+# the exporter has bound port 9100. Wait briefly for the HTTP endpoint instead
+# of failing on a harmless startup race.
+for attempt in 1 2 3 4 5 6 7 8 9 10; do
+  if curl -fsS "http://127.0.0.1:${SCRAPE_PORT}/metrics" | grep -E '^(node_exporter_build_info|node_uname_info|node_filesystem_size_bytes)' >/dev/null; then
+    echo "good: node_exporter is serving local metrics on port ${SCRAPE_PORT}"
+    exit 0
+  fi
+  sleep 1
+done
+
+echo "not good: node_exporter service is active but local metrics endpoint did not become ready" >&2
+journalctl -u prometheus-node-exporter -n 40 --no-pager >&2 || true
+exit 1
 ''',
         "stage-03-install-disk-health-probe.sh": base + f'''
 echo "Install disk-health textfile probe for $EXPECTED_HOST"
