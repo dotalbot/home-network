@@ -37,3 +37,7 @@ Make the generated Homepage dashboard easier to scan at a glance by adding servi
 ## Rollback
 
 Revert `inventory/services.yml`, `scripts/homepage-render`, generated Homepage YAML, and this plan file from the branch if the generated Homepage config is not wanted.
+
+## Follow-up: IP address links
+
+Homepage service links should prefer stable LAN IP addresses instead of hostnames so the dashboard remains usable when local DNS or MagicDNS resolution is inconsistent. Keep alternate host metadata in inventory only when it is not rendered as a dashboard link.

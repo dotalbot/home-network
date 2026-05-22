@@ -1,64 +1,64 @@
 - Core:
   - Homepage:
-      href: http://jellyhome
+      href: http://192.168.1.1
       description: active-active | jellyhome, jellybase
       icon: homepage.png
-      siteMonitor: http://jellyhome
+      siteMonitor: http://192.168.1.1
   - Dozzle:
-      href: http://jellyhome:8080
+      href: http://192.168.1.1:8080
       description: 'central-ui-plus-agents | ui: jellyhome, agents: jellybase'
       icon: dozzle.png
-      siteMonitor: http://jellyhome:8080
+      siteMonitor: http://192.168.1.1:8080
   - Portainer:
-      href: https://jellyhome:9443
+      href: https://192.168.1.1:9443
       description: 'central-ui-plus-agents | server: jellyhome, agents: jellybase'
       icon: portainer.png
   - Network Map:
-      href: http://jellyberry:8788
+      href: http://192.168.1.159:8788
       description: interactive inventory | LAN and Tailscale discovery
       icon: mdi-lan
-      siteMonitor: http://jellyberry:8788
+      siteMonitor: http://192.168.1.159:8788
 - Monitoring:
   - Netdata:
-      href: http://jellyhome:19999
+      href: http://192.168.1.1:19999
       description: duplicated-parents | jellyhome, jellybase
       icon: netdata.png
-      siteMonitor: http://jellyhome:19999
+      siteMonitor: http://192.168.1.1:19999
   - Prometheus:
-      href: http://jellybase:9090
+      href: http://192.168.1.2:9090
       description: single-primary | jellybase
       icon: prometheus.png
-      siteMonitor: http://jellybase:9090
+      siteMonitor: http://192.168.1.2:9090
   - Grafana:
-      href: http://jellybase:3001
+      href: http://192.168.1.2:3001
       description: single-primary | jellybase
       icon: grafana.png
-      siteMonitor: http://jellybase:3001
+      siteMonitor: http://192.168.1.2:3001
 - IoT:
   - Home Assistant:
-      href: http://jellybase:8123
+      href: http://192.168.1.2:8123
       description: smart home controller | jellybase host-network container
       icon: home-assistant.png
-      siteMonitor: http://jellybase:8123
+      siteMonitor: http://192.168.1.2:8123
   - Mosquitto MQTT:
-      href: mqtt://jellyhome:1883
+      href: mqtt://192.168.1.1:1883
       description: MQTT broker | jellyhome
       icon: eclipse-mosquitto.png
 - Projects:
   - Portfolio Mission Control:
-      href: http://jellyberry:8787
+      href: http://192.168.1.159:8787
       description: portfolio dashboard | home-network managed on jellyberry
       icon: mdi-view-dashboard-outline
-      siteMonitor: http://jellyberry:8787
+      siteMonitor: http://192.168.1.159:8787
 - Study:
   - SC-401 Study Hub:
-      href: http://jellyberry:8791
+      href: http://192.168.1.159:8791
       description: certification study hub | home-network managed on jellyberry
       icon: mdi-school-outline
-      siteMonitor: http://jellyberry:8791
+      siteMonitor: http://192.168.1.159:8791
 - Tools:
   - Image Pastebin:
-      href: http://jellyberry:8792
+      href: http://192.168.1.159:8792
       description: unauthenticated LAN upload helper | home-network managed on jellyberry
       icon: mdi-image-plus-outline
-      siteMonitor: http://jellyberry:8792
+      siteMonitor: http://192.168.1.159:8792
