@@ -91,6 +91,9 @@ nvme-cli
 util-linux
 usbutils
 hdparm
+mmc-utils
+sysstat
+raspi-utils or libraspberrypi-bin, depending on distro package availability
 ```
 
 Notes:
@@ -100,6 +103,9 @@ Notes:
 - `nvme-cli` provides `nvme smart-log` for NVMe devices.
 - `usbutils` helps identify USB-SATA bridges on Pi hosts.
 - `hdparm` can provide limited disk metadata on some devices but is not a SMART replacement.
+- `mmc-utils` can expose limited eMMC/MMC data on some boards/cards; it may not help with normal consumer microSD.
+- `sysstat` provides `iostat`, useful for latency/utilization early-warning metrics when device health is opaque.
+- `vcgencmd` from `raspi-utils`/`libraspberrypi-bin` exposes Pi throttling, undervoltage, and temperature signals that can predict storage trouble indirectly.
 
 ## Raspberry Pi disk-health reality check
 
@@ -114,11 +120,71 @@ Therefore disk health is defined as best-effort:
 
 1. Always collect filesystem capacity and inode pressure from node_exporter.
 2. Try `smartctl --scan-open` to discover SMART-capable devices.
-3. Try `smartctl -H -A -j <device>` for devices discovered by smartmontools.
-4. For NVMe devices, try `nvme smart-log --output-format=json <device>`.
-5. If no device health is available, emit an explicit metric saying health is unknown instead of pretending success.
+3. Try multiple safe `smartctl` bridge modes when a USB bridge is detected, for example `sat`, `scsi`, and `auto`, but only emit sanitized results.
+4. Try `smartctl -H -A -j <device>` for devices discovered by smartmontools.
+5. For NVMe devices, try `nvme smart-log --output-format=json <device>`.
+6. For MMC/eMMC devices, try `mmc extcsd read` where supported, but treat unsupported output as `unknown` rather than failure.
+7. If no device health is available, emit an explicit metric saying health is unknown instead of pretending success.
 
 This keeps Pi support honest: no SMART, no problem, but no fibbing. A lying disk is a bad sector with a PR team.
+
+## Raspberry Pi early-warning signals
+
+Even when a Pi cannot expose real SMART data, we can still monitor weak signals that often show up before a storage failure becomes obvious. These are not perfect disk-health signals, but early warning is better than nothing.
+
+Recommended first-pass Pi signals:
+
+1. Filesystem pressure
+   - Use node_exporter filesystem metrics for free bytes and free inodes.
+   - Alert before the Pi fills the root filesystem; full disks cause weird corruption-like symptoms.
+
+2. Filesystem mount state
+   - Detect whether important filesystems have become read-only.
+   - Metric idea: `home_network_filesystem_readonly{host="<host>",mountpoint="/"} 0|1`.
+   - A surprise read-only root filesystem is a serious early warning.
+
+3. Kernel I/O and filesystem errors
+   - Scan recent `journalctl -k`/kernel messages for storage phrases such as `I/O error`, `Buffer I/O error`, `EXT4-fs error`, `mmcblk`, `reset SuperSpeed USB device`, and `uas_eh_abort_handler`.
+   - Emit counts, not raw log lines.
+   - Metric idea: `home_network_disk_kernel_error_count{host="<host>",window="24h"}`.
+
+4. Pi undervoltage and throttling
+   - Use `vcgencmd get_throttled` where available.
+   - Undervoltage causes USB/storage resets and SD-card corruption on Pis, so it is a storage-risk signal even though it is not a disk metric.
+   - Metric ideas:
+     - `home_network_pi_undervoltage_now{host="<host>"} 0|1`
+     - `home_network_pi_undervoltage_seen{host="<host>"} 0|1`
+     - `home_network_pi_throttled_seen{host="<host>"} 0|1`
+
+5. Temperature
+   - Use node_exporter thermal zones and/or `vcgencmd measure_temp`.
+   - Sustained heat can cause throttling and instability.
+   - Metric idea: `home_network_pi_temperature_celsius{host="<host>"}` if node_exporter thermal metrics are not enough.
+
+6. Device resets/disconnects
+   - Count USB reset/disconnect messages from kernel logs for USB-SATA/USB-NVMe setups.
+   - Metric idea: `home_network_usb_storage_reset_count{host="<host>",window="24h"}`.
+
+7. Disk latency/utilization trend
+   - Use node_exporter disk stats and optionally `iostat` from `sysstat` for local verification.
+   - Rising await/utilization at normal load can flag struggling media or USB bridges.
+   - Prefer Prometheus queries from node_exporter counters for ongoing alerting instead of shelling out constantly.
+
+8. MMC/eMMC lifetime where available
+   - Try `mmc extcsd read /dev/mmcblk0` on supported devices.
+   - Some eMMC devices expose lifetime estimates; normal microSD often does not.
+   - Metric idea: `home_network_mmc_life_time_estimate{host="<host>",device="/dev/mmcblk0",type="a|b"}`.
+   - If unsupported, emit unknown.
+
+9. Lightweight write/read sanity probe
+   - Optionally write and read a tiny test file under a chosen safe path such as `/var/lib/home-network/disk-health/`.
+   - Measure latency and verify contents.
+   - Keep it low-frequency and tiny to avoid wearing flash.
+   - Metric ideas:
+     - `home_network_storage_probe_success{host="<host>",path="/var/lib/home-network/disk-health"} 0|1`
+     - `home_network_storage_probe_latency_seconds{host="<host>",path="/var/lib/home-network/disk-health"}`.
+
+Do not run destructive tests such as `badblocks -w`, filesystem stress tests, or large write endurance checks as part of routine monitoring. That would be like checking whether your smoke alarm works by setting fire to the curtains.
 
 ## First working pass output
 
@@ -128,6 +194,7 @@ The initial rollout is intended to make these results visible in Prometheus:
 2. Disk capacity/filesystem pressure from standard node_exporter filesystem metrics.
 3. Best-effort disk/device health from a custom disk health textfile probe.
 4. Basic host metrics such as CPU, memory, load, network, and disk I/O from node_exporter.
+5. Raspberry Pi indirect early-warning signals where available: read-only filesystems, kernel I/O error counts, undervoltage/throttling, temperature, USB storage resets, and tiny write/read probe success/latency.
 
 So yes: the first useful dashboard/query set should cover both backup results and disk results.
 
@@ -184,6 +251,21 @@ home_network_disk_health_probe_success{host="jellyberry"} 1
 # Count of devices with unknown health
 home_network_disk_health_unknown_devices{host="jellyberry"} 1
 ```
+
+Pi early-warning metrics when available:
+
+```text
+home_network_filesystem_readonly{host="jellypi",mountpoint="/"} 0
+home_network_disk_kernel_error_count{host="jellypi",window="24h"} 0
+home_network_usb_storage_reset_count{host="jellypi",window="24h"} 0
+home_network_pi_undervoltage_now{host="jellypi"} 0
+home_network_pi_undervoltage_seen{host="jellypi"} 0
+home_network_pi_throttled_seen{host="jellypi"} 0
+home_network_storage_probe_success{host="jellypi",path="/var/lib/home-network/disk-health"} 1
+home_network_storage_probe_latency_seconds{host="jellypi",path="/var/lib/home-network/disk-health"} 0.012
+```
+
+These are risk indicators, not proof of disk health. They are useful because Pi storage often fails indirectly: power instability, USB resets, filesystem errors, or sudden read-only remounts.
 
 Optional device attributes when safely available:
 
@@ -290,6 +372,18 @@ Disk health probe stale:
 time() - home_network_disk_health_last_run_timestamp_seconds > 7200
 ```
 
+Pi early-warning conditions:
+
+```promql
+home_network_filesystem_readonly == 1
+home_network_disk_kernel_error_count > 0
+home_network_usb_storage_reset_count > 0
+home_network_pi_undervoltage_now == 1
+home_network_pi_undervoltage_seen == 1
+home_network_storage_probe_success == 0
+home_network_storage_probe_latency_seconds > 1
+```
+
 Backup failure:
 
 ```promql
@@ -359,6 +453,7 @@ Later hardening acceptance criteria:
 - Each host exposes Borgmatic textfile metrics when status exists.
 - Each host exposes standard filesystem metrics.
 - Each host exposes custom disk health metrics, even if health is `unknown` on Pi/USB/microSD hardware.
+- Pi-style hosts expose indirect early-warning metrics where supported, including read-only filesystem state, kernel storage error counts, undervoltage/throttling flags, USB reset counts, and tiny write/read probe health.
 - Prometheus can scrape all three hosts.
 - Setup is stage-based and operator-controlled.
 - Future host onboarding is inventory-driven.

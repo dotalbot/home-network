@@ -64,7 +64,8 @@ apt-get install -y prometheus-node-exporter smartmontools nvme-cli util-linux
 Pi/Debian:
 
 ```bash
-apt-get install -y prometheus-node-exporter smartmontools nvme-cli util-linux usbutils hdparm
+apt-get install -y prometheus-node-exporter smartmontools nvme-cli util-linux usbutils hdparm mmc-utils sysstat
+# Also install whichever package provides vcgencmd on that distro, usually raspi-utils or libraspberrypi-bin.
 ```
 
 **Verification:**
@@ -123,8 +124,17 @@ bash -n /tmp/node-exporter-rollout-jellyberry/stage-*.sh
 
 - Use `smartctl --scan-open`.
 - Use `smartctl -H -A -j` for supported devices.
+- Try safe USB bridge modes such as `sat`, `scsi`, and `auto` when a Pi uses USB storage and normal discovery fails.
 - Use `nvme smart-log --output-format=json` for NVMe devices.
+- Try `mmc extcsd read` for MMC/eMMC devices where supported, but treat unsupported consumer microSD as `unknown`.
 - Emit explicit unknown metrics when device health cannot be determined.
+- Add Pi indirect early-warning metrics where available:
+  - read-only filesystem state;
+  - recent kernel I/O/filesystem error counts;
+  - USB storage reset/disconnect counts;
+  - `vcgencmd get_throttled` undervoltage/throttling bits;
+  - temperature where node_exporter thermal zones are insufficient;
+  - tiny safe write/read sanity probe success and latency.
 - Write atomically to `/var/lib/node_exporter/textfile_collector/disk_health.prom`.
 
 **Verification:**
@@ -178,7 +188,7 @@ git diff --check
 - node_exporter exposure boundaries;
 - root script safety;
 - disk serial/privacy leakage;
-- Pi SMART limitations;
+- Pi SMART limitations and indirect early-warning signals;
 - systemd overwrite guards;
 - Prometheus label correctness.
 
