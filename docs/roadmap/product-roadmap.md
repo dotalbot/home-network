@@ -59,6 +59,7 @@ These stages are considered completed or substantially in place:
 | Service restore coverage | Stateful services need exact restore steps | `docs/runbooks/<service>-restore.md` or completed service templates |
 | Scheduled operations | Drift/backup/status checks are manual unless scheduled elsewhere | cron/systemd timers plus docs |
 | Alerting | Failed checks should notify instead of waiting for manual review | Discord/Hermes alert path or monitoring alerts |
+| Node exporter and disk health | Host metrics, backup telemetry, filesystem pressure, and best-effort disk health need a generic rollout path | `docs/specs/node-exporter-disk-health-spec.md`, generated staged scripts, Prometheus scrape targets |
 | Netdata streaming design | Parent/child topology is not yet fully documented | `docs/specs/netdata-streaming-spec.md` or operations doc |
 | Reverse proxy + TLS | Needed before safe broader access | proxy/TLS spec, Compose changes, rollback notes |
 | Metadata maturity | Inventory needs richer fields for automation | inventory schema notes and validation checks |
@@ -131,20 +132,34 @@ Goal: make outages, backup failures, and drift visible before they become archae
 Actions:
 
 1. Define alert severity levels.
-2. Decide alert destinations for:
+2. Implement first working node_exporter rollout for `jellyhome`, `jellybase`, and `jellyberry`:
+   - install `prometheus-node-exporter`, `smartmontools`, `nvme-cli`, and related OS tools through bootstrap scripts;
+   - enable node_exporter textfile collector;
+   - expose Borgmatic backup stats from existing sanitized `.prom` files;
+   - expose filesystem/disk capacity metrics;
+   - add best-effort disk health metrics, including explicit `unknown` status where Pi/USB/microSD hardware cannot expose SMART.
+3. Add node_exporter access-control hardening after the first metrics pass:
+   - default deny inbound TCP `9100`;
+   - allow only approved Prometheus scraper hosts, initially `jellybase`;
+   - prefer UFW when active;
+   - keep firewall changes staged and operator-controlled.
+4. Decide alert destinations for:
    - service down;
    - container drift;
    - backup stale/failing;
    - host unreachable;
    - disk pressure;
    - certificate expiry once TLS exists.
-3. Extend `scripts/status` or add a separate alert summarizer.
-4. Connect alerts to Discord/Hermes or monitoring-native alerts.
-5. Document noise control and acknowledgement expectations.
+5. Extend `scripts/status` or add a separate alert summarizer.
+6. Connect alerts to Discord/Hermes or monitoring-native alerts.
+7. Document noise control and acknowledgement expectations.
 
 Acceptance criteria:
 
 - Critical failures are reported automatically.
+- Node exporter metrics are available for every in-scope monitored host.
+- Disk pressure and disk health have defined Prometheus queries, including best-effort/unknown handling for Pi storage.
+- Node exporter access-control hardening is tracked as a staged follow-up after metrics are working.
 - Alerts include host, service, failed check, and suggested next command.
 - Known/ignored drift stays explicit in inventory.
 
@@ -302,8 +317,9 @@ Acceptance criteria:
 ## Suggested immediate next actions
 
 1. Complete Borg/Borgmatic setup and verification across in-scope hosts.
-2. Add service restore runbooks for Home Assistant and Mosquitto.
-3. Add scheduled drift/backup checks.
-4. Draft reverse proxy/TLS spec before exposing anything new.
-5. Define Netdata streaming topology.
-6. Add inventory validation for required service metadata.
+2. Review `docs/specs/node-exporter-disk-health-spec.md` and approve node_exporter/disk-health rollout choices.
+3. Add service restore runbooks for Home Assistant and Mosquitto.
+4. Add scheduled drift/backup checks.
+5. Draft reverse proxy/TLS spec before exposing anything new.
+6. Define Netdata streaming topology.
+7. Add inventory validation for required service metadata.

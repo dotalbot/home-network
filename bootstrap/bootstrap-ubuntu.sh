@@ -27,6 +27,10 @@ apt-get install -y \
   rsync \
   borgbackup \
   borgmatic \
+  prometheus-node-exporter \
+  smartmontools \
+  nvme-cli \
+  util-linux \
   ufw \
   lsb-release \
   software-properties-common

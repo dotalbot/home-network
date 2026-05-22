@@ -96,6 +96,12 @@ This should:
 - install Tailscale
 - install just
 - install jq/yq
+- install Borg/Borgmatic tooling
+- install node_exporter and disk-health tooling:
+  - `prometheus-node-exporter`
+  - `smartmontools`
+  - `nvme-cli`
+  - `util-linux`
 - create dockerops group
 - create /opt/docker layout
 

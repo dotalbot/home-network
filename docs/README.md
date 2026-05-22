@@ -7,6 +7,7 @@ Unless stated otherwise, paths in this index are relative to the repository root
 ## Strategy and roadmap
 
 - `docs/specs/home-network-platform-spec.md` — current platform specification.
+- `docs/specs/node-exporter-disk-health-spec.md` — review draft for generic node_exporter, backup telemetry, and disk health rollout.
 - `docs/roadmap/product-roadmap.md` — completed stages, gap register, and next phases.
 
 ## Operator docs
@@ -54,5 +55,6 @@ Use `docs/roadmap/product-roadmap.md` as the active gap register. Current high-v
 1. Complete Borg/Borgmatic setup and verification on every in-scope host.
 2. Add service-specific restore runbooks for active stateful services.
 3. Document scheduled operations and alerting once implemented.
-4. Draft reverse proxy/TLS design before exposing services beyond direct LAN/Tailnet URLs.
-5. Add inventory validation for required service metadata.
+4. Review and implement generic node_exporter + disk health rollout.
+5. Draft reverse proxy/TLS design before exposing services beyond direct LAN/Tailnet URLs.
+6. Add inventory validation for required service metadata.
