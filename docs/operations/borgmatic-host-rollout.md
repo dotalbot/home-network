@@ -112,46 +112,176 @@ systemctl --user status borgmatic.timer
 systemctl --user status borgmatic.service
 ```
 
-## Repeatable rollout scripts
+## Repeatable inventory-driven rollout scripts
 
-Generate host-specific sudo scripts for the remaining hosts from the repository root:
+The rollout generator is generic. It reads `inventory/backups.yml`, not a hardcoded host list.
+
+A host is eligible when all of these are true:
+
+- `hosts.<name>.borg_enabled: true`
+- `hosts.<name>.repository_path` is present and absolute
+- `hosts.<name>.important_paths` is a list of absolute paths, or omitted to default to `/opt/docker`
+
+The backup target is read from `primary_target`:
+
+- `primary_target.lan_ip` -> Borg repository host/IP
+- `primary_target.ssh_user` -> Borg SSH user
+
+Generate staged scripts from the repository root. The generator needs Python 3 with PyYAML (`python3-yaml` on Debian/Ubuntu-style systems):
 
 ```bash
 scripts/borgmatic-rollout-generate
 ```
 
-This writes:
+This currently writes rollout directories for the inventory-backed enabled hosts with repository paths:
 
 - `/tmp/borgmatic-rollout-jellyhome/`
 - `/tmp/borgmatic-rollout-jellybase/`
+- `/tmp/borgmatic-rollout-jellyberry/`
 
-Each directory contains staged scripts to run in order on the matching host:
+Enabled hosts without `repository_path` are skipped with a warning. That keeps the generator useful while a future host is still being designed.
 
-1. `stage-01-preflight.sh`
-2. `stage-02-secrets.sh`
-3. `stage-03-init-repo.sh`
-4. `stage-04-export-key.sh`
-5. `stage-05-configure-borgmatic.sh`
-6. `stage-06-manual-backup.sh`
-7. `stage-07-check-and-restore-test.sh`
-8. `stage-08-enable-timer.sh`
-9. `stage-09-status-summary.sh`
+To write somewhere other than `/tmp`:
 
-Run each stage with `sudo`. The scripts refuse to run on the wrong host and do not print passphrases, private keys, or exported Borg keys.
+```bash
+BORG_ROLLOUT_OUTPUT_DIR=/path/to/output scripts/borgmatic-rollout-generate
+```
 
-The managed timer stage installs a host-specific wrapper service:
+To test a different inventory file:
 
-- `/usr/local/sbin/home-network-borgmatic-run-<host>`
-- `/etc/systemd/system/home-network-borgmatic-<host>.service`
-- `/etc/systemd/system/home-network-borgmatic-<host>.timer`
+```bash
+BORG_ROLLOUT_INVENTORY=/path/to/backups.yml scripts/borgmatic-rollout-generate
+```
 
-It refuses to disable an existing stock `borgmatic.timer` unless explicitly approved with `ALLOW_DISABLE_STOCK_BORGMATIC_TIMER=1`, then enables the managed timer. This prevents accidental duplicate schedules or silent replacement of existing backup automation.
+## Adding another server, for example `jellypi`
 
-`stage-05-configure-borgmatic.sh` also refuses to overwrite an existing `/etc/borgmatic/config.yaml` unless explicitly approved with `ALLOW_OVERWRITE_BORGMATIC_CONFIG=1`.
+Add a host entry to `inventory/backups.yml`:
+
+```yaml
+hosts:
+
+  jellypi:
+    borg_enabled: true
+    role: raspberry-pi-lightweight-node
+    repository_path: /home/jellybackup/externaldisk/borg_jellypi
+    important_paths:
+      - /opt/docker
+    notes:
+      - Example future host; generator will create /tmp/borgmatic-rollout-jellypi.
+```
+
+Before running stages on `jellypi`, make sure the backup target has the destination directory and SSH access for the runtime user that will run Borgmatic, usually root if the systemd service runs as root:
+
+```bash
+ssh jellybackup@192.168.1.75 'install -d /home/jellybackup/externaldisk/borg_jellypi'
+```
+
+Then regenerate:
+
+```bash
+scripts/borgmatic-rollout-generate
+```
+
+Expected new output:
+
+```text
+/tmp/borgmatic-rollout-jellypi
+```
+
+Copy or sync that directory to `jellypi` if it was generated elsewhere, then run stages manually on `jellypi`.
+
+## Operator-controlled stage sequence
+
+Each generated directory contains staged scripts to run in order on the matching host. Run each one with `sudo`; the scripts refuse to run on the wrong host.
+
+1. `stage-00-bootstrap-host.sh`
+   - Creates local base directories only:
+     - `/opt/docker`
+     - `/opt/docker/appdata`
+     - `/opt/docker/hosts`
+     - `/opt/docker/.secrets`
+     - `/var/lib/home-network/backup-status`
+     - `/var/log/home-network-borgmatic`
+     - `/var/lib/node_exporter/textfile_collector`
+   - Creates `/opt/docker/.home-network-backup-sentinel` if absent so a brand-new host has a small known file for restore testing.
+   - Does not install packages, alter SSH keys, initialize repos, enable timers, or deploy services.
+
+2. `stage-01-preflight.sh`
+   - Checks `borg` and `borgmatic` are installed.
+   - Warns if configured source paths are missing.
+   - Checks SSH connectivity to `primary_target.lan_ip` as `primary_target.ssh_user`.
+   - Checks the server-side repo path exists.
+
+3. `stage-02-secrets.sh`
+   - Creates `/opt/docker/.secrets/borgmatic-passphrase` if absent.
+   - Never replaces an existing passphrase file.
+   - Prints only file paths and permissions, not secret contents.
+
+4. `stage-03-init-repo.sh`
+   - Initializes the host-specific Borg repo only if it is not already initialized.
+
+5. `stage-04-export-key.sh`
+   - Exports the Borg repo key to `/opt/docker/.secrets/borg-<host>-repokey.txt` if absent.
+   - Never replaces an existing exported key.
+   - Store this key outside the host as a recovery artifact.
+
+6. `stage-05-configure-borgmatic.sh`
+   - Writes `/etc/borgmatic/config.yaml` from inventory paths.
+   - Refuses to overwrite an existing config unless explicitly approved:
+
+```bash
+sudo ALLOW_OVERWRITE_BORGMATIC_CONFIG=1 ./stage-05-configure-borgmatic.sh
+```
+
+7. `stage-06-manual-backup.sh`
+   - Runs the first manual `borgmatic create --stats`.
+   - Writes a sanitized status JSON file and Prometheus textfile metrics.
+   - If Borg reports a relocated repository and you have verified the repo path is correct, rerun with:
+
+```bash
+sudo BORG_RELOCATED_REPO_ACCESS_IS_OK=yes ./stage-06-manual-backup.sh
+```
+
+8. `stage-07-check-and-restore-test.sh`
+   - Runs `borgmatic check`.
+   - Extracts a small known file from the latest archive into `/tmp/borgmatic-restore-test-<host>-<timestamp>` and diffs it with the live file.
+   - Candidate restore files include `/opt/docker/hosts/<host>.yaml`, `/opt/docker/docker-compose.yml`, and the bootstrap sentinel.
+
+9. `stage-08-enable-timer.sh`
+   - Installs a managed host-specific wrapper and systemd timer:
+     - `/usr/local/sbin/home-network-borgmatic-run-<host>`
+     - `/etc/systemd/system/home-network-borgmatic-<host>.service`
+     - `/etc/systemd/system/home-network-borgmatic-<host>.timer`
+   - Refuses to overwrite an existing managed wrapper/service/timer unless explicitly approved:
+
+```bash
+sudo ALLOW_OVERWRITE_MANAGED_BORGMATIC_TIMER=1 ./stage-08-enable-timer.sh
+```
+
+   - Refuses to disable an existing stock `borgmatic.timer` unless explicitly approved:
+
+```bash
+sudo ALLOW_DISABLE_STOCK_BORGMATIC_TIMER=1 ./stage-08-enable-timer.sh
+```
+
+10. `stage-09-status-summary.sh`
+    - Prints the sanitized status JSON.
+    - Rewrites Prometheus textfile metrics from the latest status.
+
+## Light-touch design rules
+
+- Inventory drives generation; shell scripts remain host-specific and easy to inspect.
+- Nothing runs automatically just because it was generated.
+- Operators provide sudo at each stage and can stop between stages.
+- Generated scripts refuse to run if `hostname -s` does not match the expected host.
+- Existing secrets, repo keys, configs, and timers are not silently replaced.
+- Inventory values are validated against a strict safe-character policy before shell scripts are generated.
+- Borg secrets stay under `/opt/docker/.secrets` and are excluded from backups.
+- Prometheus, Grafana, Hermes, and Discord consume only sanitized status, never Borg passphrases or exported keys.
 
 ## Backup result telemetry
 
-Root remains responsible for running Borgmatic. Automation should expose sanitized status to non-root consumers instead of sharing secrets.
+Root remains responsible for running Borgmatic. Automation exposes sanitized status to non-root consumers instead of sharing secrets.
 
 Status file for Hermes/Discord summaries:
 
@@ -159,60 +289,58 @@ Status file for Hermes/Discord summaries:
 /var/lib/home-network/backup-status/<host>.json
 ```
 
-Optional Prometheus textfile metrics, when node_exporter textfile collector exists:
+Prometheus textfile metrics:
 
 ```text
 /var/lib/node_exporter/textfile_collector/borgmatic_<host>.prom
 ```
 
+The generator now creates `/var/lib/node_exporter/textfile_collector` in `stage-00-bootstrap-host.sh`, so later backup/status stages can write `.prom` files. Node exporter still has to be installed/running and configured to read that directory.
+
+Telemetry flow:
+
+```text
+Borgmatic/root wrapper
+  -> /var/lib/home-network/backup-status/<host>.json
+  -> /var/lib/node_exporter/textfile_collector/borgmatic_<host>.prom
+  -> node_exporter :9100/metrics
+  -> Prometheus scrape
+  -> Grafana/alerts
+```
+
+Generated metric names:
+
+- `borgmatic_last_run_timestamp_seconds{host="<host>"}`
+- `borgmatic_last_run_success{host="<host>"}`
+- `borgmatic_last_run_exit_code{host="<host>"}`
+- `borgmatic_last_run_duration_seconds{host="<host>"}`
+
 Prometheus does not scrape MQTT natively. MQTT can still be added later as a retained event/state bus, but Prometheus should consume either node_exporter textfile metrics or a dedicated MQTT exporter. Phase 1 uses JSON + textfile metrics because it is simpler and keeps Borg secrets unreadable by Hermes, Prometheus, and MQTT.
 
 ## Current rollout result
 
-Last checked from `jellyberry` during the rollout:
+Last checked during rollout:
 
-- `jellyberry` is present in `inventory/backups.yml` and has `borg_enabled: true`.
-- `/opt/docker` exists on `jellyberry`.
-- `borg` is installed.
-- `borgmatic` is installed.
-- Root passwordless SSH to `jellybackup@192.168.1.75` works.
-- The expected per-host repository directories exist on `jellybackup`:
-  - `/home/jellybackup/externaldisk/borg_jellyhome`
-  - `/home/jellybackup/externaldisk/borg_jellybase`
-  - `/home/jellybackup/externaldisk/borg_jellyberry`
-- `jellyberry` Borg repository is initialized with `repokey-blake2`.
-- `jellyberry` passphrase and exported repo key were stored outside git.
-- `jellyberry` Borgmatic config is present at `/etc/borgmatic/config.yaml` and validates cleanly.
-- `/opt/docker/.secrets` is excluded from backups.
-- Initial archive containing the passphrase was deleted and the repository was compacted.
-- Clean verified archive: `jellyberry-2026-05-22T07:17:03`.
-- `borgmatic check` completed successfully.
-- Restore test to `/tmp/borgmatic-restore-test-20260522-072051` restored `/opt/docker/hosts/jellyberry.yaml` and matched the live file.
-- `borgmatic.timer` is enabled; next observed run was `2026-05-23 00:36:46 BST`.
-
-Implication: `jellyberry` is the first completed host pattern. Repeat this rollout for `jellyhome` and `jellybase`, using their own passphrase, exported key, repo path, config, clean backup, check, timer, and restore test.
-
-## Data to confirm before writing final configs
-
-For each client host, confirm:
-
-| Host | Backup repo path on jellybackup | Backup user | Include paths | Exclude paths | Timer/schedule |
-| --- | --- | --- | --- | --- | --- |
-| jellyhome | `/home/jellybackup/externaldisk/borg_jellyhome` | `jellybackup` | `/opt/docker`, relevant repos/data | caches/logs/temp | TBD |
-| jellybase | `/home/jellybackup/externaldisk/borg_jellybase` | `jellybackup` | `/opt/docker`, relevant repos/data | caches/logs/temp | TBD |
-| jellyberry | `/home/jellybackup/externaldisk/borg_jellyberry` | `jellybackup` | `/opt/docker`, Hermes/runtime appdata as needed | caches/logs/temp/secrets | `borgmatic.timer` enabled |
+- `jellyberry`, `jellyhome`, and `jellybase` are present in `inventory/backups.yml` and have `borg_enabled: true` plus host-specific repository paths.
+- The generic generator emits staged rollout directories for all three hosts.
+- `jellyhome` and `jellybase` manual backups and restore tests completed successfully.
+- `jellyhome` has the managed timer `home-network-borgmatic-jellyhome.timer` enabled.
+- Earlier runs skipped Prometheus textfile metrics on hosts where `/var/lib/node_exporter/textfile_collector` was missing. New generated rollouts create that directory in `stage-00-bootstrap-host.sh`.
 
 ## Acceptance criteria
 
 - Every in-scope client uses `192.168.1.75` in Borg/Borgmatic repository URLs.
-- Every in-scope client can connect to `jellybackup` without password prompts.
+- Every in-scope client can connect to `jellybackup` without password prompts from the runtime user that runs Borgmatic.
 - Every in-scope client has Borg and Borgmatic installed.
 - Every in-scope client has validated Borgmatic config.
 - Every in-scope client has completed one successful backup.
 - Every in-scope client can list its archives.
+- Every in-scope client has a restore test that extracts and compares a known file.
 - Every in-scope client has a timer/schedule enabled or an explicitly documented reason not to.
+- Every in-scope client writes sanitized status JSON.
+- Every in-scope client can write Prometheus textfile metrics once node_exporter is configured.
 - `just borg-check` or a host-specific equivalent passes.
 
 ## Next action
 
-Repeat the completed `jellyberry` pattern for `jellyhome` and `jellybase`, then run a restore test on each host.
+Before enabling node_exporter across all hosts, verify the generated stages on each host and then configure node_exporter to scrape `/var/lib/node_exporter/textfile_collector`.

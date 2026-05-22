@@ -3,3 +3,5 @@ docker/.env
 docker/.secrets/
 **/.secrets/
 .discovery/
+__pycache__/
+**/__pycache__/
