@@ -14,7 +14,7 @@
 
 In scope:
 
-- Plan/spec only in this branch until reviewed.
+- Implementation is happening task-by-task after review, starting with repo-only inventory and bootstrap changes.
 - Later implementation should add a generator for node_exporter rollout stages.
 - Later implementation should update bootstrap scripts to install required packages.
 - Later implementation should add disk health probe script and timer.
@@ -48,6 +48,8 @@ Status: implemented in `inventory/hosts.yml`, `scripts/host-monitoring-policy-ch
 
 ### Task 2: Add OS package requirements to bootstrap scripts
 
+Status: implemented in `bootstrap/bootstrap-ubuntu.sh`, `bootstrap/bootstrap-pi.sh`, and `docs/runbooks/rebuild-ubuntu-host.md`.
+
 **Objective:** Ensure fresh OS rebuilds include node_exporter and disk health tools.
 
 **Files:**
@@ -71,6 +73,8 @@ apt-get install -y prometheus-node-exporter smartmontools nvme-cli util-linux us
 ```
 
 **Verification:**
+
+Note: distro packages may enable/start `prometheus-node-exporter` immediately on a freshly bootstrapped host. That is acceptable for the first-visibility pass, but port `9100` hardening remains a tracked follow-up before treating the endpoint as locked down.
 
 ```bash
 bash -n bootstrap/bootstrap-ubuntu.sh bootstrap/bootstrap-pi.sh
