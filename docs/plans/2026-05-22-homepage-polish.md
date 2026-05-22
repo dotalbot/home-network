@@ -41,3 +41,7 @@ Revert `inventory/services.yml`, `scripts/homepage-render`, generated Homepage Y
 ## Follow-up: IP address links
 
 Homepage service links should prefer stable LAN IP addresses instead of hostnames so the dashboard remains usable when local DNS or MagicDNS resolution is inconsistent. Keep alternate host metadata in inventory only when it is not rendered as a dashboard link.
+
+## Follow-up: Dozzle agent coverage
+
+Add `jellyberry` as a Dozzle agent peer alongside `jellybase` so the central Dozzle UI on `jellyhome` can show logs from all active Docker hosts.

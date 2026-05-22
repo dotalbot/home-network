@@ -33,7 +33,7 @@ services:
       - "8080:8080"
     environment:
       TZ: ${TZ}
-      DOZZLE_REMOTE_AGENT: "jellybase:7007|jellybase|HomeLab"
+      DOZZLE_REMOTE_AGENT: "192.168.1.2:7007|jellybase|HomeLab,192.168.1.159:7007|jellyberry|HomeLab"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
 
