@@ -31,6 +31,8 @@ SAFE_USER_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_-]{0,63}$")
 SAFE_TARGET_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:-]{0,252}$")
 SAFE_ABSOLUTE_PATH_RE = re.compile(r"^/[A-Za-z0-9._+/@:-]+$")
 SAFE_LOKI_URL_RE = re.compile(r"^https?://[A-Za-z0-9_.:-]+/loki/api/v1/push$")
+SAFE_MQTT_HOST_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,252}$")
+SAFE_MQTT_TOPIC_PREFIX_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_/-]{0,127}$")
 SAFE_LABEL_KEY_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]{0,62}$")
 SAFE_LABEL_VALUE_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$")
 
@@ -52,6 +54,7 @@ STATUS_FILE="${STATUS_DIR}/${EXPECTED_HOST}.json"
 LOG_DIR="/var/log/home-network-borgmatic"
 TEXTFILE_DIR="/var/lib/node_exporter/textfile_collector"
 PROM_FILE="${TEXTFILE_DIR}/borgmatic_${EXPECTED_HOST}.prom"
+__BORGMATIC_MQTT_VARS__
 
 require_root() {
   if [ "$(id -u)" -ne 0 ]; then
@@ -151,6 +154,88 @@ PY
   mv "$tmp" "$PROM_FILE"
   chmod 644 "$PROM_FILE"
   echo "wrote prometheus metrics: $PROM_FILE"
+}
+
+
+mqtt_topic() {
+  local suffix="$1"
+  printf '%s/backups/%s/borgmatic/%s' "$MQTT_TOPIC_PREFIX" "$EXPECTED_HOST" "$suffix"
+}
+
+publish_mqtt() {
+  local topic_suffix="$1"
+  local status="$2"
+  local exit_code="$3"
+  local archive="${4:-}"
+  local message="${5:-}"
+  local duration="${6:-0}"
+  local retain="${7:-0}"
+
+  [ "${MQTT_EVENTS_ENABLED:-0}" = "1" ] || return 0
+
+  if ! command -v mosquitto_pub >/dev/null 2>&1; then
+    echo "warning: mosquitto_pub not installed; skipped MQTT publish" >&2
+    return 0
+  fi
+
+  local topic payload
+  topic="$(mqtt_topic "$topic_suffix")"
+  payload="$(python3 - "$EXPECTED_HOST" "$status" "$exit_code" "$archive" "$message" "$duration" <<'PY'
+import json, sys
+from datetime import datetime, timezone
+
+host, status, exit_code, archive, message, duration = sys.argv[1:]
+severity = "info"
+if status == "failure":
+    severity = "critical"
+elif status == "start":
+    severity = "info"
+
+data = {
+    "schema_version": 1,
+    "component": "borgmatic",
+    "host": host,
+    "status": status,
+    "event_at": datetime.now(timezone.utc).isoformat(),
+    "duration_seconds": int(duration),
+    "exit_code": int(exit_code),
+    "archive": archive or None,
+    "severity": severity,
+    "message": message or None,
+    "loki_url_hint": f"grafana explore query labels host={host} job=borgmatic",
+}
+print(json.dumps(data, sort_keys=True, separators=(",", ":")))
+PY
+)"
+
+  local auth_args=()
+  if [ -n "${MQTT_USERNAME:-}" ] && [ -n "${MQTT_PASSWORD_FILE:-}" ]; then
+    if [ -r "$MQTT_PASSWORD_FILE" ]; then
+      auth_args=(-u "$MQTT_USERNAME" -P "$(tr -d '\r\n' < "$MQTT_PASSWORD_FILE")")
+    else
+      echo "warning: MQTT password file is not readable; skipped MQTT publish" >&2
+      return 0
+    fi
+  fi
+
+  if [ "$retain" = "1" ]; then
+    mosquitto_pub -h "$MQTT_BROKER_HOST" -p "$MQTT_BROKER_PORT" "${auth_args[@]}" -t "$topic" -r -m "$payload" \
+      || echo "warning: MQTT retained state publish failed: $topic" >&2
+  else
+    mosquitto_pub -h "$MQTT_BROKER_HOST" -p "$MQTT_BROKER_PORT" "${auth_args[@]}" -t "$topic" -m "$payload" \
+      || echo "warning: MQTT event publish failed: $topic" >&2
+  fi
+}
+
+publish_backup_event_and_state() {
+  local status="$1"
+  local exit_code="$2"
+  local archive="${3:-}"
+  local message="${4:-}"
+  local duration="${5:-0}"
+
+  publish_mqtt "event" "$status" "$exit_code" "$archive" "$message" "$duration" 0
+  publish_mqtt "state" "$status" "$exit_code" "$archive" "$message" "$duration" "${MQTT_RETAIN_STATE:-1}"
 }
 
 latest_archive() {
@@ -278,6 +363,7 @@ echo "good: borgmatic config written and validated"
 install -d -m 755 -o root -g root "$LOG_DIR" "$STATUS_DIR"
 start="$(date +%s)"
 log="${LOG_DIR}/${EXPECTED_HOST}-create-$(date +%Y%m%d-%H%M%S).log"
+publish_backup_event_and_state "start" 0 "" "manual backup started" 0
 set +e
 borgmatic create --stats 2>&1 | tee "$log"
 rc=${PIPESTATUS[0]}
@@ -290,11 +376,13 @@ if [ "$rc" -eq 0 ]; then
   reachable="$(repo_reachable)"
   write_status "success" 0 "$archive" "manual backup completed; log=${log}" "$duration" "$reachable"
   write_prometheus "success" 0 "$duration" "$archive" "$reachable"
+  publish_backup_event_and_state "success" 0 "$archive" "manual backup completed" "$duration"
   echo "good: backup completed; archive=${archive}; log=${log}"
 else
   reachable="$(repo_reachable)"
   write_status "failure" "$rc" "" "manual backup failed; see ${log}" "$duration" "$reachable"
   write_prometheus "failure" "$rc" "$duration" "" "$reachable"
+  publish_backup_event_and_state "failure" "$rc" "" "manual backup failed; see Loki/Grafana hint" "$duration"
   echo "not good: backup failed; rc=${rc}; log=${log}" >&2
   exit "$rc"
 fi
@@ -369,6 +457,7 @@ STATUS_FILE="${STATUS_DIR}/${EXPECTED_HOST}.json"
 LOG_DIR="/var/log/home-network-borgmatic"
 TEXTFILE_DIR="/var/lib/node_exporter/textfile_collector"
 PROM_FILE="${TEXTFILE_DIR}/borgmatic_${EXPECTED_HOST}.prom"
+__BORGMATIC_MQTT_VARS__
 repo_reachable() {
   if ssh -o BatchMode=yes -o ConnectTimeout=5 -o StrictHostKeyChecking=yes "${BACKUP_USER}@${TARGET_IP}" "test -d '${REPO_PATH}' && test -f '${REPO_PATH}/config'" >/dev/null 2>&1; then
     printf '1'
@@ -451,12 +540,95 @@ PY
   chmod 644 "$PROM_FILE"
   echo "wrote prometheus metrics: $PROM_FILE"
 }
+
+mqtt_topic() {
+  local suffix="$1"
+  printf '%s/backups/%s/borgmatic/%s' "$MQTT_TOPIC_PREFIX" "$EXPECTED_HOST" "$suffix"
+}
+
+publish_mqtt() {
+  local topic_suffix="$1"
+  local status="$2"
+  local exit_code="$3"
+  local archive="${4:-}"
+  local message="${5:-}"
+  local duration="${6:-0}"
+  local retain="${7:-0}"
+
+  [ "${MQTT_EVENTS_ENABLED:-0}" = "1" ] || return 0
+
+  if ! command -v mosquitto_pub >/dev/null 2>&1; then
+    echo "warning: mosquitto_pub not installed; skipped MQTT publish" >&2
+    return 0
+  fi
+
+  local topic payload
+  topic="$(mqtt_topic "$topic_suffix")"
+  payload="$(python3 - "$EXPECTED_HOST" "$status" "$exit_code" "$archive" "$message" "$duration" <<'PY'
+import json, sys
+from datetime import datetime, timezone
+
+host, status, exit_code, archive, message, duration = sys.argv[1:]
+severity = "info"
+if status == "failure":
+    severity = "critical"
+elif status == "start":
+    severity = "info"
+
+data = {
+    "schema_version": 1,
+    "component": "borgmatic",
+    "host": host,
+    "status": status,
+    "event_at": datetime.now(timezone.utc).isoformat(),
+    "duration_seconds": int(duration),
+    "exit_code": int(exit_code),
+    "archive": archive or None,
+    "severity": severity,
+    "message": message or None,
+    "loki_url_hint": f"grafana explore query labels host={host} job=borgmatic",
+}
+print(json.dumps(data, sort_keys=True, separators=(",", ":")))
+PY
+)"
+
+  local auth_args=()
+  if [ -n "${MQTT_USERNAME:-}" ] && [ -n "${MQTT_PASSWORD_FILE:-}" ]; then
+    if [ -r "$MQTT_PASSWORD_FILE" ]; then
+      auth_args=(-u "$MQTT_USERNAME" -P "$(tr -d '\r\n' < "$MQTT_PASSWORD_FILE")")
+    else
+      echo "warning: MQTT password file is not readable; skipped MQTT publish" >&2
+      return 0
+    fi
+  fi
+
+  if [ "$retain" = "1" ]; then
+    mosquitto_pub -h "$MQTT_BROKER_HOST" -p "$MQTT_BROKER_PORT" "${auth_args[@]}" -t "$topic" -r -m "$payload" \
+      || echo "warning: MQTT retained state publish failed: $topic" >&2
+  else
+    mosquitto_pub -h "$MQTT_BROKER_HOST" -p "$MQTT_BROKER_PORT" "${auth_args[@]}" -t "$topic" -m "$payload" \
+      || echo "warning: MQTT event publish failed: $topic" >&2
+  fi
+}
+
+publish_backup_event_and_state() {
+  local status="$1"
+  local exit_code="$2"
+  local archive="${3:-}"
+  local message="${4:-}"
+  local duration="${5:-0}"
+
+  publish_mqtt "event" "$status" "$exit_code" "$archive" "$message" "$duration" 0
+  publish_mqtt "state" "$status" "$exit_code" "$archive" "$message" "$duration" "${MQTT_RETAIN_STATE:-1}"
+}
+
 latest_archive() {
   { borgmatic list 2>/dev/null || true; } | awk -v h="$EXPECTED_HOST" '$1 ~ "^" h "-" {name=$1} END{print name}'
 }
 install -d -m 755 -o root -g root "$LOG_DIR" "$STATUS_DIR"
 start="$(date +%s)"
 log="${LOG_DIR}/${EXPECTED_HOST}-scheduled-$(date +%Y%m%d-%H%M%S).log"
+publish_backup_event_and_state "start" 0 "" "scheduled backup started" 0
 set +e
 {
   borgmatic create --stats
@@ -478,10 +650,12 @@ if [ "$rc" -eq 0 ]; then
   reachable="$(repo_reachable)"
   write_status "success" 0 "$archive" "scheduled backup completed; log=${log}" "$duration" "$reachable"
   write_prometheus "success" 0 "$duration" "$archive" "$reachable"
+  publish_backup_event_and_state "success" 0 "$archive" "scheduled backup completed" "$duration"
 else
   reachable="$(repo_reachable)"
   write_status "failure" "$rc" "$archive" "scheduled backup failed; log=${log}" "$duration" "$reachable"
   write_prometheus "failure" "$rc" "$duration" "$archive" "$reachable"
+  publish_backup_event_and_state "failure" "$rc" "$archive" "scheduled backup failed; see Loki/Grafana hint" "$duration"
 fi
 exit "$rc"
 SH
@@ -572,6 +746,21 @@ def validate_loki_url(value: str, field: str) -> None:
         )
 
 
+def validate_mqtt_host(value: str, field: str) -> None:
+    if not SAFE_MQTT_HOST_RE.fullmatch(value):
+        raise ValueError(f"invalid {field} {value!r}; use a DNS-safe host name or LAN IP")
+
+
+def validate_mqtt_port(value: int, field: str) -> None:
+    if not 1 <= value <= 65535:
+        raise ValueError(f"invalid {field} {value!r}; expected TCP port 1-65535")
+
+
+def validate_mqtt_topic_prefix(value: str, field: str) -> None:
+    if not SAFE_MQTT_TOPIC_PREFIX_RE.fullmatch(value):
+        raise ValueError(f"invalid {field} {value!r}; use letters, numbers, underscores, hyphens, and slashes")
+
+
 def validate_label_key(value: str, field: str) -> None:
     if not SAFE_LABEL_KEY_RE.fullmatch(value):
         raise ValueError(f"invalid {field} label key {value!r}; use letters, numbers, and underscores")
@@ -642,12 +831,13 @@ def source_paths(host: str, cfg: dict[str, Any]) -> list[str]:
     return paths
 
 
-def render_header(host: str, repo_path: str, backup_user: str, target_ip: str) -> str:
+def render_header(host: str, repo_path: str, backup_user: str, target_ip: str, inventory: dict[str, Any]) -> str:
     return (
         HEADER.replace("__HOST__", host)
         .replace("__REPO_PATH__", repo_path)
         .replace("__BACKUP_USER__", backup_user)
         .replace("__TARGET_IP__", target_ip)
+        .replace("__BORGMATIC_MQTT_VARS__", borgmatic_mqtt_shell(inventory, host))
     )
 
 
@@ -715,6 +905,47 @@ def loki_monitoring_yaml(inventory: dict[str, Any], host: str) -> str:
 """
 
 
+def borgmatic_mqtt_shell(inventory: dict[str, Any], host: str) -> str:
+    cfg = inventory.get("borgmatic_mqtt") or {}
+    if not isinstance(cfg, dict):
+        raise ValueError("borgmatic_mqtt must be a mapping when present")
+
+    raw_enabled_hosts = cfg.get("enabled_hosts") or []
+    if not isinstance(raw_enabled_hosts, list):
+        raise ValueError("borgmatic_mqtt.enabled_hosts must be a list")
+
+    enabled_hosts = [str(item) for item in raw_enabled_hosts]
+    for enabled_host in enabled_hosts:
+        validate_host_name(enabled_host)
+
+    enabled = host in enabled_hosts
+    broker_host = str(cfg.get("broker_host") or "jellyhome")
+    broker_port = int(cfg.get("broker_port") or 1883)
+    topic_prefix = str(cfg.get("topic_prefix") or "home-network")
+    retain_state = bool(cfg.get("retain_state", True))
+    username = str(cfg.get("username") or "")
+    password_file = str(cfg.get("password_file") or "")
+
+    validate_mqtt_host(broker_host, "borgmatic_mqtt.broker_host")
+    validate_mqtt_port(broker_port, "borgmatic_mqtt.broker_port")
+    validate_mqtt_topic_prefix(topic_prefix, "borgmatic_mqtt.topic_prefix")
+    if username:
+        validate_user(username, "borgmatic_mqtt.username")
+    if password_file:
+        validate_absolute_path(password_file, "borgmatic_mqtt.password_file")
+
+    values = {
+        "MQTT_EVENTS_ENABLED": "1" if enabled else "0",
+        "MQTT_BROKER_HOST": broker_host,
+        "MQTT_BROKER_PORT": str(broker_port),
+        "MQTT_TOPIC_PREFIX": topic_prefix.rstrip("/"),
+        "MQTT_RETAIN_STATE": "1" if retain_state else "0",
+        "MQTT_USERNAME": username,
+        "MQTT_PASSWORD_FILE": password_file,
+    }
+    return "\n".join(f"{key}={shell_single_quote(value)}" for key, value in values.items())
+
+
 def render_stage(content: str, paths: list[str], host: str, inventory: dict[str, Any]) -> str:
     if "__SOURCE_DIRECTORIES__" in content:
         source_yaml = "".join(f"  - {p}\n" for p in paths)
@@ -730,6 +961,8 @@ def render_stage(content: str, paths: list[str], host: str, inventory: dict[str,
         content = content.replace("__RESTORE_CANDIDATES__", candidate_text)
     if "__LOKI_MONITORING__" in content:
         content = content.replace("__LOKI_MONITORING__", loki_monitoring_yaml(inventory, host))
+    if "__BORGMATIC_MQTT_VARS__" in content:
+        content = content.replace("__BORGMATIC_MQTT_VARS__", borgmatic_mqtt_shell(inventory, host))
     return content.lstrip()
 
 
@@ -758,7 +991,7 @@ def write_host(host: str, cfg: dict[str, Any], base: Path, backup_user: str, tar
     out.mkdir(parents=True, exist_ok=True)
     for name, body in STAGES.items():
         path = out / name
-        text = render_header(host, repo_path, backup_user, target_ip) + render_stage(body, paths, host, inventory)
+        text = render_header(host, repo_path, backup_user, target_ip, inventory) + render_stage(body, paths, host, inventory)
         path.write_text(text, encoding="utf-8")
         path.chmod(path.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
     (out / "README.txt").write_text(readme_text(host, list(STAGES)), encoding="utf-8")

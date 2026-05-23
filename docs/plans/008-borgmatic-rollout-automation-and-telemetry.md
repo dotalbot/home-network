@@ -22,7 +22,7 @@
 - [x] Roll out and verify Borgmatic Loki log shipping on `jellyberry`.
 - [x] Roll out and verify Borgmatic Loki log shipping on `jellyhome` and `jellybase`.
 - [ ] Add optional MQTT retained state/event publishing.
-- [ ] Add source-managed Grafana panels/dashboards for backup telemetry and logs.
+- [x] Add source-managed Grafana panels/dashboards for Borgmatic backup telemetry and logs.
 - [ ] Add alerting for backup failure and stale backup status.
 
 ## Design decision: Prometheus, MQTT, and Hermes

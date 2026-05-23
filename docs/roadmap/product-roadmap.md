@@ -74,9 +74,9 @@ The platform should make the home lab understandable, reproducible, observable, 
 
 - [x] Deploy self-hosted Loki beside Prometheus/Grafana on `jellybase`.
 - [x] Add Loki datasource provisioning to Grafana.
-- [ ] Send Borgmatic run logs to Loki using the Borgmatic Loki hook.
-- [ ] Add Grafana log panels/search for backup runs.
-- [ ] Extend log shipping beyond Borgmatic only after the first pass is stable.
+- [x] Send Borgmatic run logs to Loki using the Borgmatic Loki hook.
+- [x] Add Grafana log panels/search for backup runs.
+- [ ] Extend log shipping beyond Borgmatic now that the Borgmatic first pass is stable.
 - [x] Keep Grafana as the primary observability UI and Loki as the log-history layer.
 
 ## V6 — Scheduled Operations and Alerting
@@ -125,7 +125,7 @@ Do not build a Netdata streaming topology unless this decision is explicitly rev
 | Scheduled operations | Drift/backup/status checks are manual unless scheduled elsewhere | cron/systemd timers or Hermes cron jobs plus docs |
 | Alerting | Failed checks should notify instead of waiting for manual review | Discord/Hermes alert path or monitoring alerts |
 | Node exporter hardening | TCP `9100` is live and should be restricted to approved scrapers | staged hardening generator plus positive/negative verification |
-| Grafana/Loki observability | Loki and datasource provisioning exist; Borgmatic log hooks, dashboards, and alerts remain | Borgmatic Loki hook rollout, Grafana log panels, and alerting docs |
+| Grafana/Loki observability | Loki, datasource provisioning, first-wave Borgmatic log hooks, and the Borgmatic dashboard exist; alerts and broader log shipping remain | Alerting policy/docs, MQTT/Hermes notification integration, and future non-Borgmatic log shipping |
 | Reverse proxy + TLS | Needed before safe broader access | proxy/TLS spec, Compose changes, rollback notes |
 | Metadata maturity | Inventory needs richer fields for automation | inventory schema notes and validation checks |
 | Database-aware backups | Databases need dump/restore discipline, not only volume backup | central Postgres runbook, logical dump automation, and service restore runbooks |
@@ -136,7 +136,7 @@ Do not build a Netdata streaming topology unless this decision is explicitly rev
 
 1. Finalize and deploy central Postgres on `jellybase` with LAN access restricted to `jellybase` and `jellyhome`, plus Borg and logical dumps from day one.
 2. Create Manyfold database `manyfold` and user `svc_manyfold`, then add Manyfold on `jellyhome` with the verified 3D library mounts.
-3. Source-manage Prometheus alert rules for backup freshness, backup failures, disk pressure, disk-health failures, stale probes, and Loki log search.
+3. Source-manage Prometheus alert rules for backup freshness, backup failures, disk pressure, disk-health failures, stale probes, and Loki availability/log-investigation handoff.
 4. Add staged access-control hardening for node_exporter TCP `9100` so only the Prometheus scraper path can reach it.
 5. Clean up retired Netdata containers/appdata from `jellyhome` and `jellybase` when approved.
 6. Complete Borg/Borgmatic setup and verification for any remaining in-scope hosts, especially `jellybackup` if it joins monitored/backup-client scope.

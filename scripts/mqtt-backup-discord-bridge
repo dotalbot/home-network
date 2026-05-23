@@ -1,0 +1,167 @@
+#!/usr/bin/env python3
+"""Bridge Borgmatic MQTT lifecycle events to Discord via Hermes.
+
+This script intentionally does not use an LLM. It subscribes to compact,
+secret-free MQTT backup events and sends concise Discord messages through the
+local Hermes CLI.
+"""
+from __future__ import annotations
+
+import json
+import os
+import signal
+import subprocess
+import sys
+import time
+from datetime import datetime, timezone
+from typing import Any
+
+MQTT_HOST = os.environ.get("MQTT_HOST", "jellyhome")
+MQTT_PORT = os.environ.get("MQTT_PORT", "1883")
+MQTT_TOPIC = os.environ.get("MQTT_TOPIC", "home-network/backups/+/borgmatic/event")
+MQTT_USERNAME = os.environ.get("MQTT_USERNAME", "")
+MQTT_PASSWORD_FILE = os.environ.get("MQTT_PASSWORD_FILE", "")
+DISCORD_TARGET = os.environ.get("DISCORD_TARGET", "")
+HERMES_BIN = os.environ.get("HERMES_BIN", "hermes")
+SEND_START = os.environ.get("SEND_START", "0") == "1"
+SEND_SUCCESS = os.environ.get("SEND_SUCCESS", "0") == "1"
+RECONNECT_SECONDS = int(os.environ.get("RECONNECT_SECONDS", "10"))
+
+STOP = False
+
+
+def handle_signal(signum: int, frame: object) -> None:  # noqa: ARG001
+    global STOP
+    STOP = True
+
+
+def utc_now() -> str:
+    return datetime.now(timezone.utc).isoformat(timespec="seconds")
+
+
+def should_send(event: dict[str, Any]) -> bool:
+    status = str(event.get("status") or "").lower()
+    if status == "failure":
+        return True
+    if status == "start":
+        return SEND_START
+    if status == "success":
+        return SEND_SUCCESS
+    return True
+
+
+def format_message(event: dict[str, Any]) -> str:
+    host = str(event.get("host") or "unknown")
+    status = str(event.get("status") or "unknown").lower()
+    severity = str(event.get("severity") or ("critical" if status == "failure" else "info"))
+    duration = event.get("duration_seconds")
+    exit_code = event.get("exit_code")
+    archive = event.get("archive")
+    hint = event.get("loki_url_hint") or f"Grafana Explore: host={host} job=borgmatic"
+
+    emoji = {
+        "failure": "🚨",
+        "success": "✅",
+        "start": "▶️",
+    }.get(status, "ℹ️")
+
+    lines = [f"{emoji} Borgmatic backup {status}: {host}"]
+    lines.append(f"severity: {severity}")
+    if exit_code is not None:
+        lines.append(f"exit_code: {exit_code}")
+    if duration is not None:
+        lines.append(f"duration: {duration}s")
+    if archive:
+        lines.append(f"archive: {archive}")
+    lines.append(str(hint))
+    return "\n".join(lines)
+
+
+def send_discord(message: str) -> bool:
+    if not DISCORD_TARGET:
+        print(f"{utc_now()} warning: DISCORD_TARGET is not set; skipped Discord send", file=sys.stderr)
+        return False
+    cmd = [HERMES_BIN, "send", "--quiet", "--to", DISCORD_TARGET, message]
+    result = subprocess.run(cmd, text=True, capture_output=True, timeout=60, check=False)
+    if result.returncode != 0:
+        stderr = result.stderr.strip() or result.stdout.strip()
+        print(f"{utc_now()} warning: Hermes Discord send failed rc={result.returncode}: {stderr}", file=sys.stderr)
+        return False
+    return True
+
+
+def process_line(line: str) -> None:
+    # mosquitto_sub -v emits: "topic payload"
+    try:
+        _topic, payload = line.split(" ", 1)
+    except ValueError:
+        print(f"{utc_now()} warning: invalid MQTT line", file=sys.stderr)
+        return
+    try:
+        event = json.loads(payload)
+    except json.JSONDecodeError as exc:
+        print(f"{utc_now()} warning: invalid MQTT JSON: {exc}", file=sys.stderr)
+        return
+    if not isinstance(event, dict):
+        print(f"{utc_now()} warning: MQTT payload was not an object", file=sys.stderr)
+        return
+    if str(event.get("component") or "") != "borgmatic":
+        return
+    if not should_send(event):
+        return
+    send_discord(format_message(event))
+
+
+def mqtt_auth_args() -> list[str]:
+    if not MQTT_USERNAME or not MQTT_PASSWORD_FILE:
+        return []
+    try:
+        password = open(MQTT_PASSWORD_FILE, encoding="utf-8").read().strip()
+    except OSError as exc:
+        print(f"{utc_now()} warning: MQTT password file is not readable: {exc}", file=sys.stderr)
+        return []
+    return ["-u", MQTT_USERNAME, "-P", password]
+
+
+def subscribe_once() -> int:
+    cmd = ["mosquitto_sub", "-h", MQTT_HOST, "-p", MQTT_PORT, *mqtt_auth_args(), "-v", "-t", MQTT_TOPIC]
+    proc = subprocess.Popen(cmd, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    assert proc.stdout is not None
+    try:
+        for line in proc.stdout:
+            if STOP:
+                proc.terminate()
+                return 0
+            line = line.strip()
+            if line:
+                process_line(line)
+    finally:
+        if STOP and proc.poll() is None:
+            proc.terminate()
+    return proc.wait(timeout=10)
+
+
+def main() -> int:
+    signal.signal(signal.SIGTERM, handle_signal)
+    signal.signal(signal.SIGINT, handle_signal)
+
+    if not DISCORD_TARGET:
+        print("warning: DISCORD_TARGET is not set; bridge will subscribe but skip sends", file=sys.stderr)
+
+    while not STOP:
+        try:
+            rc = subscribe_once()
+            if STOP:
+                break
+            print(f"{utc_now()} warning: mosquitto_sub exited rc={rc}; reconnecting in {RECONNECT_SECONDS}s", file=sys.stderr)
+        except FileNotFoundError:
+            print("not good: mosquitto_sub not found; install mosquitto-clients", file=sys.stderr)
+            return 1
+        except Exception as exc:  # noqa: BLE001 - bridge should reconnect on transient faults
+            print(f"{utc_now()} warning: bridge error: {exc}; reconnecting in {RECONNECT_SECONDS}s", file=sys.stderr)
+        time.sleep(RECONNECT_SECONDS)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

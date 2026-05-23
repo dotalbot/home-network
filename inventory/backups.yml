@@ -142,7 +142,22 @@ borgmatic_loki:
     environment: home-network
     backup_profile: default
 
+borgmatic_mqtt:
+  enabled_hosts:
+    - jellyberry
+    - jellybase
+    - jellyhome
+  broker_host: jellyhome
+  broker_port: 1883
+  username: borgmatic
+  password_file: /opt/docker/.secrets/mqtt_borgmatic_password
+  topic_prefix: home-network
+  retain_state: true
+  discord_target: discord:1505100652659867678:THREAD_ID_TBD
+  notes: Replace THREAD_ID_TBD with the new Jellymax Discord thread ID before enabling a Discord bridge.
+
 hosts:
+
 
   jellyhome:
     borg_enabled: true

@@ -59,7 +59,7 @@ Use `docs/roadmap/product-roadmap.md` as the active gap register. Current high-v
 2. Add service-specific restore runbooks for active stateful services.
 3. Document scheduled operations and alerting once implemented.
 4. Harden node_exporter TCP `9100` access and source-manage Prometheus/Grafana alert/dashboard definitions.
-5. Complete Borgmatic Loki hook rollout, log dashboards, and observability alerts.
+5. Add observability alerts and MQTT/Hermes notification wiring now that Borgmatic Loki hook rollout and log dashboards are complete.
 6. Clean up retired Netdata containers/appdata from jellyhome and jellybase when approved.
 7. Draft reverse proxy/TLS design before exposing services beyond direct LAN/Tailnet URLs.
 8. Add inventory validation for required service metadata.

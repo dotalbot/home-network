@@ -18,7 +18,8 @@ Add lightweight, source-managed log visibility to the home-network platform whil
 - [x] Roll out Borgmatic Loki log shipping to `jellybase` and `jellyhome` after `jellyberry` is verified.
 - [x] Add/source-manage Grafana Borgmatic logs dashboard or panels.
 - [x] Verify Borgmatic log labels stay low-cardinality and secret-free for first-wave hosts.
-- [ ] Decide whether MQTT/Hermes/Discord backup event notifications are in this phase or a later phase.
+- [x] Decide MQTT/Hermes/Discord backup event notifications belong to the next event-notification phase, not the Loki log-history phase.
+- [ ] Implement MQTT/Hermes/Discord backup event notifications with compact, secret-free backup lifecycle events.
 - [ ] Add alerting policy for backup failures/staleness, Loki availability, and log-investigation handoff.
 
 ## Strategic direction
@@ -43,6 +44,47 @@ Add lightweight, source-managed log visibility to the home-network platform whil
 - Replacing Prometheus metrics with logs.
 - Building a Netdata parent/child streaming topology.
 - Shipping every system/container log before Borgmatic logs are working and verified.
+
+## MQTT event notification boundary
+
+MQTT/Hermes/Discord are the instant event-notification path, not the log-history path.
+
+Use MQTT for:
+
+- Backup started/succeeded/failed events.
+- Retained latest backup state per host.
+- Hermes/Discord notification fan-out.
+- Grafana/Loki hints in failure notifications.
+
+Do not use MQTT for:
+
+- Full Borgmatic logs.
+- High-cardinality log lines.
+- Long-term search/history.
+- Primary Prometheus scraping.
+
+Topic shape:
+
+```text
+home-network/backups/<host>/borgmatic/event       non-retained start/success/failure event
+home-network/backups/<host>/borgmatic/state       retained latest summarized state
+home-network/systems/<host>/<component>/event     future generic system event
+home-network/systems/<host>/<component>/state     future retained component state
+```
+
+Payload rules:
+
+- Compact JSON only.
+- Secret-free.
+- No repository URLs with credentials.
+- No passphrases, key material, raw file lists, or verbose logs.
+- If broker auth is required, read the MQTT password from a local root-readable secret file such as `/opt/docker/.secrets/mqtt_borgmatic_password`; never print it.
+- Include host, component, status, timestamp, duration, exit code, severity, and a Grafana/Loki hint when useful.
+
+Discord routing requirement:
+
+- Backup MQTT event notifications must post to the new `#jellymax` Discord thread once its thread ID is pinned.
+- Parent channel ID is `1505100652659867678`; final target shape is `discord:1505100652659867678:<thread_id>`.
 
 ## Acceptance criteria
 

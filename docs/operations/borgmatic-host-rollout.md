@@ -236,6 +236,7 @@ sudo ALLOW_OVERWRITE_BORGMATIC_CONFIG=1 ./stage-05-configure-borgmatic.sh
 7. `stage-06-manual-backup.sh`
    - Runs the first manual `borgmatic create --stats`.
    - Writes a sanitized status JSON file and Prometheus textfile metrics including success, timestamp, duration, latest archive name, and repository reachability.
+   - Publishes compact MQTT `start` and final `success`/`failure` event/state messages for hosts enabled in `borgmatic_mqtt.enabled_hosts`.
    - If Borg reports a relocated repository and you have verified the repo path is correct, rerun with:
 
 ```bash
@@ -252,7 +253,7 @@ sudo BORG_RELOCATED_REPO_ACCESS_IS_OK=yes ./stage-06-manual-backup.sh
      - `/usr/local/sbin/home-network-borgmatic-run-<host>`
      - `/etc/systemd/system/home-network-borgmatic-<host>.service`
      - `/etc/systemd/system/home-network-borgmatic-<host>.timer`
-   - The wrapper runs `create`, `prune`, `compact`, and `check`, then refreshes the sanitized JSON and textfile metrics on every scheduled run.
+   - The wrapper runs `create`, `prune`, `compact`, and `check`, then refreshes the sanitized JSON, textfile metrics, and MQTT event/state topics on every scheduled run.
    - Refuses to overwrite an existing managed wrapper/service/timer unless explicitly approved:
 
 ```bash
@@ -307,6 +308,29 @@ Borgmatic/root wrapper
   -> node_exporter :9100/metrics
   -> Prometheus scrape
   -> Grafana/alerts
+  -> MQTT event/state topics
+  -> Hermes/Discord bridge
+```
+
+MQTT backup event topics, when `borgmatic_mqtt` is enabled for the host:
+
+```text
+home-network/backups/<host>/borgmatic/event       non-retained start/success/failure event
+home-network/backups/<host>/borgmatic/state       retained latest summarized state
+```
+
+If the broker requires authentication, `inventory/backups.yml` can set `borgmatic_mqtt.username` and `borgmatic_mqtt.password_file`. The generated Borgmatic stages read the password from the local root-readable file, for example `/opt/docker/.secrets/mqtt_borgmatic_password`, and never print it. MQTT publish failures are warnings only and must not fail backups.
+
+MQTT payloads are compact, secret-free JSON. They must not include passphrases, repo keys, repository URLs, source file paths, raw Borg/Borgmatic logs, credentials, or environment dumps.
+
+Useful MQTT checks:
+
+```bash
+mosquitto_sub -h jellyhome -p 1883 -v -t 'home-network/backups/+/borgmatic/#'
+
+mosquitto_pub -h jellyhome -p 1883 \
+  -t 'home-network/backups/jellybase/borgmatic/event' \
+  -m '{"schema_version":1,"component":"borgmatic","host":"jellybase","status":"test"}'
 ```
 
 Generated metric names:
@@ -318,7 +342,7 @@ Generated metric names:
 - `borgmatic_repository_reachable{host="<host>"}`
 - `borgmatic_last_archive_info{host="<host>",archive_name="<archive>"}`
 
-Prometheus does not scrape MQTT natively. MQTT can still be added later as a retained event/state bus, but Prometheus should consume either node_exporter textfile metrics or a dedicated MQTT exporter. Phase 1 uses JSON + textfile metrics because it is simpler and keeps Borg secrets unreadable by Hermes, Prometheus, and MQTT.
+Prometheus remains the source of truth for stale/missed backups. MQTT is a low-latency event/state bus only; retained state can become stale if a host dies mid-run.
 
 ## Current rollout result
 
@@ -353,7 +377,7 @@ Before enabling node_exporter across all hosts, verify the generated stages on e
 
 `inventory/backups.yml` may contain a `borgmatic_loki` block. The rollout generator uses it to render Borgmatic's native `loki:` monitoring hook into `stage-05-configure-borgmatic.sh` only for hosts listed in `borgmatic_loki.enabled_hosts`.
 
-Current first-pass policy: only `jellyberry` is enabled until a real Borgmatic run is visible in Loki and existing Prometheus textfile metrics continue to update.
+Current first-wave policy: `jellyberry`, `jellybase`, and `jellyhome` are enabled and verified. Keep future hosts disabled until a real Borgmatic run is visible in Loki and existing Prometheus textfile metrics continue to update.
 
 Keep labels low-cardinality and secret-free. Acceptable labels are `job`, `host`, `instance`, `environment`, and `backup_profile`. Do not add repository URLs, archive names, file paths, passphrases, exported keys, or raw error strings as labels.
 
