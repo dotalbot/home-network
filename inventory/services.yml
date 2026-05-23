@@ -274,7 +274,7 @@ services:
         - manyfold-valkey
     urls:
       primary: http://192.168.1.1:3214
-    description: 3D model library manager on jellyhome using central PostgreSQL on jellybase
+    description: 3D model library manager on jellyhome using central PostgreSQL on jellybase; library mount is read-write because Manyfold validates local libraries as writable
     database:
       host: jellybase
       endpoint: postgresql://192.168.1.2:5432/manyfold
@@ -285,7 +285,7 @@ services:
       models:
         host_path: /home/jellyfish/media/Primary_5TB/3D_models
         container_path: /libraries/3D_models
-        initial_mode: read-only
+        initial_mode: read-write
     backup: manyfold-appdata-central-postgres-and-library
     status: active
 

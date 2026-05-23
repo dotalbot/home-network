@@ -330,7 +330,7 @@ Expected:
 - Use `lscr.io/linuxserver/manyfold:latest`.
 - Add private `manyfold-valkey`; do not publish Redis/Valkey to the LAN.
 - Load database password and `SECRET_KEY_BASE` via Docker secret files under `/opt/docker/.secrets`.
-- Start with `/home/jellyfish/media/Primary_5TB/3D_models` mounted read-only at `/libraries/3D_models`.
+- Mount `/home/jellyfish/media/Primary_5TB/3D_models` at `/libraries/3D_models` read-write because Manyfold validates local filesystem libraries as writable.
 - Publish Manyfold on `192.168.1.1:3214` via host port `${MANYFOLD_PORT:-3214}`.
 
 **Verification:**
@@ -367,7 +367,7 @@ Verified live on `jellyhome`:
 - `manyfold` is running with restart count 0.
 - HTTP on `http://192.168.1.1:3214/` returns a redirect to the sign-in flow.
 - Port binding is `192.168.1.1:3214->3214/tcp`.
-- `/libraries/3D_models` is visible and readable inside the container.
+- `/libraries/3D_models` is visible, readable, and writable according to Manyfold validation inside the container.
 - Logs show Rails serving requests and no startup database authentication failure.
 
 Remaining operator step: complete first-login/library setup in the Manyfold UI, then validate indexing of `/libraries/3D_models`.

@@ -54,8 +54,8 @@ The platform should make the home lab understandable, reproducible, observable, 
 - [x] Install logical dump timer and document restore procedure.
 - [x] Create Manyfold database `manyfold` and user `svc_manyfold`.
 - [x] Add Manyfold to managed Compose on `jellyhome`.
-- [x] Mount verified 3D library from `/home/jellyfish/media/Primary_5TB/3D_models` read-only.
-- [x] Verify Manyfold starts, reaches central Postgres, and can see the read-only 3D model library.
+- [x] Mount verified 3D library from `/home/jellyfish/media/Primary_5TB/3D_models` read-write as required by Manyfold local library validation.
+- [x] Verify Manyfold starts, reaches central Postgres, and can validate the 3D model library path.
 - [ ] Verify Manyfold indexes the library after first-login library setup.
 - [ ] Complete a safe restore check for central Postgres using Borg and/or logical dump.
 - [ ] Document host rebuild order for `/opt/docker/bin` helpers, secrets, timers, firewall rules, and restored database/app state.

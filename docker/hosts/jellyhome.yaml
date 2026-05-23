@@ -96,7 +96,7 @@ services:
       - manyfold_secret_key_base
     volumes:
       - /opt/docker/appdata/manyfold/config:/config
-      - /home/jellyfish/media/Primary_5TB/3D_models:/libraries/3D_models:ro
+      - /home/jellyfish/media/Primary_5TB/3D_models:/libraries/3D_models
     security_opt:
       - no-new-privileges:true
 

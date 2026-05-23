@@ -174,10 +174,10 @@ Runtime paths and secrets:
 /opt/docker/.secrets/manyfold_secret_key_base
 ```
 
-The first library mount is read-only while adoption/indexing is proven:
+Manyfold local filesystem libraries must be writable. The first library mount is read-write so the app validation and scanner can manage library metadata/files:
 
 ```text
-/home/jellyfish/media/Primary_5TB/3D_models:/libraries/3D_models:ro
+/home/jellyfish/media/Primary_5TB/3D_models:/libraries/3D_models
 ```
 
 `/opt/docker/bin` helper scripts are source-managed and recreated by `scripts/sync-docker-config`; secrets, database/appdata, systemd timers, and live firewall rules are runtime state and must be restored or re-applied during a host rebuild.
@@ -210,7 +210,7 @@ The first library mount is read-only while adoption/indexing is proven:
 - [x] Create Manyfold app secrets on `jellyhome`.
 - [x] Deploy Manyfold and `manyfold-valkey` on `jellyhome`.
 - [x] Verify Manyfold connects to central Postgres.
-- [x] Verify Manyfold HTTP endpoint and read-only 3D model mount.
+- [x] Verify Manyfold HTTP endpoint and writable 3D model mount.
 - [ ] Index/validate 3D model libraries in Manyfold after first-login library setup.
 - [ ] Document restore test for central Postgres using Borg and/or logical dump.
 
