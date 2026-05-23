@@ -14,6 +14,8 @@ Netdata is retired from the managed Compose/inventory/dashboard/status path. Exi
 docker/hosts/jellybase.yaml
 docker/appdata/loki/config/loki.yml
 docker/appdata/grafana-provisioning/datasources/datasources.yaml
+docker/appdata/grafana-provisioning/dashboards/dashboards.yaml
+docker/appdata/grafana-provisioning/dashboards/json/borgmatic-backups.json
 scripts/sync-docker-config
 inventory/services.yml
 ```
@@ -25,6 +27,8 @@ Runtime copy on `jellybase`:
 /opt/docker/appdata/loki/config/loki.yml
 /opt/docker/appdata/loki/data/     # runtime data, not rsync-deleted
 /opt/docker/appdata/grafana-provisioning/datasources/datasources.yaml
+/opt/docker/appdata/grafana-provisioning/dashboards/dashboards.yaml
+/opt/docker/appdata/grafana-provisioning/dashboards/json/borgmatic-backups.json
 ```
 
 ## Endpoints
@@ -84,8 +88,29 @@ Verify Grafana knows the Loki datasource without printing secrets:
 ```bash
 cd /opt/docker
 set -a; . ./.env; set +a
-curl -fsS -u "${GRAFANA_ADMIN_USER:-admin}:${GRAFANA_ADMIN_PASSWORD}" \
+GRAFANA_USER="${GRAFANA_ADMIN_USER:-admin}"
+GRAFANA_PASSWORD="${GRAFANA_ADMIN_PASSWORD:-change-me}"
+curl -fsS -u "${GRAFANA_USER}:${GRAFANA_PASSWORD}" \
   http://127.0.0.1:3001/api/datasources/name/Loki
+```
+
+Verify the source-managed Borgmatic dashboard:
+
+```bash
+GRAFANA_USER="${GRAFANA_ADMIN_USER:-admin}"
+GRAFANA_PASSWORD="${GRAFANA_ADMIN_PASSWORD:-change-me}"
+curl -fsS -u "${GRAFANA_USER}:${GRAFANA_PASSWORD}" \
+  http://127.0.0.1:3001/api/dashboards/uid/borgmatic-backups
+```
+
+Dashboard: Borgmatic Backups
+
+```text
+uid: borgmatic-backups
+folder: Home Network
+source: docker/appdata/grafana-provisioning/dashboards/json/borgmatic-backups.json
+runtime URL: /d/borgmatic-backups/borgmatic-backups
+verified: provisioned true, 9 panels
 ```
 
 ## Rollback
@@ -105,7 +130,6 @@ Leave `/opt/docker/appdata/loki/data` in place until you intentionally delete lo
 
 ## Remaining work
 
-- Source-manage Grafana log panels/dashboards for Borgmatic logs.
 - Add alerting and Discord/Hermes notification wiring for actionable failures.
 - Decide whether `jellybackup` should join the Borgmatic Loki/log-metrics rollout.
 

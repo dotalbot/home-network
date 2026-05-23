@@ -28,6 +28,11 @@ if [ ! -d "$DOCKER_DIR" ] || [ ! -w "$DOCKER_DIR" ]; then
   needs_sudo=1
 fi
 
+can_sudo=0
+if command -v sudo >/dev/null 2>&1 && sudo -n true >/dev/null 2>&1; then
+  can_sudo=1
+fi
+
 run_privileged() {
   if [ "$needs_sudo" -eq 1 ]; then
     sudo "$@"
@@ -114,9 +119,12 @@ if [ -d "$SRC_LOKI_CONFIG" ]; then
   if [ "$needs_sudo" -eq 1 ] || [ "$(id -u)" -eq 0 ]; then
     run_privileged chown -R 10001:10001 "$DEST_LOKI_DATA"
     run_privileged chmod -R 777 "$DEST_LOKI_DATA"
+  elif [ "$can_sudo" -eq 1 ]; then
+    sudo chown -R 10001:10001 "$DEST_LOKI_DATA"
+    sudo chmod -R 777 "$DEST_LOKI_DATA"
   elif [ -O "$DEST_LOKI_DATA" ]; then
     chown -R 10001:10001 "$DEST_LOKI_DATA" 2>/dev/null || true
-    chmod -R 777 "$DEST_LOKI_DATA"
+    chmod -R 777 "$DEST_LOKI_DATA" 2>/dev/null || echo "warning: $DEST_LOKI_DATA contains files whose modes could not be updated" >&2
   else
     echo "warning: $DEST_LOKI_DATA may need writable permissions for Loki writes" >&2
   fi

@@ -140,7 +140,7 @@ Non-goals for phase 1:
   Loki stores logs
   Prometheus stores metrics
   Grafana queries both
-  Grafana dashboard 20736-style Borgmatic Logs view is provisioned/source-managed
+  Grafana dashboard `Borgmatic Backups` is provisioned/source-managed
 
 [notification path]
   MQTT broker -> Hermes/bridge -> Discord concise notification
@@ -347,12 +347,12 @@ curl -fsS 'http://jellybase:9090/api/v1/query?query=borgmatic_last_run_success{h
 
 **Steps:**
 
-1. Download or copy the Borgmatic Logs dashboard JSON from Grafana dashboard ID 20736.
-2. Replace datasource references with the local Loki datasource UID/name.
-3. Confirm queries match labels: `job="borgmatic"`, `host`, `instance`.
-4. Provision dashboard through repo-managed Grafana config.
-5. Recreate/restart Grafana if needed.
-6. Verify dashboard exists and panels query data.
+1. Create the source-managed dashboard JSON at `docker/appdata/grafana-provisioning/dashboards/json/borgmatic-backups.json`. [done]
+2. Add the dashboard provider at `docker/appdata/grafana-provisioning/dashboards/dashboards.yaml`. [done]
+3. Reference local datasource UIDs: `prometheus` and `loki`. [done]
+4. Confirm queries match labels: `job="borgmatic"`, `host`, `instance`, and `backup_profile`. [done]
+5. Recreate/reload Grafana after sync. [done]
+6. Verify dashboard exists and panels query data. [done]
 
 **Verification:**
 
@@ -489,12 +489,21 @@ Before considering Borgmatic-first rollout complete:
 - [x] Grafana has a working Loki datasource.
 - [x] Borgmatic logs from `jellyberry`, then `jellybase` and `jellyhome`, are queryable by host label.
 - [x] Existing Prometheus backup metrics still return all expected hosts.
-- [ ] Dashboard is source-managed and visible in Grafana.
+- [x] Dashboard is source-managed and visible in Grafana.
 - [x] First-wave labels contain no passphrases, private keys, exported Borg keys, secret file contents, or raw `/opt/docker/.secrets` values.
 - [ ] MQTT test event can reach a subscriber.
 - [ ] Discord bridge can post a test failure message without exposing secrets.
 - [ ] Docs explain metrics vs logs vs events clearly.
-- [ ] Rollback steps are documented.
+- [x] Rollback steps are documented.
+
+
+### Dashboard deployment verification — 2026-05-23
+
+- [x] `docker/appdata/grafana-provisioning/dashboards/dashboards.yaml` synced to `jellybase`.
+- [x] Grafana was recreated with the dashboard provisioning mount.
+- [x] Grafana API returned dashboard UID `borgmatic-backups`, title `Borgmatic Backups`, folder `Home Network`, `provisioned: true`, and 9 panels.
+- [x] Prometheus query `borgmatic_last_run_success` returned success for `jellyberry`, `jellybase`, and `jellyhome`.
+- [x] Loki query `{job="borgmatic",environment="home-network"}` returned Borgmatic log entries.
 
 ## 8. Rollback plan
 
