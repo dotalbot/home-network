@@ -210,6 +210,22 @@ services:
     backup: appdata
     status: active
 
+  central-postgres:
+    display_name: Central PostgreSQL
+    icon: postgres.png
+    category: Data
+    mode: single-primary
+    hosts:
+      - jellybase
+    containers:
+      jellybase:
+        - central-postgres
+    urls:
+      primary: postgresql://192.168.1.2:5432
+    description: shared PostgreSQL platform service for home-network applications; first target is Manyfold
+    backup: appdata-and-database
+    status: planned
+
   homeassistant:
     display_name: Home Assistant
     icon: home-assistant.png
