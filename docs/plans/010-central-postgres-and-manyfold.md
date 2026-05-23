@@ -24,8 +24,8 @@
 - [x] Task 7 final: Install timer, run logical dump automation after deploy, and confirm dump artifacts.
 - [x] Task 8: Prepare Manyfold database `manyfold` and user `svc_manyfold`.
 - [x] Task 9: Add Manyfold service on `jellyhome`.
-- [ ] Task 9b: Deploy Manyfold on `jellyhome`.
-- [ ] Task 10: Verify Manyfold library indexing and backup/restore notes.
+- [x] Task 9b: Deploy Manyfold on `jellyhome`.
+- [ ] Task 10: Verify Manyfold library indexing after first-login library setup and backup/restore notes.
 
 ---
 
@@ -358,3 +358,16 @@ grep -n "postgres_manyfold_password" /tmp/jellyhome-manyfold-compose.yaml
 ## Rebuild note
 
 `/opt/docker/bin` helpers are recreated from Git by `scripts/sync-docker-config`. Host rebuilds still need explicit restore/reapply steps for `/opt/docker/.secrets`, database/appdata, systemd timers, and live firewall rules.
+
+## Live deployment result
+
+Verified live on `jellyhome`:
+
+- `manyfold-valkey` is healthy.
+- `manyfold` is running with restart count 0.
+- HTTP on `http://192.168.1.1:3214/` returns a redirect to the sign-in flow.
+- Port binding is `192.168.1.1:3214->3214/tcp`.
+- `/libraries/3D_models` is visible and readable inside the container.
+- Logs show Rails serving requests and no startup database authentication failure.
+
+Remaining operator step: complete first-login/library setup in the Manyfold UI, then validate indexing of `/libraries/3D_models`.

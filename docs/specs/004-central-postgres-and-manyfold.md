@@ -207,10 +207,11 @@ The first library mount is read-only while adoption/indexing is proven:
 - [x] Verify `svc_manyfold` can connect to database `manyfold` and is not a superuser.
 - [x] Install timer, then run and verify logical dumps for central Postgres.
 - [x] Add Manyfold service on `jellyhome`.
-- [ ] Create Manyfold app secrets on `jellyhome`.
-- [ ] Deploy Manyfold and `manyfold-valkey` on `jellyhome`.
-- [ ] Verify Manyfold connects to central Postgres.
-- [ ] Index/validate 3D model libraries in Manyfold.
+- [x] Create Manyfold app secrets on `jellyhome`.
+- [x] Deploy Manyfold and `manyfold-valkey` on `jellyhome`.
+- [x] Verify Manyfold connects to central Postgres.
+- [x] Verify Manyfold HTTP endpoint and read-only 3D model mount.
+- [ ] Index/validate 3D model libraries in Manyfold after first-login library setup.
 - [ ] Document restore test for central Postgres using Borg and/or logical dump.
 
 ## Confirmed decisions
