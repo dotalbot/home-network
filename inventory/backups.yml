@@ -109,6 +109,8 @@ primary_target:
 borgmatic_loki:
   enabled_hosts:
     - jellyberry
+    - jellybase
+    - jellyhome
   url: http://jellybase:3100/loki/api/v1/push
   labels:
     job: borgmatic
