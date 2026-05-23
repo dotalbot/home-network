@@ -65,17 +65,26 @@ require_host() {
   fi
 }
 
+repo_reachable() {
+  if ssh -o BatchMode=yes -o ConnectTimeout=5 -o StrictHostKeyChecking=yes "${BACKUP_USER}@${TARGET_IP}" "test -d '${REPO_PATH}' && test -f '${REPO_PATH}/config'" >/dev/null 2>&1; then
+    printf '1'
+  else
+    printf '0'
+  fi
+}
+
 write_status() {
   local status="$1"
   local exit_code="$2"
   local archive="${3:-}"
   local message="${4:-}"
   local duration="${5:-0}"
+  local reachable="${6:-$(repo_reachable)}"
   install -d -m 755 -o root -g root "$STATUS_DIR"
-  python3 - "$STATUS_FILE" "$EXPECTED_HOST" "$REPO" "$status" "$exit_code" "$archive" "$message" "$duration" <<'PY'
+  python3 - "$STATUS_FILE" "$EXPECTED_HOST" "$REPO" "$status" "$exit_code" "$archive" "$message" "$duration" "$reachable" <<'PY'
 import json, sys
 from datetime import datetime, timezone
-path, host, repo, status, exit_code, archive, message, duration = sys.argv[1:]
+path, host, repo, status, exit_code, archive, message, duration, reachable = sys.argv[1:]
 data = {
     "host": host,
     "repository": repo,
@@ -85,6 +94,7 @@ data = {
     "archive_name": archive or None,
     "message": message or None,
     "duration_seconds": int(duration),
+    "repository_reachable": reachable == "1",
 }
 with open(path, "w", encoding="utf-8") as f:
     json.dump(data, f, indent=2, sort_keys=True)
@@ -97,6 +107,8 @@ write_prometheus() {
   local status="$1"
   local exit_code="$2"
   local duration="${3:-0}"
+  local archive="${4:-}"
+  local reachable="${5:-$(repo_reachable)}"
   if [ ! -d "$TEXTFILE_DIR" ]; then
     echo "prometheus textfile collector dir not present, skipped: $TEXTFILE_DIR"
     return 0
@@ -107,27 +119,38 @@ write_prometheus() {
   now="$(date +%s)"
   local tmp
   tmp="${PROM_FILE}.$$"
-  cat > "$tmp" <<EOF
-# HELP borgmatic_last_run_timestamp_seconds Last Borgmatic run timestamp.
-# TYPE borgmatic_last_run_timestamp_seconds gauge
-borgmatic_last_run_timestamp_seconds{host="${EXPECTED_HOST}"} ${now}
-# HELP borgmatic_last_run_success Last Borgmatic run success, 1 for success and 0 for failure.
-# TYPE borgmatic_last_run_success gauge
-borgmatic_last_run_success{host="${EXPECTED_HOST}"} ${ok}
-# HELP borgmatic_last_run_exit_code Last Borgmatic run exit code.
-# TYPE borgmatic_last_run_exit_code gauge
-borgmatic_last_run_exit_code{host="${EXPECTED_HOST}"} ${exit_code}
-# HELP borgmatic_last_run_duration_seconds Last Borgmatic run duration in seconds.
-# TYPE borgmatic_last_run_duration_seconds gauge
-borgmatic_last_run_duration_seconds{host="${EXPECTED_HOST}"} ${duration}
-EOF
+  python3 - "$tmp" "$EXPECTED_HOST" "$now" "$ok" "$exit_code" "$duration" "$archive" "$reachable" <<'PY'
+import sys
+path, host, now, ok, exit_code, duration, archive, reachable = sys.argv[1:]
+with open(path, "w", encoding="utf-8") as f:
+    f.write("# HELP borgmatic_last_run_timestamp_seconds Last Borgmatic run timestamp.\n")
+    f.write("# TYPE borgmatic_last_run_timestamp_seconds gauge\n")
+    f.write(f'borgmatic_last_run_timestamp_seconds{{host="{host}"}} {now}\n')
+    f.write("# HELP borgmatic_last_run_success Last Borgmatic run success, 1 for success and 0 for failure.\n")
+    f.write("# TYPE borgmatic_last_run_success gauge\n")
+    f.write(f'borgmatic_last_run_success{{host="{host}"}} {ok}\n')
+    f.write("# HELP borgmatic_last_run_exit_code Last Borgmatic run exit code.\n")
+    f.write("# TYPE borgmatic_last_run_exit_code gauge\n")
+    f.write(f'borgmatic_last_run_exit_code{{host="{host}"}} {exit_code}\n')
+    f.write("# HELP borgmatic_last_run_duration_seconds Last Borgmatic run duration in seconds.\n")
+    f.write("# TYPE borgmatic_last_run_duration_seconds gauge\n")
+    f.write(f'borgmatic_last_run_duration_seconds{{host="{host}"}} {duration}\n')
+    f.write("# HELP borgmatic_repository_reachable Last observed Borg repository reachability, 1 for reachable and 0 for unreachable.\n")
+    f.write("# TYPE borgmatic_repository_reachable gauge\n")
+    f.write(f'borgmatic_repository_reachable{{host="{host}"}} {reachable}\n')
+    if archive:
+        esc = archive.replace('\\', '\\\\').replace('\n', '\\n').replace('"', '\\"')
+        f.write("# HELP borgmatic_last_archive_info Last observed Borg archive name as an info metric.\n")
+        f.write("# TYPE borgmatic_last_archive_info gauge\n")
+        f.write(f'borgmatic_last_archive_info{{host="{host}",archive_name="{esc}"}} 1\n')
+PY
   mv "$tmp" "$PROM_FILE"
   chmod 644 "$PROM_FILE"
   echo "wrote prometheus metrics: $PROM_FILE"
 }
 
 latest_archive() {
-  borgmatic list 2>/dev/null | awk -v h="$EXPECTED_HOST" '$1 ~ "^" h "-" {name=$1} END{print name}'
+  { borgmatic list 2>/dev/null || true; } | awk -v h="$EXPECTED_HOST" '$1 ~ "^" h "-" {name=$1} END{print name}'
 }
 
 require_root
@@ -260,12 +283,14 @@ duration=$((end - start))
 archive=""
 if [ "$rc" -eq 0 ]; then
   archive="$(latest_archive)"
-  write_status "success" 0 "$archive" "manual backup completed; log=${log}" "$duration"
-  write_prometheus "success" 0 "$duration"
+  reachable="$(repo_reachable)"
+  write_status "success" 0 "$archive" "manual backup completed; log=${log}" "$duration" "$reachable"
+  write_prometheus "success" 0 "$duration" "$archive" "$reachable"
   echo "good: backup completed; archive=${archive}; log=${log}"
 else
-  write_status "failure" "$rc" "" "manual backup failed; see ${log}" "$duration"
-  write_prometheus "failure" "$rc" "$duration"
+  reachable="$(repo_reachable)"
+  write_status "failure" "$rc" "" "manual backup failed; see ${log}" "$duration" "$reachable"
+  write_prometheus "failure" "$rc" "$duration" "" "$reachable"
   echo "not good: backup failed; rc=${rc}; log=${log}" >&2
   exit "$rc"
 fi
@@ -289,7 +314,8 @@ restore_dir="/tmp/borgmatic-restore-test-${EXPECTED_HOST}-$(date +%Y%m%d-%H%M%S)
 mkdir -p "$restore_dir"
 borgmatic extract --archive latest --path "$archive_path" --destination "$restore_dir"
 diff -q "$restore_source" "${restore_dir}/${archive_path}"
-write_status "success" 0 "$(latest_archive)" "check and restore test passed: ${restore_source} -> ${restore_dir}"
+archive="$(latest_archive)"
+write_status "success" 0 "$archive" "check and restore test passed: ${restore_source} -> ${restore_dir}" 0 "$(repo_reachable)"
 echo "RESTORE_TEST_OK ${restore_dir}"
 ''',
 "stage-08-enable-timer.sh": r"""
@@ -330,28 +356,45 @@ if [ "$actual_host" != "$EXPECTED_HOST" ]; then
   echo "not good: wrapper is for ${EXPECTED_HOST}, current host is ${actual_host}" >&2
   exit 1
 fi
-REPO="ssh://__BACKUP_USER__@__TARGET_IP____REPO_PATH__"
+BACKUP_USER="__BACKUP_USER__"
+TARGET_IP="__TARGET_IP__"
+REPO_PATH="__REPO_PATH__"
+REPO="ssh://${BACKUP_USER}@${TARGET_IP}${REPO_PATH}"
 STATUS_DIR="/var/lib/home-network/backup-status"
 STATUS_FILE="${STATUS_DIR}/${EXPECTED_HOST}.json"
 LOG_DIR="/var/log/home-network-borgmatic"
 TEXTFILE_DIR="/var/lib/node_exporter/textfile_collector"
 PROM_FILE="${TEXTFILE_DIR}/borgmatic_${EXPECTED_HOST}.prom"
+repo_reachable() {
+  if ssh -o BatchMode=yes -o ConnectTimeout=5 -o StrictHostKeyChecking=yes "${BACKUP_USER}@${TARGET_IP}" "test -d '${REPO_PATH}' && test -f '${REPO_PATH}/config'" >/dev/null 2>&1; then
+    printf '1'
+  else
+    printf '0'
+  fi
+}
+
 write_status() {
-  local status="$1" exit_code="$2" archive="${3:-}" message="${4:-}" duration="${5:-0}"
+  local status="$1"
+  local exit_code="$2"
+  local archive="${3:-}"
+  local message="${4:-}"
+  local duration="${5:-0}"
+  local reachable="${6:-$(repo_reachable)}"
   install -d -m 755 -o root -g root "$STATUS_DIR"
-  python3 - "$STATUS_FILE" "$EXPECTED_HOST" "$REPO" "$status" "$exit_code" "$archive" "$message" "$duration" <<'PY'
+  python3 - "$STATUS_FILE" "$EXPECTED_HOST" "$REPO" "$status" "$exit_code" "$archive" "$message" "$duration" "$reachable" <<'PY'
 import json, sys
 from datetime import datetime, timezone
-path, host, repo, status, exit_code, archive, message, duration = sys.argv[1:]
+path, host, repo, status, exit_code, archive, message, duration, reachable = sys.argv[1:]
 data = {
-  "host": host,
-  "repository": repo,
-  "updated_at": datetime.now(timezone.utc).isoformat(),
-  "status": status,
-  "exit_code": int(exit_code),
-  "archive_name": archive or None,
-  "message": message or None,
-  "duration_seconds": int(duration),
+    "host": host,
+    "repository": repo,
+    "updated_at": datetime.now(timezone.utc).isoformat(),
+    "status": status,
+    "exit_code": int(exit_code),
+    "archive_name": archive or None,
+    "message": message or None,
+    "duration_seconds": int(duration),
+    "repository_reachable": reachable == "1",
 }
 with open(path, "w", encoding="utf-8") as f:
     json.dump(data, f, indent=2, sort_keys=True)
@@ -360,31 +403,52 @@ PY
   chmod 644 "$STATUS_FILE"
 }
 write_prometheus() {
-  local status="$1" exit_code="$2" duration="${3:-0}"
-  [ -d "$TEXTFILE_DIR" ] || return 0
-  local ok=0 now tmp
+  local status="$1"
+  local exit_code="$2"
+  local duration="${3:-0}"
+  local archive="${4:-}"
+  local reachable="${5:-$(repo_reachable)}"
+  if [ ! -d "$TEXTFILE_DIR" ]; then
+    echo "prometheus textfile collector dir not present, skipped: $TEXTFILE_DIR"
+    return 0
+  fi
+  local ok=0
   [ "$status" = "success" ] && ok=1
+  local now
   now="$(date +%s)"
+  local tmp
   tmp="${PROM_FILE}.$$"
-  cat > "$tmp" <<EOF
-# HELP borgmatic_last_run_timestamp_seconds Last Borgmatic run timestamp.
-# TYPE borgmatic_last_run_timestamp_seconds gauge
-borgmatic_last_run_timestamp_seconds{host="${EXPECTED_HOST}"} ${now}
-# HELP borgmatic_last_run_success Last Borgmatic run success, 1 for success and 0 for failure.
-# TYPE borgmatic_last_run_success gauge
-borgmatic_last_run_success{host="${EXPECTED_HOST}"} ${ok}
-# HELP borgmatic_last_run_exit_code Last Borgmatic run exit code.
-# TYPE borgmatic_last_run_exit_code gauge
-borgmatic_last_run_exit_code{host="${EXPECTED_HOST}"} ${exit_code}
-# HELP borgmatic_last_run_duration_seconds Last Borgmatic run duration in seconds.
-# TYPE borgmatic_last_run_duration_seconds gauge
-borgmatic_last_run_duration_seconds{host="${EXPECTED_HOST}"} ${duration}
-EOF
+  python3 - "$tmp" "$EXPECTED_HOST" "$now" "$ok" "$exit_code" "$duration" "$archive" "$reachable" <<'PY'
+import sys
+path, host, now, ok, exit_code, duration, archive, reachable = sys.argv[1:]
+with open(path, "w", encoding="utf-8") as f:
+    f.write("# HELP borgmatic_last_run_timestamp_seconds Last Borgmatic run timestamp.\n")
+    f.write("# TYPE borgmatic_last_run_timestamp_seconds gauge\n")
+    f.write(f'borgmatic_last_run_timestamp_seconds{{host="{host}"}} {now}\n')
+    f.write("# HELP borgmatic_last_run_success Last Borgmatic run success, 1 for success and 0 for failure.\n")
+    f.write("# TYPE borgmatic_last_run_success gauge\n")
+    f.write(f'borgmatic_last_run_success{{host="{host}"}} {ok}\n')
+    f.write("# HELP borgmatic_last_run_exit_code Last Borgmatic run exit code.\n")
+    f.write("# TYPE borgmatic_last_run_exit_code gauge\n")
+    f.write(f'borgmatic_last_run_exit_code{{host="{host}"}} {exit_code}\n')
+    f.write("# HELP borgmatic_last_run_duration_seconds Last Borgmatic run duration in seconds.\n")
+    f.write("# TYPE borgmatic_last_run_duration_seconds gauge\n")
+    f.write(f'borgmatic_last_run_duration_seconds{{host="{host}"}} {duration}\n')
+    f.write("# HELP borgmatic_repository_reachable Last observed Borg repository reachability, 1 for reachable and 0 for unreachable.\n")
+    f.write("# TYPE borgmatic_repository_reachable gauge\n")
+    f.write(f'borgmatic_repository_reachable{{host="{host}"}} {reachable}\n')
+    if archive:
+        esc = archive.replace('\\', '\\\\').replace('\n', '\\n').replace('"', '\\"')
+        f.write("# HELP borgmatic_last_archive_info Last observed Borg archive name as an info metric.\n")
+        f.write("# TYPE borgmatic_last_archive_info gauge\n")
+        f.write(f'borgmatic_last_archive_info{{host="{host}",archive_name="{esc}"}} 1\n')
+PY
   mv "$tmp" "$PROM_FILE"
   chmod 644 "$PROM_FILE"
+  echo "wrote prometheus metrics: $PROM_FILE"
 }
 latest_archive() {
-  borgmatic list 2>/dev/null | awk -v h="$EXPECTED_HOST" '$1 ~ "^" h "-" {name=$1} END{print name}'
+  { borgmatic list 2>/dev/null || true; } | awk -v h="$EXPECTED_HOST" '$1 ~ "^" h "-" {name=$1} END{print name}'
 }
 install -d -m 755 -o root -g root "$LOG_DIR" "$STATUS_DIR"
 start="$(date +%s)"
@@ -407,11 +471,13 @@ end="$(date +%s)"
 duration=$((end - start))
 archive="$(latest_archive)"
 if [ "$rc" -eq 0 ]; then
-  write_status "success" 0 "$archive" "scheduled backup completed; log=${log}" "$duration"
-  write_prometheus "success" 0 "$duration"
+  reachable="$(repo_reachable)"
+  write_status "success" 0 "$archive" "scheduled backup completed; log=${log}" "$duration" "$reachable"
+  write_prometheus "success" 0 "$duration" "$archive" "$reachable"
 else
-  write_status "failure" "$rc" "$archive" "scheduled backup failed; log=${log}" "$duration"
-  write_prometheus "failure" "$rc" "$duration"
+  reachable="$(repo_reachable)"
+  write_status "failure" "$rc" "$archive" "scheduled backup failed; log=${log}" "$duration" "$reachable"
+  write_prometheus "failure" "$rc" "$duration" "$archive" "$reachable"
 fi
 exit "$rc"
 SH
@@ -456,15 +522,16 @@ else
   echo "missing status file"
   exit 1
 fi
-read -r status exit_code duration <<EOF
+read -r status exit_code duration archive reachable <<EOF
 $(python3 - "$STATUS_FILE" <<'PY'
 import json, sys
 data=json.load(open(sys.argv[1], encoding='utf-8'))
-print(data.get('status','unknown'), data.get('exit_code', 1), data.get('duration_seconds', 0))
+print(data.get('status','unknown'), data.get('exit_code', 1), data.get('duration_seconds', 0), data.get('archive_name') or "__none__", 1 if data.get('repository_reachable') else 0)
 PY
 )
 EOF
-write_prometheus "$status" "$exit_code" "$duration"
+[ "$archive" = "__none__" ] && archive=""
+write_prometheus "$status" "$exit_code" "$duration" "$archive" "$reachable"
 ''',
 }
 

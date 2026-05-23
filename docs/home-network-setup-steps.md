@@ -5,7 +5,7 @@ This document records the setup decisions and commands agreed so far for the `ho
 Current planning docs now live in:
 
 ```text
-docs/specs/home-network-platform-spec.md
+docs/specs/001-home-network-platform.md
 docs/roadmap/product-roadmap.md
 docs/README.md
 ```

@@ -25,8 +25,8 @@ Prometheus currently sees three node_exporter targets. Because Prometheus runs i
 inventory/hosts.yml
 scripts/host-monitoring-policy-check
 scripts/node-exporter-rollout-generate
-docs/specs/node-exporter-disk-health-spec.md
-docs/plans/2026-05-22-node-exporter-disk-health-rollout.md
+docs/specs/002-node-exporter-disk-health.md
+docs/plans/006-node-exporter-disk-health-rollout.md
 ```
 
 The runtime setup remains stage-based and operator-controlled. Future hosts should be added to inventory and then generated through `just node-exporter-rollout-generate`; do not hand-build one-off host scripts unless the generated stages cannot support the host.
@@ -76,7 +76,7 @@ git diff --check
 Current rollout and documentation work is on branch:
 
 ```text
-feat/home-network-rollout
+main
 ```
 
 The repo remains the source of truth. Runtime config/scripts on hosts should be treated as deployed copies and reconciled back into this repo if they change.

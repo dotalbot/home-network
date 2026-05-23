@@ -6,8 +6,9 @@ Unless stated otherwise, paths in this index are relative to the repository root
 
 ## Strategy and roadmap
 
-- `docs/specs/home-network-platform-spec.md` — current platform specification.
-- `docs/specs/node-exporter-disk-health-spec.md` — implemented first-pass design for generic node_exporter, backup telemetry, and disk health rollout.
+- `docs/specs/001-home-network-platform.md` — current platform specification.
+- `docs/specs/002-node-exporter-disk-health.md` — implemented first-pass design for generic node_exporter, backup telemetry, and disk health rollout.
+- `docs/specs/003-loki-grafana-observability.md` — planned Loki + Grafana log observability design.
 - `docs/roadmap/product-roadmap.md` — completed stages, gap register, and next phases.
 
 ## Operator docs
@@ -35,7 +36,7 @@ Unless stated otherwise, paths in this index are relative to the repository root
 
 ## Plans
 
-- `docs/plans/` — dated implementation plans and design options.
+- `docs/plans/` — numbered implementation plans and design options.
 
 ## Source of truth files
 
@@ -57,5 +58,7 @@ Use `docs/roadmap/product-roadmap.md` as the active gap register. Current high-v
 2. Add service-specific restore runbooks for active stateful services.
 3. Document scheduled operations and alerting once implemented.
 4. Harden node_exporter TCP `9100` access and source-manage Prometheus/Grafana alert/dashboard definitions.
-5. Draft reverse proxy/TLS design before exposing services beyond direct LAN/Tailnet URLs.
-6. Add inventory validation for required service metadata.
+5. Add Loki and source-managed Grafana observability for backup logs and metrics.
+6. Decide the Netdata retirement/optional-diagnostics path.
+7. Draft reverse proxy/TLS design before exposing services beyond direct LAN/Tailnet URLs.
+8. Add inventory validation for required service metadata.

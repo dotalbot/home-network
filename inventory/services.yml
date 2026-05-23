@@ -160,6 +160,7 @@ services:
     icon: netdata.png
     category: Monitoring
     mode: duplicated-parents
+    description: legacy/optional host diagnostics; strategic observability is Prometheus, Grafana, and Loki
     hosts:
       - jellyhome
       - jellybase

@@ -1,7 +1,6 @@
-# Home Network Platform Specification
+# Spec 001 — Home Network Platform
 
-Status: draft
-Last updated: 2026-05-21
+Status: active
 Source inputs:
 - `/tmp/home-network-platform-pack.zip`
 - `README.md`
@@ -49,7 +48,7 @@ The platform pack identifies these completed stages. Current repo files support 
 | Repo structure | `README.md`, `docs/`, `inventory/`, `docker/`, `scripts/`, `justfile` |
 | Host inventory | `inventory/hosts.yml` |
 | Deployrr-style Docker layout | `docker/docker-compose.yml`, `docker/hosts/*.yaml`, `/opt/docker` runtime convention |
-| Shared management stack | Homepage, Dozzle, Portainer, Netdata, Prometheus, Grafana entries in inventory and Compose overlays |
+| Shared management stack | Homepage, Dozzle, Portainer, Prometheus, Grafana entries in inventory and Compose overlays; Netdata remains legacy/optional pending retirement |
 | Homepage generation | `scripts/homepage-render`, `docker/appdata/homepage/*.yaml`, `just homepage-render` |
 | Network Map generation | `scripts/network-map-render`, `docker/appdata/network-map/site/` |
 | Drift detection | `scripts/drift-check`, `just drift-check-strict` |
@@ -86,7 +85,7 @@ Service placement modes:
 - `central-ui-plus-agents` — central UI with remote agents, such as Dozzle and Portainer.
 - `single-primary` — one writable owner for stateful services.
 - `single-primary-home-network-compose` — one host-managed service deployed by the home-network Compose model.
-- `duplicated-parents` — intentionally duplicated parent/collector services such as current Netdata placement.
+- `duplicated-parents` — intentionally duplicated parent/collector services; retained for legacy Netdata placement while its retirement path is decided.
 
 Stateful services must default to single-primary unless explicitly designed for replication/failover. Examples: Mosquitto, Home Assistant, Prometheus, Grafana, databases, media libraries, and anything with writable application state.
 
@@ -197,8 +196,9 @@ Current operational capabilities:
 - Network Map gives inventory/topology visibility.
 - Dozzle gives container log access.
 - Portainer gives container management UI while Git remains authoritative.
-- Netdata provides per-host/system visibility.
+- Netdata remains legacy/optional host diagnostics pending retirement because it is heavier than needed.
 - Prometheus/Grafana provide monitoring on `jellybase`.
+- Loki is the planned log-history layer for Grafana.
 - `scripts/status` provides a CLI operator snapshot.
 - `scripts/drift-check` compares expected vs running containers.
 - `scripts/borg-check` and `scripts/backup-policy-check` provide backup-policy verification.
@@ -208,7 +208,8 @@ Target capabilities still to mature:
 - Borg/Borgmatic installation, configuration, and verification on every in-scope host;
 - scheduled status/backup/drift operations;
 - alerting for drift, failed backups, and host/service outages;
-- Netdata streaming parent/child design;
+- Loki + Grafana log observability;
+- Netdata retirement or optional-diagnostics path;
 - reverse proxy and TLS;
 - full rebuild drills;
 - Hermes operational integration.

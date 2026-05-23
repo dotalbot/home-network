@@ -5,7 +5,7 @@ This document captures the design considerations, architectural goals, and futur
 Related current planning docs:
 
 ```text
-docs/specs/home-network-platform-spec.md
+docs/specs/001-home-network-platform.md
 docs/roadmap/product-roadmap.md
 docs/README.md
 ```

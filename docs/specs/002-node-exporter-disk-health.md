@@ -1,7 +1,6 @@
 # Node Exporter and Disk Health Spec
 
 Status: first-pass implemented; hardening/dashboard follow-up
-Last updated: 2026-05-22
 
 ## Goal
 
@@ -229,6 +228,8 @@ borgmatic_last_run_timestamp_seconds{host="<host>"}
 borgmatic_last_run_success{host="<host>"}
 borgmatic_last_run_exit_code{host="<host>"}
 borgmatic_last_run_duration_seconds{host="<host>"}
+borgmatic_repository_reachable{host="<host>"}
+borgmatic_last_archive_info{host="<host>",archive_name="<archive>"}
 ```
 
 ### Standard node_exporter filesystem metrics

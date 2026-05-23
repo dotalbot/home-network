@@ -232,9 +232,9 @@ deny TCP 9100 from everything else
 # From a non-approved host, verify TCP 9100 is blocked or refused.
 ```
 
-## Current branch/state after first-pass rollout
+## Current repository state after first-pass rollout
 
-- Working branch: `feat/home-network-rollout`.
+- Repository workflow: direct commits to `main` for this project only.
 - Source of truth remains this repo, with runtime copies deployed to the managed hosts.
 - Prometheus ready endpoint answers on `jellybase:9090`.
 - Grafana health endpoint answers on `jellybase:3001`.

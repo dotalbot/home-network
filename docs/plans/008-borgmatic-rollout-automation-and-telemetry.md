@@ -18,8 +18,10 @@ Recommended first implementation:
 
 1. Root backup wrapper writes sanitized JSON:
    - `/var/lib/home-network/backup-status/<host>.json`
+   - Fields: host, repository, updated_at, status/success, exit code, duration, latest archive name, message, and repository reachability.
 2. Root backup wrapper writes Prometheus textfile metrics when a textfile collector directory exists:
    - `/var/lib/node_exporter/textfile_collector/borgmatic_<host>.prom`
+   - Metrics include last-run timestamp, success, exit code, duration, repository reachability, and an info metric carrying the latest archive name.
 3. Hermes reads JSON for Discord summaries.
 4. Prometheus scrapes node_exporter textfile metrics.
 5. Optional later: publish the same JSON to MQTT retained topics and/or deploy an MQTT exporter.
@@ -35,7 +37,7 @@ If we want “one place” later, use MQTT as a retained state bus plus an MQTT 
 
 ## Generated scripts
 
-The rollout generator creates host-specific `/tmp` scripts for `jellyhome` and `jellybase`:
+The rollout generator creates host-specific `/tmp` scripts for `jellyhome`, `jellybase`, and `jellyberry`:
 
 - `stage-01-preflight.sh`
 - `stage-02-secrets.sh`
@@ -51,13 +53,14 @@ Each script refuses to run on the wrong host. Every script is intended to be run
 
 ## Acceptance criteria
 
-- Scripts are generated for `jellyhome` and `jellybase`.
+- Scripts are generated for `jellyhome`, `jellybase`, and `jellyberry`.
 - Scripts never print passphrases, private keys, or exported Borg keys.
 - Scripts use `192.168.1.75`, not FQDN.
 - Scripts use host-specific repo paths:
   - `jellyhome`: `/home/jellybackup/externaldisk/borg_jellyhome`
   - `jellybase`: `/home/jellybackup/externaldisk/borg_jellybase`
 - Borgmatic config excludes `/opt/docker/.secrets`.
-- Manual backup script writes sanitized JSON status.
-- Status summary script writes/prints non-secret summary and optional Prometheus textfile metrics.
+- Manual backup and scheduled timer wrapper write sanitized JSON status and Prometheus textfile metrics.
+- Status includes success, timestamp, duration, latest archive name, and repository reachability without printing secrets.
+- Status summary script writes/prints non-secret summary and refreshes Prometheus textfile metrics.
 - Scripts pass `bash -n`/Python compile validation.

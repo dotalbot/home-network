@@ -29,7 +29,7 @@ Secrets do not belong in git. Keep runtime secrets in host-local files such as:
 Use these as the current planning documents before starting the next structured work:
 
 ```text
-docs/specs/home-network-platform-spec.md
+docs/specs/001-home-network-platform.md
 docs/roadmap/product-roadmap.md
 docs/README.md
 ```
@@ -92,9 +92,10 @@ Currently tracked service groups include:
 - Portfolio Mission Control
 - SC-401 Study Hub
 - Image Pastebin
-- Netdata
 - Prometheus
 - Grafana
+- Loki (planned)
+- Netdata (legacy/optional diagnostics pending retirement)
 - Home Assistant
 - planned media/IoT services
 
@@ -247,7 +248,7 @@ Note: Network Map exposes internal topology. Keep it LAN/Tailnet-only unless aut
 
 ## Monitoring and observability
 
-Prometheus and Grafana run on `jellybase`:
+Prometheus and Grafana run on `jellybase`. Loki is the planned log-history layer, and Netdata is legacy/optional rather than strategic:
 
 ```text
 http://jellybase:9090  Prometheus
@@ -270,8 +271,8 @@ Operational docs:
 
 ```text
 docs/operations/node-exporter-disk-health.md
-docs/specs/node-exporter-disk-health-spec.md
-docs/plans/2026-05-22-node-exporter-disk-health-rollout.md
+docs/specs/002-node-exporter-disk-health.md
+docs/plans/006-node-exporter-disk-health-rollout.md
 ```
 
 Useful checks:
@@ -292,7 +293,7 @@ inventory/backups.yml
 Backup/restore planning is now also captured in:
 
 ```text
-docs/specs/home-network-platform-spec.md
+docs/specs/001-home-network-platform.md
 docs/roadmap/product-roadmap.md
 ```
 
@@ -321,23 +322,24 @@ docs/operations/docker-host-bootstrap.md
 
 ## Development workflow
 
-Use feature branches. Do not commit directly to `main`.
+This repository is the exception to the usual branch-first rule: make verified changes directly on `main`, commit, and push to `origin/main`. Do not open PRs for routine `home-network` operations.
 
 Suggested flow:
 
 ```bash
 git status --short --branch
-git checkout -b feat/my-change
+git switch main
+git pull --ff-only origin main
 # edit files
 just compose-config
 just drift-check-strict
 git diff --check
 git add <files>
 git commit -m "type: describe change"
-git push -u origin HEAD
+git push origin main
 ```
 
-Open a PR only when ready for review. Merge only after explicitly deciding to merge.
+Keep commits small and verified. For risky runtime changes, stage the host commands and verify live state before pushing.
 
 ## Quick troubleshooting
 

@@ -235,7 +235,7 @@ sudo ALLOW_OVERWRITE_BORGMATIC_CONFIG=1 ./stage-05-configure-borgmatic.sh
 
 7. `stage-06-manual-backup.sh`
    - Runs the first manual `borgmatic create --stats`.
-   - Writes a sanitized status JSON file and Prometheus textfile metrics.
+   - Writes a sanitized status JSON file and Prometheus textfile metrics including success, timestamp, duration, latest archive name, and repository reachability.
    - If Borg reports a relocated repository and you have verified the repo path is correct, rerun with:
 
 ```bash
@@ -252,6 +252,7 @@ sudo BORG_RELOCATED_REPO_ACCESS_IS_OK=yes ./stage-06-manual-backup.sh
      - `/usr/local/sbin/home-network-borgmatic-run-<host>`
      - `/etc/systemd/system/home-network-borgmatic-<host>.service`
      - `/etc/systemd/system/home-network-borgmatic-<host>.timer`
+   - The wrapper runs `create`, `prune`, `compact`, and `check`, then refreshes the sanitized JSON and textfile metrics on every scheduled run.
    - Refuses to overwrite an existing managed wrapper/service/timer unless explicitly approved:
 
 ```bash
@@ -314,6 +315,8 @@ Generated metric names:
 - `borgmatic_last_run_success{host="<host>"}`
 - `borgmatic_last_run_exit_code{host="<host>"}`
 - `borgmatic_last_run_duration_seconds{host="<host>"}`
+- `borgmatic_repository_reachable{host="<host>"}`
+- `borgmatic_last_archive_info{host="<host>",archive_name="<archive>"}`
 
 Prometheus does not scrape MQTT natively. MQTT can still be added later as a retained event/state bus, but Prometheus should consume either node_exporter textfile metrics or a dedicated MQTT exporter. Phase 1 uses JSON + textfile metrics because it is simpler and keeps Borg secrets unreadable by Hermes, Prometheus, and MQTT.
 
@@ -325,7 +328,7 @@ Last checked during rollout:
 - The generic generator emits staged rollout directories for all three hosts.
 - `jellyhome` and `jellybase` manual backups and restore tests completed successfully.
 - `jellyhome` has the managed timer `home-network-borgmatic-jellyhome.timer` enabled.
-- Earlier runs skipped Prometheus textfile metrics on hosts where `/var/lib/node_exporter/textfile_collector` was missing. New generated rollouts create that directory in `stage-00-bootstrap-host.sh`.
+- Generated manual/status/timer stages now include repository reachability and latest archive metadata in sanitized JSON/textfile output. Earlier runs skipped Prometheus textfile metrics on hosts where `/var/lib/node_exporter/textfile_collector` was missing; new generated rollouts create that directory in `stage-00-bootstrap-host.sh`.
 
 ## Acceptance criteria
 
@@ -337,8 +340,8 @@ Last checked during rollout:
 - Every in-scope client can list its archives.
 - Every in-scope client has a restore test that extracts and compares a known file.
 - Every in-scope client has a timer/schedule enabled or an explicitly documented reason not to.
-- Every in-scope client writes sanitized status JSON.
-- Every in-scope client can write Prometheus textfile metrics once node_exporter is configured.
+- Every in-scope client writes sanitized status JSON with success, timestamp, duration, latest archive name, and repository reachability.
+- Every in-scope client can write Prometheus textfile metrics with the same non-secret status once node_exporter is configured.
 - `just borg-check` or a host-specific equivalent passes.
 
 ## Next action
