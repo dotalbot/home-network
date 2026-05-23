@@ -40,6 +40,24 @@ The platform should make the home lab understandable, reproducible, observable, 
 - [ ] Add restore runbooks for Home Assistant, Mosquitto, Prometheus, Grafana, Portfolio Mission Control, and key stateful services.
 - [ ] Run and document at least one safe restore drill.
 
+
+## V3.5 — Shared Database Platform and Manyfold Adoption
+
+- [x] Decide central PostgreSQL host: `jellybase`.
+- [x] Decide PostgreSQL image and initial defaults: `postgres:17-alpine`, `postgres` / `postgres`.
+- [x] Decide first LAN policy: bind `192.168.1.2:5432`, restricted to `jellybase` and `jellyhome`.
+- [x] Decide first application database/user: database `manyfold`, user `svc_manyfold`.
+- [x] Require Borg plus logical dumps from day one.
+- [x] Add central Postgres spec, implementation plan, and operations runbook with confirmed decisions.
+- [ ] Deploy central Postgres on `jellybase` with secrets outside Git.
+- [ ] Apply and verify PostgreSQL access restrictions for approved hosts only.
+- [ ] Install logical dump timer and document restore procedure.
+- [ ] Create Manyfold database `manyfold` and user `svc_manyfold`.
+- [ ] Add Manyfold to managed Compose on `jellyhome`.
+- [ ] Mount verified 3D libraries from `/home/jellyfish/media/Primary_5TB`.
+- [ ] Verify Manyfold connects to central Postgres and indexes the libraries.
+- [ ] Complete a safe restore check for central Postgres using Borg and/or logical dump.
+
 ## V4 — Metrics and Health Observability
 
 - [x] Roll out node_exporter to `jellyhome`, `jellybase`, and `jellyberry`.
@@ -107,16 +125,17 @@ Do not build a Netdata streaming topology unless this decision is explicitly rev
 | Grafana/Loki observability | Loki and datasource provisioning exist; Borgmatic log hooks, dashboards, and alerts remain | Borgmatic Loki hook rollout, Grafana log panels, and alerting docs |
 | Reverse proxy + TLS | Needed before safe broader access | proxy/TLS spec, Compose changes, rollback notes |
 | Metadata maturity | Inventory needs richer fields for automation | inventory schema notes and validation checks |
-| Database-aware backups | Databases need dump/restore discipline, not only volume backup | backup spec and service runbooks |
+| Database-aware backups | Databases need dump/restore discipline, not only volume backup | central Postgres runbook, logical dump automation, and service restore runbooks |
 | Hermes operational integration | Hermes should assist with checks/runbooks without becoming hidden state | Hermes operations doc and explicit scheduled jobs |
 | Full rebuild drills | Recovery is only real when tested | drill plan, drill report, fixes merged into docs |
 
 ## Immediate next actions
 
-1. Add Borgmatic Loki hook support to the rollout generator and test it on one host first.
-2. Source-manage Prometheus alert rules and Grafana dashboards for backup freshness, backup failures, disk pressure, disk-health failures, stale probes, and Loki log search.
-3. Add staged access-control hardening for node_exporter TCP `9100` so only the Prometheus scraper path can reach it.
-4. Clean up retired Netdata containers/appdata from `jellyhome` and `jellybase` when approved.
-5. Complete Borg/Borgmatic setup and verification for any remaining in-scope hosts, especially `jellybackup` if it joins monitored/backup-client scope.
-6. Add service restore runbooks for Home Assistant and Mosquitto.
-7. Add scheduled drift/backup/status checks and route failures to an alert channel.
+1. Finalize and deploy central Postgres on `jellybase` with LAN access restricted to `jellybase` and `jellyhome`, plus Borg and logical dumps from day one.
+2. Create Manyfold database `manyfold` and user `svc_manyfold`, then add Manyfold on `jellyhome` with the verified 3D library mounts.
+3. Source-manage Prometheus alert rules for backup freshness, backup failures, disk pressure, disk-health failures, stale probes, and Loki log search.
+4. Add staged access-control hardening for node_exporter TCP `9100` so only the Prometheus scraper path can reach it.
+5. Clean up retired Netdata containers/appdata from `jellyhome` and `jellybase` when approved.
+6. Complete Borg/Borgmatic setup and verification for any remaining in-scope hosts, especially `jellybackup` if it joins monitored/backup-client scope.
+7. Add service restore runbooks for Home Assistant and Mosquitto.
+8. Add scheduled drift/backup/status checks and route failures to an alert channel.

@@ -90,16 +90,25 @@ services:
     restart: unless-stopped
     ports:
       - "192.168.1.2:${POSTGRES_PORT:-5432}:5432"
+    command:
+      - postgres
+      - -c
+      - hba_file=/etc/postgresql/pg_hba.conf
+      - -c
+      - password_encryption=scram-sha-256
     environment:
       TZ: ${TZ}
       POSTGRES_USER: ${POSTGRES_SUPERUSER:-postgres}
       POSTGRES_DB: ${POSTGRES_DEFAULT_DB:-postgres}
       POSTGRES_PASSWORD_FILE: /run/secrets/postgres_superuser_password
+      POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256 --auth-local=trust"
       PGDATA: /var/lib/postgresql/data/pgdata
     secrets:
       - postgres_superuser_password
     volumes:
       - /opt/docker/appdata/postgres/data:/var/lib/postgresql/data
+      - /opt/docker/appdata/postgres/config/pg_hba.conf:/etc/postgresql/pg_hba.conf:ro
+      - /opt/docker/appdata/postgres/logical-dumps:/logical-dumps
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-postgres} -d $${POSTGRES_DB:-postgres}"]
       interval: 30s

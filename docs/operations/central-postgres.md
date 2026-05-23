@@ -1,10 +1,10 @@
 # Central PostgreSQL Operations
 
-Central PostgreSQL is planned as the shared database service for home-network applications, starting with Manyfold.
+Central PostgreSQL is the planned shared database service for home-network applications, starting with Manyfold.
 
 ## Runtime host
 
-Proposed first host:
+Runtime host:
 
 ```text
 jellybase / 192.168.1.2
@@ -16,10 +16,69 @@ Compose service/container:
 central-postgres
 ```
 
-Persistent data path:
+Persistent paths:
 
 ```text
 /opt/docker/appdata/postgres/data
+/opt/docker/appdata/postgres/config/pg_hba.conf
+/opt/docker/appdata/postgres/logical-dumps
+```
+
+## Network access policy
+
+PostgreSQL binds to:
+
+```text
+192.168.1.2:5432
+```
+
+Approved initial clients:
+
+```text
+jellybase / 192.168.1.2
+jellyhome / 192.168.1.1
+```
+
+All other LAN clients should be blocked unless explicitly approved later.
+
+Source-managed database-level restriction lives at:
+
+```text
+docker/appdata/postgres/config/pg_hba.conf
+```
+
+That `pg_hba.conf` is not a complete TCP firewall. Before production-ready status, add a host-level Docker-aware firewall rule or equivalent network policy so non-approved LAN clients cannot reach `192.168.1.2:5432` at all.
+
+Source-managed helper:
+
+```bash
+/opt/docker/bin/postgres-firewall-docker-user --print
+/opt/docker/bin/postgres-firewall-docker-user --check
+# Apply only after reviewing existing DOCKER-USER/firewall rules:
+/opt/docker/bin/postgres-firewall-docker-user --apply
+```
+
+The helper manages intended `DOCKER-USER` rules for the Docker-published port using conntrack original-destination matching, because Docker DNAT occurs before the `DOCKER-USER` chain. If `jellybase` uses a different persistent firewall mechanism, translate the same allowlist policy instead of blindly applying duplicate rules.
+
+Minimum network verification after deploy:
+
+```bash
+ss -ltnp | grep ':5432'
+# Expected: listens on 192.168.1.2:5432, not 0.0.0.0:5432
+```
+
+From `jellyhome`:
+
+```bash
+nc -vz 192.168.1.2 5432
+# Expected: succeeds
+```
+
+From a non-approved LAN host:
+
+```bash
+nc -vz 192.168.1.2 5432
+# Expected: fails, times out, or is rejected by firewall/network policy
 ```
 
 ## Secrets
@@ -32,36 +91,50 @@ The first-run superuser password is expected at:
 /opt/docker/.secrets/postgres_superuser_password
 ```
 
-Recommended permissions:
-
-```bash
-sudo install -d -m 750 -o root -g dockerops /opt/docker/.secrets
-sudo touch /opt/docker/.secrets/postgres_superuser_password
-sudo chown root:dockerops /opt/docker/.secrets/postgres_superuser_password
-sudo chmod 640 /opt/docker/.secrets/postgres_superuser_password
-```
-
-Then edit it directly on the host with your preferred editor, for example:
-
-```bash
-sudo nano /opt/docker/.secrets/postgres_superuser_password
-```
-
-Use a long random password. The file should contain only the password and a trailing newline is OK.
-
-Later, each app should get a separate password file, for example:
+The Manyfold application password is expected at:
 
 ```text
 /opt/docker/.secrets/postgres_manyfold_password
 ```
 
-## First deploy checklist
+This password is for PostgreSQL user `svc_manyfold` and database `manyfold`.
 
-Run from the home-network repo on the target host after the secret file exists:
+Recommended permissions:
 
 ```bash
+sudo install -d -m 750 -o root -g dockerops /opt/docker/.secrets
+sudo touch /opt/docker/.secrets/postgres_superuser_password
+sudo touch /opt/docker/.secrets/postgres_manyfold_password
+sudo chown root:dockerops /opt/docker/.secrets/postgres_superuser_password /opt/docker/.secrets/postgres_manyfold_password
+sudo chmod 640 /opt/docker/.secrets/postgres_superuser_password /opt/docker/.secrets/postgres_manyfold_password
+```
+
+Then edit each file directly on the host with your preferred editor, for example:
+
+```bash
+sudo nano /opt/docker/.secrets/postgres_superuser_password
+sudo nano /opt/docker/.secrets/postgres_manyfold_password
+```
+
+Use long random passwords. Each file should contain only the password and a trailing newline is OK.
+
+## First deploy checklist
+
+Run from the home-network repo on `jellybase` after the superuser secret file exists:
+
+```bash
+./scripts/sync-docker-config
 just compose-config
 just up central-postgres
+```
+
+`scripts/sync-docker-config` installs the source-managed Postgres config and helpers to:
+
+```text
+/opt/docker/appdata/postgres/config/pg_hba.conf
+/opt/docker/bin/postgres-logical-dump
+/opt/docker/bin/postgres-bootstrap-manyfold
+/opt/docker/bin/postgres-firewall-docker-user
 ```
 
 Verify locally:
@@ -71,27 +144,102 @@ docker inspect central-postgres --format '{{.State.Health.Status}}'
 docker exec central-postgres pg_isready -U postgres -d postgres
 ```
 
-If LAN binding is enabled, verify from an app host such as `jellyhome`:
+If LAN binding is enabled, verify from `jellyhome`:
 
 ```bash
 nc -vz 192.168.1.2 5432
 ```
 
+## Manyfold database bootstrap
+
+After central Postgres is healthy and `/opt/docker/.secrets/postgres_manyfold_password` exists on `jellybase`, run:
+
+```bash
+./scripts/postgres-bootstrap-manyfold
+```
+
+Expected result:
+
+```text
+database/user ready: manyfold / svc_manyfold
+```
+
+Verification:
+
+```bash
+docker exec central-postgres psql -U postgres -d postgres -Atc "SELECT rolsuper FROM pg_roles WHERE rolname='svc_manyfold'"
+# Expected: f
+```
+
+## Logical dumps
+
+Logical dumps are required from day one, in addition to Borg coverage of `/opt/docker/appdata/postgres`.
+
+Recommended dump location:
+
+```text
+/opt/docker/appdata/postgres/logical-dumps
+```
+
+Manual run:
+
+```bash
+/opt/docker/bin/postgres-logical-dump
+```
+
+Source-managed systemd units are provided at:
+
+```text
+systemd/central-postgres-logical-dump.service
+systemd/central-postgres-logical-dump.timer
+```
+
+Install after central Postgres is healthy:
+
+```bash
+sudo cp systemd/central-postgres-logical-dump.service /etc/systemd/system/
+sudo cp systemd/central-postgres-logical-dump.timer /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now central-postgres-logical-dump.timer
+systemctl list-timers central-postgres-logical-dump.timer
+```
+
+Minimum logical backup expectations:
+
+1. Dump PostgreSQL globals/roles.
+2. Dump application databases, starting with `manyfold` once created.
+3. Keep dump files out of `/opt/docker/.secrets`.
+4. Do not print passwords in logs or command output.
+5. Ensure the dump directory is included in Borg coverage for `jellybase`.
+
+Check latest dump:
+
+```bash
+readlink /opt/docker/appdata/postgres/logical-dumps/latest
+find /opt/docker/appdata/postgres/logical-dumps/latest -maxdepth 1 -type f -print
+```
+
 ## Backup/restore notes
 
-Current backup class: `appdata-and-database`.
+Backup class: `postgres-volume-and-logical-dumps`.
 
 Minimum restore path:
 
-1. Restore `/opt/docker/appdata/postgres/data` from Borg.
+1. Restore `/opt/docker/appdata/postgres` from Borg.
 2. Ensure `/opt/docker/.secrets/postgres_superuser_password` exists on the host.
 3. Deploy `central-postgres`.
 4. Verify `pg_isready`.
+5. If volume restore is not usable, restore roles from `logical-dumps/latest/globals.sql` and restore app databases from custom-format dumps using `pg_restore`.
 
-Future hardening should add periodic logical dumps using `pg_dumpall` or per-database `pg_dump`, stored outside `/opt/docker/.secrets` and covered by the backup policy.
+## Confirmed decisions
 
-## Open decisions
+- Host: `jellybase`.
+- Image: `postgres:17-alpine`.
+- Bind: `192.168.1.2:5432`, restricted to `jellybase` and `jellyhome`.
+- Initial superuser/default DB: `postgres` / `postgres`.
+- First app DB/user: database `manyfold`, user `svc_manyfold`.
+- Backup: Borg plus logical dumps from day one.
 
-- Whether to expose `192.168.1.2:5432` on the LAN immediately or bind localhost-only first.
-- Whether `postgres:17-alpine` is the preferred version.
-- Whether app users should be created manually first or through an idempotent bootstrap script.
+Remaining implementation detail:
+
+- Confirm and persist the host-level firewall/network policy used to enforce `jellybase` + `jellyhome` only at TCP level.

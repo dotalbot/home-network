@@ -1,0 +1,73 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Manage the central Postgres Docker-published port allowlist in DOCKER-USER.
+# Default mode is check/print only. Use --apply only after reviewing current rules.
+# Docker DNAT happens before DOCKER-USER, so rules match conntrack original
+# destination (the host LAN IP/port) rather than the post-DNAT container IP.
+
+ACTION="${1:---check}"
+BIND_IP="${POSTGRES_BIND_IP:-192.168.1.2}"
+PORT="${POSTGRES_PORT:-5432}"
+ALLOW_SOURCES=("${POSTGRES_ALLOW_SOURCES:-192.168.1.2 192.168.1.1}")
+
+if ! command -v iptables >/dev/null 2>&1; then
+  echo "iptables not found; use the host's nftables/firewall equivalent" >&2
+  exit 1
+fi
+
+sudo_cmd=()
+if [ "$(id -u)" -ne 0 ]; then
+  sudo_cmd=(sudo)
+fi
+
+rule_exists() {
+  "${sudo_cmd[@]}" iptables -C DOCKER-USER "$@" >/dev/null 2>&1
+}
+
+insert_rule() {
+  local pos="$1"; shift
+  if ! rule_exists "$@"; then
+    "${sudo_cmd[@]}" iptables -I DOCKER-USER "$pos" "$@"
+  fi
+}
+
+check_rule() {
+  if rule_exists "$@"; then
+    printf 'ok rule: %s\n' "$*"
+  else
+    printf 'missing rule: %s\n' "$*"
+    return 1
+  fi
+}
+
+case "$ACTION" in
+  --apply)
+    pos=1
+    for src in ${ALLOW_SOURCES[*]}; do
+      insert_rule "$pos" -p tcp -s "${src}/32" -m conntrack --ctorigdst "$BIND_IP" --ctorigdstport "$PORT" -j RETURN
+      pos=$((pos + 1))
+    done
+    insert_rule "$pos" -p tcp -m conntrack --ctorigdst "$BIND_IP" --ctorigdstport "$PORT" -j DROP
+    "${sudo_cmd[@]}" iptables -S DOCKER-USER
+    ;;
+  --check)
+    status=0
+    for src in ${ALLOW_SOURCES[*]}; do
+      check_rule -p tcp -s "${src}/32" -m conntrack --ctorigdst "$BIND_IP" --ctorigdstport "$PORT" -j RETURN || status=1
+    done
+    check_rule -p tcp -m conntrack --ctorigdst "$BIND_IP" --ctorigdstport "$PORT" -j DROP || status=1
+    exit "$status"
+    ;;
+  --print)
+    printf 'Desired DOCKER-USER policy for central Postgres:\n'
+    for src in ${ALLOW_SOURCES[*]}; do
+      printf '  allow tcp from %s to %s:%s\n' "$src" "$BIND_IP" "$PORT"
+    done
+    printf '  drop other tcp traffic to %s:%s\n' "$BIND_IP" "$PORT"
+    ;;
+  *)
+    echo "usage: $0 [--print|--check|--apply]" >&2
+    exit 2
+    ;;
+esac

@@ -7,17 +7,20 @@ Create a home-network managed central PostgreSQL service first, then adopt Manyf
 ## Scope
 
 - Add a central PostgreSQL service to the `/opt/docker` home-network Compose model.
-- Prefer `jellybase` as the first database host because it already hosts monitoring and long-running infrastructure.
+- Run central PostgreSQL on `jellybase` because it is the shared infrastructure host and keeps database state separate from media-heavy `jellyhome` workloads.
 - Store database state under `/opt/docker/appdata/postgres`.
 - Store secrets outside Git under `/opt/docker/.secrets`.
-- Expose PostgreSQL on the LAN only when explicitly approved and protected by strong per-service credentials.
-- Later add Manyfold as a home-network managed service, backed by the central PostgreSQL instance.
+- Expose PostgreSQL on `192.168.1.2:5432` only for approved LAN clients, initially `jellybase` and `jellyhome`, and protect access with per-service credentials.
+- Add database-level source restrictions with `pg_hba.conf` and require host-level firewall or equivalent network policy before production-ready status.
+- Add logical dumps from day one in addition to Borg volume coverage.
+- Later add Manyfold as a home-network managed service on `jellyhome`, backed by the central PostgreSQL instance.
 
 ## Non-goals
 
 - Do not start or reuse the legacy MariaDB/MySQL stack.
 - Do not start legacy Manyfold Compose as-is.
 - Do not commit real passwords, tokens, database dumps, or `.env` values.
+- Do not deploy central Postgres until required secrets, network access policy, and backup approach are ready.
 - Do not migrate Manyfold metadata until the old database/data state is either found or declared unnecessary.
 
 ## Current findings
@@ -31,16 +34,17 @@ Create a home-network managed central PostgreSQL service first, then adopt Manyf
 - The real `Primary_5TB` mount is `/dev/sdb1` at `/home/jellyfish/media/Primary_5TB`.
 - Existing `onecli-postgres-1` containers are app-specific and bridge-bound, not a clean shared Postgres platform service.
 
-## Proposed central Postgres design
+## Confirmed central Postgres design
 
 ### Host
 
-Initial host: `jellybase` (`192.168.1.2`).
+Runtime host: `jellybase` (`192.168.1.2`).
 
 Rationale:
 - Already hosts Prometheus, Grafana, Loki, Home Assistant, and other core always-on services.
 - Already integrated into the `/opt/docker` home-network runtime.
-- Keeps database service away from the media-heavy `jellyhome` workload unless we decide otherwise.
+- Keeps database service away from the media-heavy `jellyhome` workload while still serving Manyfold over the LAN.
+- Creates a reusable shared database platform for future services rather than a Manyfold-only sidecar.
 
 ### Container
 
@@ -56,10 +60,18 @@ Image:
 postgres:17-alpine
 ```
 
-Persistent path:
+Initial superuser/default database:
+
+```text
+postgres / postgres
+```
+
+Persistent paths:
 
 ```text
 /opt/docker/appdata/postgres/data
+/opt/docker/appdata/postgres/config/pg_hba.conf
+/opt/docker/appdata/postgres/logical-dumps
 ```
 
 Secret path expected on the host:
@@ -68,13 +80,25 @@ Secret path expected on the host:
 /opt/docker/.secrets/postgres_superuser_password
 ```
 
-LAN bind under review:
+LAN bind:
 
 ```text
 192.168.1.2:5432 -> 5432/tcp
 ```
 
-If we decide to avoid LAN exposure at first, bind to `127.0.0.1:5432` and add app-specific networking later.
+Initial approved clients:
+
+```text
+jellybase / 192.168.1.2
+jellyhome / 192.168.1.1
+```
+
+Access policy:
+- Bind only to the `jellybase` LAN IP, not `0.0.0.0`.
+- Accept PostgreSQL host auth only from `jellybase` and `jellyhome` in source-managed `pg_hba.conf`.
+- Deny other PostgreSQL host auth attempts in `pg_hba.conf`.
+- Before production-ready status, add host-level firewall or equivalent Docker-aware policy so non-approved LAN clients cannot reach TCP/5432 at all.
+- Tighten further later if Manyfold/app placement changes.
 
 ## Secrets model
 
@@ -86,7 +110,7 @@ Minimum first-run secret:
 /opt/docker/.secrets/postgres_superuser_password
 ```
 
-Later Manyfold-specific secrets:
+Manyfold-specific secret:
 
 ```text
 /opt/docker/.secrets/postgres_manyfold_password
@@ -95,31 +119,46 @@ Later Manyfold-specific secrets:
 Recommended pattern:
 
 - `postgres` superuser password: long random string, used only for admin/bootstrap.
-- `manyfold` application user password: separate long random string.
+- `svc_manyfold` application user password: separate long random string for the `manyfold` database.
 - Future services each get a separate DB user/password.
 
 ## Backup and restore expectations
 
 Central Postgres is high-priority state.
 
-Initial backup class: `appdata-and-database`.
+Backup class: `postgres-volume-and-logical-dumps`.
+
+From day one, use both:
+
+- Borg coverage of `/opt/docker/appdata/postgres`.
+- Logical dumps under `/opt/docker/appdata/postgres/logical-dumps`.
+
+Logical dumps should include:
+
+- PostgreSQL globals/roles.
+- Per-database custom-format dumps where practical, starting with `postgres` and then `manyfold` once created.
 
 Restore target:
 
-- Restore `/opt/docker/appdata/postgres` from Borg.
+- Restore `/opt/docker/appdata/postgres` from Borg, including data and logical dump artifacts.
+- Ensure required secret files exist on the host.
 - Verify the service starts and passes `pg_isready`.
-- For future maturity, add logical dumps or `pg_dumpall` before relying only on volume-level restore.
+- Document a restore path using either the volume or logical dump artifacts.
+
+Dump files must not contain secrets in filenames or logs, and must not live under `/opt/docker/.secrets`.
 
 ## Manyfold follow-up design
 
 After PostgreSQL is running and verified:
 
 - Add a `manyfold` service on `jellyhome` under `/opt/docker`.
-- Use Postgres connection details pointing at central Postgres.
+- Use database `manyfold`.
+- Use dedicated application user `svc_manyfold`.
+- Store the `svc_manyfold` password outside Git at `/opt/docker/.secrets/postgres_manyfold_password`.
+- Use Postgres connection details pointing at central Postgres on `192.168.1.2:5432`.
 - Mount model libraries read/write or read-mostly after deciding metadata expectations:
   - `/home/jellyfish/media/Primary_5TB/3D_models:/libraries/3D_models`
   - `/home/jellyfish/media/Primary_5TB/3D_documents:/libraries/3D_documents`
-- Use a dedicated Manyfold database and user.
 
 ## Progress checklist
 
@@ -127,20 +166,36 @@ After PostgreSQL is running and verified:
 - [x] Verify `Primary_5TB` mount and 3D library paths.
 - [x] Create feature branch for central Postgres and Manyfold adoption.
 - [x] Draft central Postgres spec.
-- [ ] Confirm database host and LAN bind policy.
-- [ ] User creates `/opt/docker/.secrets/postgres_superuser_password` on the chosen host.
-- [ ] Add/verify central Postgres Compose service.
+- [x] Confirm database host: `jellybase`.
+- [x] Confirm PostgreSQL image: `postgres:17-alpine`.
+- [x] Confirm initial superuser/default database values: `postgres` / `postgres`.
+- [x] Confirm LAN bind policy: expose `192.168.1.2:5432` only to `jellybase` and `jellyhome`.
+- [x] Confirm Manyfold database/user: database `manyfold`, user `svc_manyfold`.
+- [x] Confirm backup policy: Borg plus logical dumps from day one.
+- [x] Add source-managed `pg_hba.conf` for initial database-level host restrictions.
+- [x] Add source-managed logical dump, firewall, systemd timer, and Manyfold DB bootstrap helper scripts.
+- [ ] User creates `/opt/docker/.secrets/postgres_superuser_password` on `jellybase`.
+- [ ] User creates `/opt/docker/.secrets/postgres_manyfold_password` on `jellybase`.
+- [ ] Apply/verify host-level access restriction allowing only `jellybase` and `jellyhome` to reach port `5432`.
 - [ ] Deploy central Postgres.
-- [ ] Verify `pg_isready` and LAN reachability from intended app hosts.
-- [ ] Define first app database/user pattern.
-- [ ] Add Manyfold service and dedicated DB credentials.
+- [ ] Verify `pg_isready` locally on `jellybase`.
+- [ ] Verify LAN reachability from `jellyhome`.
+- [ ] Verify PostgreSQL is not reachable from non-approved LAN hosts.
+- [ ] Create Manyfold database `manyfold` and user `svc_manyfold`.
+- [ ] Verify `svc_manyfold` can connect to database `manyfold` and is not a superuser.
+- [ ] Install timer, then run and verify logical dumps for central Postgres.
+- [ ] Add Manyfold service on `jellyhome`.
+- [ ] Verify Manyfold connects to central Postgres.
 - [ ] Index/validate 3D model libraries in Manyfold.
+- [ ] Document restore test for central Postgres using Borg and/or logical dump.
 
-## Open questions
+## Confirmed decisions
 
-1. Should the central Postgres service live on `jellybase` as proposed?
-2. Should PostgreSQL bind to LAN IP `192.168.1.2:5432` immediately, or start localhost-only?
-3. Are you happy with `postgres:17-alpine`, or do you prefer another version?
-4. Should I name the admin secret file `/opt/docker/.secrets/postgres_superuser_password`?
-5. Should the first application DB be `manyfold` with user `manyfold`, or do you want a naming prefix such as `svc_manyfold`?
-6. Do you want per-service logical dumps in addition to Borg volume backup from the start?
+1. Central Postgres host: `jellybase`.
+2. PostgreSQL image: `postgres:17-alpine`.
+3. Initial PostgreSQL superuser/default database: `postgres` / `postgres`.
+4. PostgreSQL bind: `192.168.1.2:5432`, restricted to `jellybase` and `jellyhome`.
+5. Manyfold database: `manyfold`.
+6. Manyfold database user: `svc_manyfold`.
+7. Backup policy: Borg plus logical dumps from day one.
+8. No real passwords, tokens, database dumps, or `.env` values are committed to Git.

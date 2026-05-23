@@ -223,7 +223,25 @@ services:
     urls:
       primary: postgresql://192.168.1.2:5432
     description: shared PostgreSQL platform service for home-network applications; first target is Manyfold
-    backup: appdata-and-database
+    network_access:
+      bind_host: 192.168.1.2
+      port: 5432
+      protocol: tcp
+      policy: allowlist
+      allowed_sources:
+        - host: jellybase
+          lan_ip: 192.168.1.2
+          reason: local admin, backup, and bootstrap jobs
+        - host: jellyhome
+          lan_ip: 192.168.1.1
+          reason: Manyfold application host
+      denied_by_default: true
+      docker_publish_warning: use pg_hba plus Docker-aware host firewall or equivalent network policy; LAN bind alone is not a source allowlist
+    notes:
+      - PostgreSQL binds to 192.168.1.2:5432 and should be reachable only from jellybase and jellyhome.
+      - Backup requires Borg coverage plus logical dumps from day one.
+      - First application database is manyfold with user svc_manyfold.
+    backup: postgres-volume-and-logical-dumps
     status: planned
 
   homeassistant:

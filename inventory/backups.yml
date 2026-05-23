@@ -32,6 +32,18 @@ backup_classes:
       - temp files
     restore_priority: high
 
+  postgres-volume-and-logical-dumps:
+    description: PostgreSQL service with Borg-covered data directory plus logical dump artifacts.
+    includes:
+      - /opt/docker/appdata/postgres/data
+      - /opt/docker/appdata/postgres/config
+      - /opt/docker/appdata/postgres/logical-dumps
+    excludes:
+      - /opt/docker/.secrets
+      - temporary dump directories
+      - partial dump files
+    restore_priority: critical
+
   appdata-and-library:
     description: Service has appdata plus media/library files.
     includes:
@@ -208,6 +220,16 @@ restore_rules:
       - restore database dump or volume
       - deploy service
       - verify application health
+
+  postgres-volume-and-logical-dumps:
+    method: restore_postgres_volume_or_logical_dump
+    steps:
+      - bootstrap host
+      - restore /opt/docker/appdata/postgres from Borg
+      - verify required secret files exist outside Git
+      - deploy central-postgres
+      - verify pg_isready
+      - if volume restore is unusable, restore globals and per-database dumps from logical-dumps/latest
 
   appdata-and-library:
     method: restore_appdata_and_library

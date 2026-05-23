@@ -83,6 +83,10 @@ DEST_LOKI_CONFIG="${DOCKER_DIR}/appdata/loki/config"
 DEST_LOKI_DATA="${DOCKER_DIR}/appdata/loki/data"
 SRC_GRAFANA_PROVISIONING="${REPO_ROOT}/docker/appdata/grafana-provisioning"
 DEST_GRAFANA_PROVISIONING="${DOCKER_DIR}/appdata/grafana-provisioning"
+SRC_POSTGRES_CONFIG="${REPO_ROOT}/docker/appdata/postgres/config"
+DEST_POSTGRES_CONFIG="${DOCKER_DIR}/appdata/postgres/config"
+DEST_POSTGRES_DUMPS="${DOCKER_DIR}/appdata/postgres/logical-dumps"
+DEST_BIN="${DOCKER_DIR}/bin"
 RSYNC_OPTS=(-rtD --delete --omit-dir-times --no-perms --no-owner --no-group)
 
 if [ -d "$SRC_HOMEPAGE" ]; then
@@ -140,5 +144,32 @@ if [ -d "$SRC_GRAFANA_PROVISIONING" ]; then
     chmod -R 775 "$DEST_GRAFANA_PROVISIONING"
   fi
 fi
+
+if [ -d "$SRC_POSTGRES_CONFIG" ]; then
+  run_privileged mkdir -p "$DEST_POSTGRES_CONFIG" "$DEST_POSTGRES_DUMPS"
+  run_privileged rsync "${RSYNC_OPTS[@]}" "$SRC_POSTGRES_CONFIG"/ "$DEST_POSTGRES_CONFIG"/
+  set_managed_perms "$DEST_POSTGRES_CONFIG"
+  set_managed_perms "$DEST_POSTGRES_DUMPS"
+  if [ "$needs_sudo" -eq 1 ] || [ "$(id -u)" -eq 0 ]; then
+    run_privileged chmod -R 775 "$DEST_POSTGRES_CONFIG"
+    run_privileged chmod -R 770 "$DEST_POSTGRES_DUMPS"
+  else
+    [ -O "$DEST_POSTGRES_CONFIG" ] && chmod -R 775 "$DEST_POSTGRES_CONFIG"
+    [ -O "$DEST_POSTGRES_DUMPS" ] && chmod -R 770 "$DEST_POSTGRES_DUMPS"
+  fi
+fi
+
+run_privileged mkdir -p "$DEST_BIN"
+for helper in postgres-logical-dump postgres-bootstrap-manyfold postgres-firewall-docker-user; do
+  if [ -f "${REPO_ROOT}/scripts/${helper}" ]; then
+    run_privileged cp "${REPO_ROOT}/scripts/${helper}" "${DEST_BIN}/${helper}"
+    set_managed_perms "${DEST_BIN}/${helper}"
+    if [ "$needs_sudo" -eq 1 ] || [ "$(id -u)" -eq 0 ]; then
+      run_privileged chmod 775 "${DEST_BIN}/${helper}"
+    elif [ -O "${DEST_BIN}/${helper}" ]; then
+      chmod 775 "${DEST_BIN}/${helper}"
+    fi
+  fi
+done
 
 echo "good"
