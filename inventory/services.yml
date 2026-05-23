@@ -238,11 +238,12 @@ services:
       denied_by_default: true
       docker_publish_warning: use pg_hba plus Docker-aware host firewall or equivalent network policy; LAN bind alone is not a source allowlist
     notes:
-      - PostgreSQL binds to 192.168.1.2:5432 and should be reachable only from jellybase and jellyhome.
-      - Backup requires Borg coverage plus logical dumps from day one.
+      - PostgreSQL binds to 192.168.1.2:5432 and is reachable from jellybase and jellyhome.
+      - TCP-level filtering is enforced through source-managed DOCKER-USER rules matching the central-postgres container IP; re-apply after container recreation.
+      - Backup uses Borg coverage plus logical dumps from day one.
       - First application database is manyfold with user svc_manyfold.
     backup: postgres-volume-and-logical-dumps
-    status: planned
+    status: active
 
   homeassistant:
     display_name: Home Assistant

@@ -49,10 +49,10 @@ The platform should make the home lab understandable, reproducible, observable, 
 - [x] Decide first application database/user: database `manyfold`, user `svc_manyfold`.
 - [x] Require Borg plus logical dumps from day one.
 - [x] Add central Postgres spec, implementation plan, and operations runbook with confirmed decisions.
-- [ ] Deploy central Postgres on `jellybase` with secrets outside Git.
-- [ ] Apply and verify PostgreSQL access restrictions for approved hosts only.
-- [ ] Install logical dump timer and document restore procedure.
-- [ ] Create Manyfold database `manyfold` and user `svc_manyfold`.
+- [x] Deploy central Postgres on `jellybase` with secrets outside Git.
+- [x] Apply and verify PostgreSQL access restrictions for approved hosts only.
+- [x] Install logical dump timer and document restore procedure.
+- [x] Create Manyfold database `manyfold` and user `svc_manyfold`.
 - [ ] Add Manyfold to managed Compose on `jellyhome`.
 - [ ] Mount verified 3D libraries from `/home/jellyfish/media/Primary_5TB`.
 - [ ] Verify Manyfold connects to central Postgres and indexes the libraries.

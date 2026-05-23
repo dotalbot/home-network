@@ -19,10 +19,10 @@
 - [x] Task 4 final: Operations notes cover `svc_manyfold` and day-one logical dumps.
 - [x] Task 5 draft: Source-managed `pg_hba.conf` restricts database-level host auth to `jellybase` and `jellyhome`.
 - [x] Task 6 draft: Logical dump, firewall, systemd timer, and Manyfold DB bootstrap helper scripts exist.
-- [ ] Task 5 final: Deploy central Postgres after required secret files exist.
-- [ ] Task 6 final: Apply and verify TCP-level firewall/network restrictions before production-ready status.
-- [ ] Task 7 final: Install timer, run logical dump automation after deploy, and confirm dump artifacts.
-- [ ] Task 8: Prepare Manyfold database `manyfold` and user `svc_manyfold`.
+- [x] Task 5 final: Deploy central Postgres after required secret files exist.
+- [x] Task 6 final: Apply and verify TCP-level firewall/network restrictions before production-ready status.
+- [x] Task 7 final: Install timer, run logical dump automation after deploy, and confirm dump artifacts.
+- [x] Task 8: Prepare Manyfold database `manyfold` and user `svc_manyfold`.
 - [ ] Task 9: Add Manyfold service on `jellyhome`.
 - [ ] Task 10: Verify Manyfold library indexing and backup/restore notes.
 

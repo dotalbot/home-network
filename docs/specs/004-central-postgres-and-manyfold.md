@@ -174,16 +174,16 @@ After PostgreSQL is running and verified:
 - [x] Confirm backup policy: Borg plus logical dumps from day one.
 - [x] Add source-managed `pg_hba.conf` for initial database-level host restrictions.
 - [x] Add source-managed logical dump, firewall, systemd timer, and Manyfold DB bootstrap helper scripts.
-- [ ] User creates `/opt/docker/.secrets/postgres_superuser_password` on `jellybase`.
-- [ ] User creates `/opt/docker/.secrets/postgres_manyfold_password` on `jellybase`.
-- [ ] Apply/verify host-level access restriction allowing only `jellybase` and `jellyhome` to reach port `5432`.
-- [ ] Deploy central Postgres.
-- [ ] Verify `pg_isready` locally on `jellybase`.
-- [ ] Verify LAN reachability from `jellyhome`.
-- [ ] Verify PostgreSQL is not reachable from non-approved LAN hosts.
-- [ ] Create Manyfold database `manyfold` and user `svc_manyfold`.
-- [ ] Verify `svc_manyfold` can connect to database `manyfold` and is not a superuser.
-- [ ] Install timer, then run and verify logical dumps for central Postgres.
+- [x] User creates `/opt/docker/.secrets/postgres_superuser_password` on `jellybase`.
+- [x] User creates `/opt/docker/.secrets/postgres_manyfold_password` on `jellybase`.
+- [x] Apply/verify host-level access restriction allowing only `jellybase` and `jellyhome` to reach port `5432`.
+- [x] Deploy central Postgres.
+- [x] Verify `pg_isready` locally on `jellybase`.
+- [x] Verify LAN reachability from `jellyhome`.
+- [x] Verify PostgreSQL is not reachable from non-approved LAN hosts.
+- [x] Create Manyfold database `manyfold` and user `svc_manyfold`.
+- [x] Verify `svc_manyfold` can connect to database `manyfold` and is not a superuser.
+- [x] Install timer, then run and verify logical dumps for central Postgres.
 - [ ] Add Manyfold service on `jellyhome`.
 - [ ] Verify Manyfold connects to central Postgres.
 - [ ] Index/validate 3D model libraries in Manyfold.

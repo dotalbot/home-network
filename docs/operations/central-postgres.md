@@ -240,6 +240,14 @@ Minimum restore path:
 - First app DB/user: database `manyfold`, user `svc_manyfold`.
 - Backup: Borg plus logical dumps from day one.
 
+Current deployment notes:
+
+- `central-postgres` is deployed on `jellybase` and healthy.
+- The first Manyfold database/user pair exists: `manyfold` / `svc_manyfold`.
+- `jellyhome` can reach `192.168.1.2:5432`.
+- `jellyberry` was verified blocked from `192.168.1.2:5432`.
+- The logical dump timer is enabled and active.
+
 Remaining implementation detail:
 
-- Confirm and persist the host-level firewall/network policy used to enforce `jellybase` + `jellyhome` only at TCP level.
+- Persist or re-apply the Docker-aware firewall policy after container recreation, because the current helper matches the live `central-postgres` container IP.
