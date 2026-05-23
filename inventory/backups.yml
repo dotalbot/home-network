@@ -65,6 +65,7 @@ backup_classes:
       - cache
       - temp files
     restore_priority: high
+    restore_verification: post-index logical dump restore verified into scratch postgres:17-alpine container
 
   config-and-persistence:
     description: Service has config and small persistent runtime state.
@@ -262,7 +263,7 @@ restore_rules:
       - restore or verify /home/jellyfish/media/Primary_5TB/3D_models
       - recreate required secret files under /opt/docker/.secrets without printing values
       - sync docker config and deploy manyfold plus manyfold-valkey
-      - verify Manyfold HTTP health and database connectivity
+      - verify Manyfold HTTP health, database connectivity, and restored library/model/model-file counts
 
   config-and-persistence:
     method: restore_config_and_persistent_state

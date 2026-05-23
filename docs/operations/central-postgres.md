@@ -97,7 +97,7 @@ The Manyfold application password is expected at:
 /opt/docker/.secrets/postgres_manyfold_password
 ```
 
-This password is for PostgreSQL user `svc_manyfold` and database `manyfold`.
+This password is for PostgreSQL user `svc_manyfold` and database `manyfold`. On `jellyhome`, Manyfold also needs `/opt/docker/.secrets/manyfold_database_url`, a local secret containing the URL-encoded PostgreSQL connection string. The LinuxServer Manyfold image consumes this via `FILE__DATABASE_URL`; do not rely on separate `DATABASE_*` variables for this image.
 
 Recommended permissions:
 
@@ -105,8 +105,9 @@ Recommended permissions:
 sudo install -d -m 750 -o root -g dockerops /opt/docker/.secrets
 sudo touch /opt/docker/.secrets/postgres_superuser_password
 sudo touch /opt/docker/.secrets/postgres_manyfold_password
-sudo chown root:dockerops /opt/docker/.secrets/postgres_superuser_password /opt/docker/.secrets/postgres_manyfold_password
-sudo chmod 640 /opt/docker/.secrets/postgres_superuser_password /opt/docker/.secrets/postgres_manyfold_password
+sudo touch /opt/docker/.secrets/manyfold_database_url
+sudo chown root:dockerops /opt/docker/.secrets/postgres_superuser_password /opt/docker/.secrets/postgres_manyfold_password /opt/docker/.secrets/manyfold_database_url
+sudo chmod 640 /opt/docker/.secrets/postgres_superuser_password /opt/docker/.secrets/postgres_manyfold_password /opt/docker/.secrets/manyfold_database_url
 ```
 
 Then edit each file directly on the host with your preferred editor, for example:
@@ -114,9 +115,13 @@ Then edit each file directly on the host with your preferred editor, for example
 ```bash
 sudo nano /opt/docker/.secrets/postgres_superuser_password
 sudo nano /opt/docker/.secrets/postgres_manyfold_password
+# On jellyhome only, derive manyfold_database_url locally from the password secret; do not print it.
+python3 -c "import pathlib, urllib.parse; pw=pathlib.Path('/opt/docker/.secrets/postgres_manyfold_password').read_text().strip(); pathlib.Path('/tmp/manyfold_database_url').write_text('postgresql://svc_manyfold:' + urllib.parse.quote(pw, safe='') + '@192.168.1.2:5432/manyfold\\n')"
+sudo install -m 640 -o root -g dockerops /tmp/manyfold_database_url /opt/docker/.secrets/manyfold_database_url
+rm -f /tmp/manyfold_database_url
 ```
 
-Use long random passwords. Each file should contain only the password and a trailing newline is OK.
+Use long random passwords for the password files. The `postgres_superuser_password` and `postgres_manyfold_password` files should contain only the password and a trailing newline is OK. The `manyfold_database_url` file is different: it contains the full URL-encoded PostgreSQL `DATABASE_URL` string and must not be printed in logs or chat.
 
 ## First deploy checklist
 
@@ -231,6 +236,8 @@ Minimum restore path:
 4. Verify `pg_isready`.
 5. If volume restore is not usable, restore roles from `logical-dumps/latest/globals.sql` and restore app databases from custom-format dumps using `pg_restore`.
 
+Post-index restore verification completed by restoring `logical-dumps/latest/manyfold.dump` into a scratch `postgres:17-alpine` container with `pg_restore --no-owner --no-acl`; restored counts matched central Postgres for libraries, models, and model files.
+
 ## Confirmed decisions
 
 - Host: `jellybase`.
@@ -247,7 +254,9 @@ Current deployment notes:
 - `jellyhome` can reach `192.168.1.2:5432`.
 - `jellyberry` was verified blocked from `192.168.1.2:5432`.
 - The logical dump timer is enabled and active.
+- Manyfold is deployed on `jellyhome` using central PostgreSQL through `FILE__DATABASE_URL`.
+- Post-index logical dump and scratch-container restore verification completed successfully.
 
-Remaining implementation detail:
+Operational reminder:
 
-- Persist or re-apply the Docker-aware firewall policy after container recreation, because the current helper matches the live `central-postgres` container IP.
+- Re-apply or verify the Docker-aware firewall policy after `central-postgres` container recreation, because the helper matches the live container IP.

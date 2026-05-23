@@ -171,6 +171,7 @@ Runtime paths and secrets:
 /opt/docker/appdata/manyfold/config
 /opt/docker/appdata/manyfold/valkey
 /opt/docker/.secrets/postgres_manyfold_password
+/opt/docker/.secrets/manyfold_database_url
 /opt/docker/.secrets/manyfold_secret_key_base
 ```
 
@@ -211,8 +212,17 @@ Manyfold local filesystem libraries must be writable. The first library mount is
 - [x] Deploy Manyfold and `manyfold-valkey` on `jellyhome`.
 - [x] Verify Manyfold connects to central Postgres.
 - [x] Verify Manyfold HTTP endpoint and writable 3D model mount.
-- [ ] Index/validate 3D model libraries in Manyfold after first-login library setup.
-- [ ] Document restore test for central Postgres using Borg and/or logical dump.
+- [x] Index/validate 3D model libraries in Manyfold against central PostgreSQL.
+- [x] Run a post-index logical dump and verify restore into a scratch PostgreSQL container.
+
+## Final verification snapshot
+
+Live verification after switching Manyfold to the LinuxServer-required `DATABASE_URL` secret confirmed:
+
+- Manyfold reads `/opt/docker/.secrets/manyfold_database_url` via `FILE__DATABASE_URL`; the secret contains the PostgreSQL URL and is not committed to Git.
+- ActiveRecord adapter is `postgresql`, host `192.168.1.2`, database `manyfold`.
+- `/libraries/3D_models` is mounted read-write and the configured Manyfold library indexed 124 models and 1,683 model files.
+- A post-index logical dump produced `manyfold.dump`, and that dump restored successfully into a scratch `postgres:17-alpine` container with matching library/model/model-file counts.
 
 ## Confirmed decisions
 

@@ -25,7 +25,7 @@
 - [x] Task 8: Prepare Manyfold database `manyfold` and user `svc_manyfold`.
 - [x] Task 9: Add Manyfold service on `jellyhome`.
 - [x] Task 9b: Deploy Manyfold on `jellyhome`.
-- [ ] Task 10: Verify Manyfold library indexing after first-login library setup and backup/restore notes.
+- [x] Task 10: Verify Manyfold library indexing and backup/restore notes.
 
 ---
 
@@ -303,6 +303,7 @@ Expected:
 - Manyfold starts.
 - Manyfold can connect to Postgres.
 - Manyfold can see the model library mount(s).
+- LinuxServer Manyfold uses `FILE__DATABASE_URL`; separate `DATABASE_*` variables are not sufficient for this image.
 
 ## Confirmed decisions
 
@@ -338,13 +339,14 @@ Expected:
 docker compose --env-file docker/.env.example -f docker/docker-compose.yml -f docker/hosts/jellyhome.yaml config >/tmp/jellyhome-manyfold-compose.yaml
 grep -n "manyfold" /tmp/jellyhome-manyfold-compose.yaml
 grep -n "192.168.1.2" /tmp/jellyhome-manyfold-compose.yaml
-grep -n "postgres_manyfold_password" /tmp/jellyhome-manyfold-compose.yaml
+grep -n "manyfold_database_url" /tmp/jellyhome-manyfold-compose.yaml
 ```
 
 ## Task 9b: Deploy Manyfold on `jellyhome`
 
 **Prerequisites:**
 - `/opt/docker/.secrets/postgres_manyfold_password` exists on `jellyhome` and matches the `svc_manyfold` password on central Postgres.
+- `/opt/docker/.secrets/manyfold_database_url` exists on `jellyhome`; it is derived locally from the password secret and contains the URL-encoded PostgreSQL connection URL.
 - `/opt/docker/.secrets/manyfold_secret_key_base` exists on `jellyhome`.
 - `/home/jellyfish/media/Primary_5TB/3D_models` exists and is readable.
 - `jellyhome` can connect to `192.168.1.2:5432`.
@@ -370,4 +372,9 @@ Verified live on `jellyhome`:
 - `/libraries/3D_models` is visible, readable, and writable according to Manyfold validation inside the container.
 - Logs show Rails serving requests and no startup database authentication failure.
 
-Remaining operator step: complete first-login/library setup in the Manyfold UI, then validate indexing of `/libraries/3D_models`.
+Task 10 result:
+
+- Manyfold was switched from the accidental SQLite `/config/manyfold.sqlite3` fallback to central PostgreSQL by using `FILE__DATABASE_URL=/run/secrets/manyfold_database_url`.
+- The `/libraries/3D_models` library was created and scanned. Live counts: 1 library, 124 models, 1,683 model files.
+- The scan queue drained to zero; lower-priority analysis/federation jobs may continue independently.
+- A post-index logical dump was run on `jellybase` and restored into a scratch `postgres:17-alpine` container. Restored counts matched central Postgres: 1 library, 124 models, 1,683 model files.
