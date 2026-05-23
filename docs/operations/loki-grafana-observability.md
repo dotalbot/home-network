@@ -127,3 +127,8 @@ curl -fsG \
 ```
 
 Only expand `borgmatic_loki.enabled_hosts` after the first host has queryable logs and Prometheus metrics still update.
+
+
+## jellyberry verification result
+
+First host verification completed on `jellyberry` after applying the generated stage 05 Borgmatic config and running stage 06 manual backup. Loki query `{job="borgmatic",host="jellyberry"}` returned entries with labels `backup_profile="default"`, `environment="home-network"`, `host="jellyberry"`, `instance="jellyberry"`, and `job="borgmatic"`. Prometheus textfile metrics were also written by the manual run.

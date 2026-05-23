@@ -16,7 +16,7 @@
 - [x] Task 2: Add Loki to the monitoring stack on `jellybase`.
 - [x] Task 3: Add Grafana Loki datasource provisioning.
 - [x] Task 4: Extend Borgmatic rollout generator with optional Loki hook.
-- [ ] Task 5: Roll out Borgmatic Loki hook to `jellyberry` first.
+- [x] Task 5: Roll out Borgmatic Loki hook to `jellyberry` first.
 - [ ] Task 6: Import/source-manage Borgmatic Grafana logs dashboard.
 - [ ] Task 7: Roll out to `jellyhome` and `jellybase`.
 - [ ] Task 8: Add MQTT event publishing for instant Discord notifications.
