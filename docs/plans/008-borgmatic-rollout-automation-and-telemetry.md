@@ -10,6 +10,20 @@
 
 ---
 
+## Progress checklist
+
+- [x] Generate Borgmatic rollout stages for `jellyhome`, `jellybase`, and `jellyberry`.
+- [x] Keep generated stages operator-controlled and wrong-host guarded.
+- [x] Write sanitized JSON backup status under `/var/lib/home-network/backup-status/`.
+- [x] Write sanitized Prometheus textfile metrics for node_exporter.
+- [x] Expose backup status metrics including timestamp, success, exit code, duration, latest archive, and repository reachability.
+- [x] Add optional inventory-gated Borgmatic Loki hook generation, enabled for `jellyberry` first.
+- [ ] Verify Borgmatic package/config/timer/repository setup is complete on every in-scope host.
+- [ ] Roll out and verify Borgmatic Loki log shipping on `jellyberry`.
+- [ ] Add optional MQTT retained state/event publishing.
+- [ ] Add source-managed Grafana panels/dashboards for backup telemetry and logs.
+- [ ] Add alerting for backup failure and stale backup status.
+
 ## Design decision: Prometheus, MQTT, and Hermes
 
 Prometheus does not natively use MQTT as a scrape target. It can consume MQTT data only through an exporter such as `mqtt_exporter`, custom bridge, or Telegraf. MQTT is a message/state bus; Prometheus is a metrics time-series scraper. They overlap, but they are not the same layer.

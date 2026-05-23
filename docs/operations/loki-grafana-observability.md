@@ -109,3 +109,21 @@ Leave `/opt/docker/appdata/loki/data` in place until you intentionally delete lo
 - Test one host's Borgmatic logs end-to-end in Loki.
 - Source-manage Grafana log panels/dashboards.
 - Add alerting and Discord/Hermes notification wiring for actionable failures.
+
+
+## Borgmatic Loki hook rollout
+
+`inventory/backups.yml` contains the first-pass `borgmatic_loki` block. It is intentionally enabled for `jellyberry` only until the first real Borgmatic run is verified in Loki.
+
+The rollout generator renders a Borgmatic `loki:` monitoring block into `/tmp/borgmatic-rollout-<host>/stage-05-configure-borgmatic.sh` only for enabled hosts. Keep labels low-cardinality and secret-free: `job`, `host`, `instance`, `environment`, and `backup_profile` are acceptable. Do not add repository URLs, archive names, file paths, error messages, passphrases, or key material as labels.
+
+Verification from a host after applying stage 05 and running a Borgmatic backup:
+
+```bash
+curl -fsS http://jellybase:3100/ready
+curl -fsG \
+  --data-urlencode 'query={job="borgmatic",host="jellyberry"}' \
+  http://jellybase:3100/loki/api/v1/query_range
+```
+
+Only expand `borgmatic_loki.enabled_hosts` after the first host has queryable logs and Prometheus metrics still update.

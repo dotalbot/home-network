@@ -106,6 +106,15 @@ primary_target:
   ssh_status: ssh-copy-id has been completed from jellyhome, jellybase, and jellyberry.
   repo_status: destination repository directories already exist on jellybackup, one per server.
 
+borgmatic_loki:
+  enabled_hosts:
+    - jellyberry
+  url: http://jellybase:3100/loki/api/v1/push
+  labels:
+    job: borgmatic
+    environment: home-network
+    backup_profile: default
+
 hosts:
 
   jellyhome:

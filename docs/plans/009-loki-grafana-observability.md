@@ -10,6 +10,19 @@
 
 ---
 
+## Progress checklist
+
+- [x] Task 1: Record the Borgmatic + Loki spec.
+- [x] Task 2: Add Loki to the monitoring stack on `jellybase`.
+- [x] Task 3: Add Grafana Loki datasource provisioning.
+- [x] Task 4: Extend Borgmatic rollout generator with optional Loki hook.
+- [ ] Task 5: Roll out Borgmatic Loki hook to `jellyberry` first.
+- [ ] Task 6: Import/source-manage Borgmatic Grafana logs dashboard.
+- [ ] Task 7: Roll out to `jellyhome` and `jellybase`.
+- [ ] Task 8: Add MQTT event publishing for instant Discord notifications.
+- [ ] Task 9: Generalize Loki beyond Borgmatic.
+- [ ] Task 10: Add alerting policy.
+
 ## 1. What this adds
 
 Current backup observability is metric/status-first:
@@ -95,9 +108,9 @@ Phase 1 applies only to Borgmatic logs.
 
 Hosts in scope first:
 
-- `jellybase` first, because it is the normal first validation host.
+- `jellyberry` first, because it is lightweight and already has a working manual Borgmatic path.
+- `jellybase` after jellyberry verifies cleanly.
 - `jellyhome` after jellybase verifies cleanly.
-- `jellyberry` after jellyhome verifies cleanly.
 
 Optional after first pass:
 
@@ -295,22 +308,23 @@ python3 -m py_compile scripts/borgmatic-rollout-generate
 bash -n /tmp/borgmatic-rollout-jellybase/stage-*.sh
 bash -n /tmp/borgmatic-rollout-jellyhome/stage-*.sh
 bash -n /tmp/borgmatic-rollout-jellyberry/stage-*.sh
-grep -R "loki" /tmp/borgmatic-rollout-jellybase
+grep -R "loki" /tmp/borgmatic-rollout-jellyberry
+! grep -R "^loki:" /tmp/borgmatic-rollout-jellybase /tmp/borgmatic-rollout-jellyhome
 ```
 
-### Task 5: Roll out Borgmatic Loki hook to jellybase only
+### Task 5: Roll out Borgmatic Loki hook to jellyberry first
 
-**Objective:** Prove the log path on one host before touching the rest.
+**Objective:** Prove the log path on one low-risk host before touching the rest.
 
-**Host:** `jellybase` / tmux window 2.
+**Host:** `jellyberry` / tmux window 4.
 
 **Steps:**
 
-1. Copy or regenerate the latest `/tmp/borgmatic-rollout-jellybase/` stages on jellybase.
+1. Copy or regenerate the latest `/tmp/borgmatic-rollout-jellyberry/` stages on jellyberry.
 2. Run only the config/update stage needed for Loki hook integration.
 3. Validate Borgmatic config.
 4. Run a bounded manual Borgmatic action or test run that emits logs.
-5. Query Loki for `host="jellybase"` and `job="borgmatic"`.
+5. Query Loki for `host="jellyberry"` and `job="borgmatic"`.
 6. Confirm existing Prometheus backup metrics still work.
 
 **Verification:**
@@ -318,8 +332,8 @@ grep -R "loki" /tmp/borgmatic-rollout-jellybase
 ```bash
 sudo borgmatic config validate
 curl -fsG http://jellybase:3100/loki/api/v1/labels
-curl -fsG --data-urlencode 'query={job="borgmatic",host="jellybase"}' http://jellybase:3100/loki/api/v1/query_range
-curl -fsS 'http://jellybase:9090/api/v1/query?query=borgmatic_last_run_success'
+curl -fsG --data-urlencode 'query={job="borgmatic",host="jellyberry"}' http://jellybase:3100/loki/api/v1/query_range
+curl -fsS 'http://jellybase:9090/api/v1/query?query=borgmatic_last_run_success{host="jellyberry"}'
 ```
 
 ### Task 6: Import/source-manage Borgmatic Grafana dashboard
@@ -349,14 +363,14 @@ curl -fsS http://jellybase:3001/api/health
 # Otherwise verify in browser/UI after provisioning.
 ```
 
-### Task 7: Roll out to jellyhome and jellyberry
+### Task 7: Roll out to jellyhome and jellybase
 
-**Objective:** Extend the proven Borgmatic log shipping pattern to the remaining first-wave hosts.
+**Objective:** Extend the proven Borgmatic log shipping pattern to the remaining first-wave hosts after jellyberry is verified.
 
 **Hosts:**
 
 - `jellyhome` / tmux window 3.
-- `jellyberry` / tmux window 4.
+- `jellybase` / tmux window 2.
 
 **Steps per host:**
 
@@ -372,7 +386,7 @@ curl -fsS http://jellybase:3001/api/health
 ```bash
 sudo borgmatic config validate
 curl -fsG --data-urlencode 'query={job="borgmatic",host="jellyhome"}' http://jellybase:3100/loki/api/v1/query_range
-curl -fsG --data-urlencode 'query={job="borgmatic",host="jellyberry"}' http://jellybase:3100/loki/api/v1/query_range
+curl -fsG --data-urlencode 'query={job="borgmatic",host="jellybase"}' http://jellybase:3100/loki/api/v1/query_range
 curl -fsS 'http://jellybase:9090/api/v1/query?query=borgmatic_last_run_success'
 ```
 
@@ -474,7 +488,7 @@ Before considering Borgmatic-first rollout complete:
 
 - [ ] Loki `/ready` returns OK from jellybase and from target host network paths.
 - [ ] Grafana has a working Loki datasource.
-- [ ] Borgmatic logs from `jellybase`, `jellyhome`, and `jellyberry` are queryable by host label.
+- [ ] Borgmatic logs from `jellyberry`, then `jellybase` and `jellyhome`, are queryable by host label.
 - [ ] Existing Prometheus backup metrics still return all expected hosts.
 - [ ] Dashboard is source-managed and visible in Grafana.
 - [ ] Logs contain no passphrases, private keys, exported Borg keys, secret file contents, or raw `/opt/docker/.secrets` values.

@@ -10,6 +10,28 @@ Source inputs:
 - `justfile`
 - Existing operations/runbook docs under `docs/`
 
+## Spec progress convention
+
+Every active spec should include a `## Progress checklist` section near the top, after the goal/purpose and before detailed design.
+
+Checklist rules:
+
+- Use Markdown task checkboxes: `- [ ]` and `- [x]`.
+- Keep each item outcome-oriented and verifiable.
+- Prefer stable phase/task names that survive context compaction and handoff.
+- Mark first-pass work complete only when the repo change is committed and a verification command or runtime check has passed.
+- Keep follow-up work unchecked instead of burying it in prose.
+- If a spec has a matching plan under `docs/plans/`, the spec checklist summarizes durable progress state and the plan keeps detailed task/verification steps.
+
+Recommended section shape:
+
+```markdown
+## Progress checklist
+
+- [x] Short completed, verified milestone.
+- [ ] Short pending milestone.
+```
+
 ## 1. Purpose
 
 `home-network` is the Git-backed source of truth for the home lab platform. It should make Docker hosts, service placement, backup policy, deployment commands, drift detection, and recovery steps explicit enough that a failed host is an inconvenience, not a disaster.

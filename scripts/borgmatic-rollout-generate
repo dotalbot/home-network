@@ -9,6 +9,7 @@ sudo on the matching host.
 
 from __future__ import annotations
 
+import json
 import os
 import re
 import stat
@@ -29,6 +30,9 @@ SAFE_HOST_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9-]{0,62}$")
 SAFE_USER_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_-]{0,63}$")
 SAFE_TARGET_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:-]{0,252}$")
 SAFE_ABSOLUTE_PATH_RE = re.compile(r"^/[A-Za-z0-9._+/@:-]+$")
+SAFE_LOKI_URL_RE = re.compile(r"^https?://[A-Za-z0-9_.:-]+/loki/api/v1/push$")
+SAFE_LABEL_KEY_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]{0,62}$")
+SAFE_LABEL_VALUE_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$")
 
 HEADER = r'''#!/usr/bin/env bash
 set -euo pipefail
@@ -244,7 +248,7 @@ encryption_passcommand: "cat ${PASSPHRASE_FILE}"
 
 archive_name_format: '${EXPECTED_HOST}-{now:%Y-%m-%dT%H:%M:%S}'
 
-keep_daily: 7
+__LOKI_MONITORING__keep_daily: 7
 keep_weekly: 4
 keep_monthly: 6
 
@@ -561,6 +565,25 @@ def validate_absolute_path(value: str, field: str) -> None:
         )
 
 
+def validate_loki_url(value: str, field: str) -> None:
+    if not SAFE_LOKI_URL_RE.fullmatch(value):
+        raise ValueError(
+            f"invalid {field} {value!r}; expected http(s)://host[:port]/loki/api/v1/push"
+        )
+
+
+def validate_label_key(value: str, field: str) -> None:
+    if not SAFE_LABEL_KEY_RE.fullmatch(value):
+        raise ValueError(f"invalid {field} label key {value!r}; use letters, numbers, and underscores")
+
+
+def validate_label_value(value: str, field: str) -> None:
+    if not SAFE_LABEL_VALUE_RE.fullmatch(value):
+        raise ValueError(
+            f"invalid {field} label value {value!r}; keep labels low-cardinality and YAML-safe"
+        )
+
+
 def shell_single_quote(value: str) -> str:
     return "'" + value.replace("'", "'\"'\"'") + "'"
 
@@ -641,7 +664,58 @@ def restore_candidates(paths: list[str], host: str) -> list[str]:
     return unique
 
 
-def render_stage(content: str, paths: list[str], host: str) -> str:
+def loki_monitoring_yaml(inventory: dict[str, Any], host: str) -> str:
+    cfg = inventory.get("borgmatic_loki") or {}
+    if not isinstance(cfg, dict):
+        raise ValueError("borgmatic_loki must be a mapping when present")
+
+    raw_enabled_hosts = cfg.get("enabled_hosts") or []
+    if not isinstance(raw_enabled_hosts, list):
+        raise ValueError("borgmatic_loki.enabled_hosts must be a list")
+
+    enabled_hosts = [str(item) for item in raw_enabled_hosts]
+    for enabled_host in enabled_hosts:
+        validate_host_name(enabled_host)
+
+    if host not in enabled_hosts:
+        return ""
+
+    url = str(cfg.get("url") or "")
+    if not url:
+        raise ValueError("borgmatic_loki.url is required when host is enabled")
+    validate_loki_url(url, "borgmatic_loki.url")
+
+    labels = {
+        "backup_profile": "default",
+        "environment": "home-network",
+        "host": host,
+        "instance": host,
+        "job": "borgmatic",
+    }
+    raw_labels = cfg.get("labels") or {}
+    if not isinstance(raw_labels, dict):
+        raise ValueError("borgmatic_loki.labels must be a mapping when present")
+    for key, value in raw_labels.items():
+        label_key = str(key)
+        label_value = str(value)
+        validate_label_key(label_key, "borgmatic_loki.labels")
+        validate_label_value(label_value, f"borgmatic_loki.labels.{label_key}")
+        labels[label_key] = label_value
+
+    # Force host identity labels to inventory host names for stable, low-cardinality queries.
+    labels["host"] = host
+    labels["instance"] = host
+    labels["job"] = labels.get("job", "borgmatic")
+
+    label_lines = "".join(f"    {key}: {json.dumps(value)}\n" for key, value in sorted(labels.items()))
+    return f"""loki:
+  url: {json.dumps(url)}
+  labels:
+{label_lines}
+"""
+
+
+def render_stage(content: str, paths: list[str], host: str, inventory: dict[str, Any]) -> str:
     if "__SOURCE_DIRECTORIES__" in content:
         source_yaml = "".join(f"  - {p}\n" for p in paths)
         content = content.replace("__SOURCE_DIRECTORIES__", source_yaml)
@@ -654,6 +728,8 @@ def render_stage(content: str, paths: list[str], host: str) -> str:
     if "__RESTORE_CANDIDATES__" in content:
         candidate_text = " ".join(shell_single_quote(p) for p in restore_candidates(paths, host))
         content = content.replace("__RESTORE_CANDIDATES__", candidate_text)
+    if "__LOKI_MONITORING__" in content:
+        content = content.replace("__LOKI_MONITORING__", loki_monitoring_yaml(inventory, host))
     return content.lstrip()
 
 
@@ -675,14 +751,14 @@ Do not paste passphrases, private keys, or exported repo keys into chat/logs.
 """
 
 
-def write_host(host: str, cfg: dict[str, Any], base: Path, backup_user: str, target_ip: str) -> None:
+def write_host(host: str, cfg: dict[str, Any], base: Path, backup_user: str, target_ip: str, inventory: dict[str, Any]) -> None:
     repo_path = str(cfg["repository_path"])
     paths = source_paths(host, cfg)
     out = base / f"borgmatic-rollout-{host}"
     out.mkdir(parents=True, exist_ok=True)
     for name, body in STAGES.items():
         path = out / name
-        text = render_header(host, repo_path, backup_user, target_ip) + render_stage(body, paths, host)
+        text = render_header(host, repo_path, backup_user, target_ip) + render_stage(body, paths, host, inventory)
         path.write_text(text, encoding="utf-8")
         path.chmod(path.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
     (out / "README.txt").write_text(readme_text(host, list(STAGES)), encoding="utf-8")
@@ -708,7 +784,7 @@ def main() -> int:
         print("not good: no borg_enabled hosts with repository_path found", file=sys.stderr)
         return 1
     for host, cfg in hosts.items():
-        write_host(host, cfg, base, backup_user, target_ip)
+        write_host(host, cfg, base, backup_user, target_ip, inventory)
     return 0
 
 

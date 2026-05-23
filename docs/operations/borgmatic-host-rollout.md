@@ -347,3 +347,21 @@ Last checked during rollout:
 ## Next action
 
 Before enabling node_exporter across all hosts, verify the generated stages on each host and then configure node_exporter to scrape `/var/lib/node_exporter/textfile_collector`.
+
+
+## Optional Borgmatic Loki hook
+
+`inventory/backups.yml` may contain a `borgmatic_loki` block. The rollout generator uses it to render Borgmatic's native `loki:` monitoring hook into `stage-05-configure-borgmatic.sh` only for hosts listed in `borgmatic_loki.enabled_hosts`.
+
+Current first-pass policy: only `jellyberry` is enabled until a real Borgmatic run is visible in Loki and existing Prometheus textfile metrics continue to update.
+
+Keep labels low-cardinality and secret-free. Acceptable labels are `job`, `host`, `instance`, `environment`, and `backup_profile`. Do not add repository URLs, archive names, file paths, passphrases, exported keys, or raw error strings as labels.
+
+Verification after applying the config and running Borgmatic:
+
+```bash
+curl -fsS http://jellybase:3100/ready
+curl -fsG \
+  --data-urlencode 'query={job="borgmatic",host="jellyberry"}' \
+  http://jellybase:3100/loki/api/v1/query_range
+```
