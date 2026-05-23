@@ -48,7 +48,7 @@ The platform pack identifies these completed stages. Current repo files support 
 | Repo structure | `README.md`, `docs/`, `inventory/`, `docker/`, `scripts/`, `justfile` |
 | Host inventory | `inventory/hosts.yml` |
 | Deployrr-style Docker layout | `docker/docker-compose.yml`, `docker/hosts/*.yaml`, `/opt/docker` runtime convention |
-| Shared management stack | Homepage, Dozzle, Portainer, Prometheus, Grafana entries in inventory and Compose overlays; Netdata remains legacy/optional pending retirement |
+| Shared management stack | Homepage, Dozzle, Portainer, Prometheus, Grafana, and Loki entries in inventory and Compose overlays; Netdata is retired from the managed path |
 | Homepage generation | `scripts/homepage-render`, `docker/appdata/homepage/*.yaml`, `just homepage-render` |
 | Network Map generation | `scripts/network-map-render`, `docker/appdata/network-map/site/` |
 | Drift detection | `scripts/drift-check`, `just drift-check-strict` |
@@ -85,7 +85,6 @@ Service placement modes:
 - `central-ui-plus-agents` — central UI with remote agents, such as Dozzle and Portainer.
 - `single-primary` — one writable owner for stateful services.
 - `single-primary-home-network-compose` — one host-managed service deployed by the home-network Compose model.
-- `duplicated-parents` — intentionally duplicated parent/collector services; retained for legacy Netdata placement while its retirement path is decided.
 
 Stateful services must default to single-primary unless explicitly designed for replication/failover. Examples: Mosquitto, Home Assistant, Prometheus, Grafana, databases, media libraries, and anything with writable application state.
 

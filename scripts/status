@@ -10,6 +10,7 @@ CHECKS=(
   "Home Assistant|http://jellybase:8123/manifest.json"
   "Prometheus|http://jellybase:9090/-/ready"
   "Grafana|http://jellybase:3001/api/health"
+  "Loki|http://jellybase:3100/ready"
 )
 
 failures=0

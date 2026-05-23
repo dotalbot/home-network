@@ -8,7 +8,7 @@ Unless stated otherwise, paths in this index are relative to the repository root
 
 - `docs/specs/001-home-network-platform.md` — current platform specification.
 - `docs/specs/002-node-exporter-disk-health.md` — implemented first-pass design for generic node_exporter, backup telemetry, and disk health rollout.
-- `docs/specs/003-loki-grafana-observability.md` — planned Loki + Grafana log observability design.
+- `docs/specs/003-loki-grafana-observability.md` — first-pass Loki + Grafana log observability design.
 - `docs/roadmap/product-roadmap.md` — completed stages, gap register, and next phases.
 
 ## Operator docs
@@ -28,6 +28,7 @@ Unless stated otherwise, paths in this index are relative to the repository root
 - `docs/operations/sc401-study-hub.md` — SC-401 Study Hub runtime notes.
 - `docs/operations/image-pastebin.md` — Image Pastebin runtime notes.
 - `docs/operations/node-exporter-disk-health.md` — current node_exporter, Prometheus scrape, Borgmatic telemetry, and disk-health operations.
+- `docs/operations/loki-grafana-observability.md` — Loki/Grafana operations, verification, and rollback.
 
 ## Runbooks
 
@@ -58,7 +59,7 @@ Use `docs/roadmap/product-roadmap.md` as the active gap register. Current high-v
 2. Add service-specific restore runbooks for active stateful services.
 3. Document scheduled operations and alerting once implemented.
 4. Harden node_exporter TCP `9100` access and source-manage Prometheus/Grafana alert/dashboard definitions.
-5. Add Loki and source-managed Grafana observability for backup logs and metrics.
-6. Decide the Netdata retirement/optional-diagnostics path.
+5. Complete Borgmatic Loki hook rollout, log dashboards, and observability alerts.
+6. Clean up retired Netdata containers/appdata from jellyhome and jellybase when approved.
 7. Draft reverse proxy/TLS design before exposing services beyond direct LAN/Tailnet URLs.
 8. Add inventory validation for required service metadata.

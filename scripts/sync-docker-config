@@ -73,6 +73,11 @@ SRC_HOMEPAGE="${REPO_ROOT}/docker/appdata/homepage"
 DEST_HOMEPAGE="${DOCKER_DIR}/appdata/homepage"
 SRC_NETWORK_MAP="${REPO_ROOT}/docker/appdata/network-map"
 DEST_NETWORK_MAP="${DOCKER_DIR}/appdata/network-map"
+SRC_LOKI_CONFIG="${REPO_ROOT}/docker/appdata/loki/config"
+DEST_LOKI_CONFIG="${DOCKER_DIR}/appdata/loki/config"
+DEST_LOKI_DATA="${DOCKER_DIR}/appdata/loki/data"
+SRC_GRAFANA_PROVISIONING="${REPO_ROOT}/docker/appdata/grafana-provisioning"
+DEST_GRAFANA_PROVISIONING="${DOCKER_DIR}/appdata/grafana-provisioning"
 RSYNC_OPTS=(-rtD --delete --omit-dir-times --no-perms --no-owner --no-group)
 
 if [ -d "$SRC_HOMEPAGE" ]; then
@@ -94,6 +99,37 @@ if [ -d "$SRC_NETWORK_MAP" ]; then
     run_privileged chmod -R 775 "$DEST_NETWORK_MAP"
   elif [ -O "$DEST_NETWORK_MAP" ]; then
     chmod -R 775 "$DEST_NETWORK_MAP"
+  fi
+fi
+
+if [ -d "$SRC_LOKI_CONFIG" ]; then
+  run_privileged mkdir -p "$DEST_LOKI_CONFIG" "$DEST_LOKI_DATA"
+  run_privileged rsync "${RSYNC_OPTS[@]}" "$SRC_LOKI_CONFIG"/ "$DEST_LOKI_CONFIG"/
+  set_managed_perms "$DEST_LOKI_CONFIG"
+  if [ "$needs_sudo" -eq 1 ] || [ "$(id -u)" -eq 0 ]; then
+    run_privileged chmod -R 775 "$DEST_LOKI_CONFIG"
+  elif [ -O "$DEST_LOKI_CONFIG" ]; then
+    chmod -R 775 "$DEST_LOKI_CONFIG"
+  fi
+  if [ "$needs_sudo" -eq 1 ] || [ "$(id -u)" -eq 0 ]; then
+    run_privileged chown -R 10001:10001 "$DEST_LOKI_DATA"
+    run_privileged chmod -R 777 "$DEST_LOKI_DATA"
+  elif [ -O "$DEST_LOKI_DATA" ]; then
+    chown -R 10001:10001 "$DEST_LOKI_DATA" 2>/dev/null || true
+    chmod -R 777 "$DEST_LOKI_DATA"
+  else
+    echo "warning: $DEST_LOKI_DATA may need writable permissions for Loki writes" >&2
+  fi
+fi
+
+if [ -d "$SRC_GRAFANA_PROVISIONING" ]; then
+  run_privileged mkdir -p "$DEST_GRAFANA_PROVISIONING"
+  run_privileged rsync "${RSYNC_OPTS[@]}" "$SRC_GRAFANA_PROVISIONING"/ "$DEST_GRAFANA_PROVISIONING"/
+  set_managed_perms "$DEST_GRAFANA_PROVISIONING"
+  if [ "$needs_sudo" -eq 1 ] || [ "$(id -u)" -eq 0 ]; then
+    run_privileged chmod -R 775 "$DEST_GRAFANA_PROVISIONING"
+  elif [ -O "$DEST_GRAFANA_PROVISIONING" ]; then
+    chmod -R 775 "$DEST_GRAFANA_PROVISIONING"
   fi
 fi
 

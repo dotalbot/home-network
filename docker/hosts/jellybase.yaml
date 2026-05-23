@@ -68,8 +68,22 @@ services:
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-change-me}
     volumes:
       - /opt/docker/appdata/grafana:/var/lib/grafana
+      - /opt/docker/appdata/grafana-provisioning:/etc/grafana/provisioning:ro
     extra_hosts:
       - "host.docker.internal:host-gateway"
+
+  loki:
+    image: grafana/loki:3.4.2
+    container_name: loki
+    restart: unless-stopped
+    ports:
+      - "3100:3100"
+    command:
+      - "-config.file=/etc/loki/loki.yml"
+    volumes:
+      - /opt/docker/appdata/loki/config/loki.yml:/etc/loki/loki.yml:ro
+      - /opt/docker/appdata/loki/data:/loki
+
 
   homeassistant:
     image: ghcr.io/home-assistant/home-assistant:stable
@@ -90,38 +104,3 @@ services:
       timeout: 10s
       retries: 3
       start_period: 60s
-
-  netdata:
-    image: netdata/netdata:stable
-    container_name: netdata
-    hostname: jellybase
-    restart: unless-stopped
-
-    network_mode: host
-    pid: host
-
-    cap_add:
-      - SYS_PTRACE
-      - SYS_ADMIN
-
-    security_opt:
-      - apparmor:unconfined
-
-    environment:
-      TZ: ${TZ}
-
-    volumes:
-      - /opt/docker/appdata/netdata/config:/etc/netdata
-      - /opt/docker/appdata/netdata/lib:/var/lib/netdata
-      - /opt/docker/appdata/netdata/cache:/var/cache/netdata
-
-      - /:/host/root:ro,rslave
-      - /proc:/host/proc:ro
-      - /sys:/host/sys:ro
-
-      - /etc/passwd:/host/etc/passwd:ro
-      - /etc/group:/host/etc/group:ro
-      - /etc/os-release:/host/etc/os-release:ro
-      - /etc/localtime:/etc/localtime:ro
-
-      - /var/run/docker.sock:/var/run/docker.sock:ro

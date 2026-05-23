@@ -94,8 +94,8 @@ Currently tracked service groups include:
 - Image Pastebin
 - Prometheus
 - Grafana
-- Loki (planned)
-- Netdata (legacy/optional diagnostics pending retirement)
+- Loki
+- Netdata (retired from managed path; cleanup pending)
 - Home Assistant
 - planned media/IoT services
 
@@ -253,6 +253,7 @@ Prometheus and Grafana run on `jellybase`. Loki is the planned log-history layer
 ```text
 http://jellybase:9090  Prometheus
 http://jellybase:3001  Grafana
+http://jellybase:3100  Loki
 ```
 
 Current first-pass host telemetry is implemented for:

@@ -6,7 +6,7 @@
       siteMonitor: http://192.168.1.1
   - Dozzle:
       href: http://192.168.1.1:8080
-      description: 'central-ui-plus-agents | ui: jellyhome, agents: jellybase'
+      description: 'central-ui-plus-agents | ui: jellyhome, agents: jellybase, jellyberry'
       icon: dozzle.png
       siteMonitor: http://192.168.1.1:8080
   - Portainer:
@@ -19,11 +19,6 @@
       icon: mdi-lan
       siteMonitor: http://192.168.1.159:8788
 - Monitoring:
-  - Netdata:
-      href: http://192.168.1.1:19999
-      description: duplicated-parents | jellyhome, jellybase
-      icon: netdata.png
-      siteMonitor: http://192.168.1.1:19999
   - Prometheus:
       href: http://192.168.1.2:9090
       description: single-primary | jellybase
@@ -34,6 +29,11 @@
       description: single-primary | jellybase
       icon: grafana.png
       siteMonitor: http://192.168.1.2:3001
+  - Loki:
+      href: http://192.168.1.2:3100
+      description: log history layer for Grafana; Borgmatic log shipping is follow-up
+      icon: grafana.png
+      siteMonitor: http://192.168.1.2:3100
 - IoT:
   - Home Assistant:
       href: http://192.168.1.2:8123

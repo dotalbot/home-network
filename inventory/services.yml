@@ -157,23 +157,12 @@ services:
 
   netdata:
     display_name: Netdata
-    icon: netdata.png
-    category: Monitoring
-    mode: duplicated-parents
-    description: legacy/optional host diagnostics; strategic observability is Prometheus, Grafana, and Loki
-    hosts:
-      - jellyhome
-      - jellybase
-    containers:
-      jellyhome:
-        - netdata
-      jellybase:
-        - netdata
-    urls:
-      jellyhome: http://192.168.1.1:19999
-      jellybase: http://192.168.1.2:19999
+    category: Retired
+    mode: retired
+    description: retired legacy host diagnostics; containers/appdata remain until manual cleanup
     backup: config-and-cache
-    status: active
+    status: retired
+
 
   prometheus:
     display_name: Prometheus
@@ -202,6 +191,22 @@ services:
         - grafana
     urls:
       primary: http://192.168.1.2:3001
+    backup: appdata
+    status: active
+
+  loki:
+    display_name: Loki
+    icon: grafana.png
+    category: Monitoring
+    mode: single-primary
+    hosts:
+      - jellybase
+    containers:
+      jellybase:
+        - loki
+    urls:
+      primary: http://192.168.1.2:3100
+    description: log history layer for Grafana; Borgmatic log shipping is follow-up
     backup: appdata
     status: active
 
@@ -255,7 +260,9 @@ services:
 
 drift:
   ignored_containers:
-    jellyhome: []
+    jellyhome:
+      - netdata
     jellybase:
       - onecli-postgres-1
       - onecli
+      - netdata
