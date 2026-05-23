@@ -57,6 +57,7 @@ The platform should make the home lab understandable, reproducible, observable, 
 - [ ] Mount verified 3D libraries from `/home/jellyfish/media/Primary_5TB`.
 - [ ] Verify Manyfold connects to central Postgres and indexes the libraries.
 - [ ] Complete a safe restore check for central Postgres using Borg and/or logical dump.
+- [ ] Document host rebuild order for `/opt/docker/bin` helpers, secrets, timers, firewall rules, and restored database/app state.
 
 ## V4 — Metrics and Health Observability
 
@@ -99,6 +100,7 @@ The platform should make the home lab understandable, reproducible, observable, 
 - [ ] Keep dangerous actions explicit and non-default.
 - [ ] Document Hermes automation boundaries: what may run automatically vs only on request.
 - [ ] Ensure generated state is atomic and not accidentally committed.
+- [ ] Document that `/opt/docker/bin` helpers are recreated from Git via `scripts/sync-docker-config`, while secrets, timers, firewall rules, and data need restore/reapply steps.
 - [ ] Run a full rebuild drill on a low-risk host or disposable VM/Pi.
 - [ ] Fix any missing docs discovered during the rebuild drill.
 

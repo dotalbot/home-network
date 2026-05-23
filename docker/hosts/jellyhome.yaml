@@ -52,3 +52,56 @@ services:
       - /opt/docker/appdata/mosquitto/config:/mosquitto/config
       - /opt/docker/appdata/mosquitto/data:/mosquitto/data
       - /opt/docker/appdata/mosquitto/log:/mosquitto/log
+
+  manyfold-valkey:
+    image: valkey/valkey:8-alpine
+    container_name: manyfold-valkey
+    restart: unless-stopped
+    command:
+      - valkey-server
+      - --appendonly
+      - "yes"
+    volumes:
+      - /opt/docker/appdata/manyfold/valkey:/data
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 10s
+
+  manyfold:
+    image: lscr.io/linuxserver/manyfold:latest
+    container_name: manyfold
+    restart: unless-stopped
+    depends_on:
+      manyfold-valkey:
+        condition: service_healthy
+    ports:
+      - "${MANYFOLD_BIND_IP:-192.168.1.1}:${MANYFOLD_PORT:-3214}:3214"
+    environment:
+      PUID: "${MANYFOLD_PUID:-1000}"
+      PGID: "${MANYFOLD_PGID:-1000}"
+      TZ: ${TZ}
+      DATABASE_ADAPTER: postgresql
+      DATABASE_HOST: 192.168.1.2
+      DATABASE_PORT: "5432"
+      DATABASE_USER: svc_manyfold
+      DATABASE_NAME: manyfold
+      FILE__DATABASE_PASSWORD: /run/secrets/postgres_manyfold_password
+      REDIS_URL: redis://manyfold-valkey:6379/1
+      FILE__SECRET_KEY_BASE: /run/secrets/manyfold_secret_key_base
+    secrets:
+      - postgres_manyfold_password
+      - manyfold_secret_key_base
+    volumes:
+      - /opt/docker/appdata/manyfold/config:/config
+      - /home/jellyfish/media/Primary_5TB/3D_models:/libraries/3D_models:ro
+    security_opt:
+      - no-new-privileges:true
+
+secrets:
+  postgres_manyfold_password:
+    file: /opt/docker/.secrets/postgres_manyfold_password
+  manyfold_secret_key_base:
+    file: /opt/docker/.secrets/manyfold_secret_key_base

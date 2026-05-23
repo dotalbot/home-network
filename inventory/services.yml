@@ -261,6 +261,34 @@ services:
     backup: appdata
     status: active
 
+  manyfold:
+    display_name: Manyfold
+    icon: mdi-printer-3d
+    category: Media
+    mode: single-primary
+    hosts:
+      - jellyhome
+    containers:
+      jellyhome:
+        - manyfold
+        - manyfold-valkey
+    urls:
+      primary: http://192.168.1.1:3214
+    description: 3D model library manager on jellyhome using central PostgreSQL on jellybase
+    database:
+      host: jellybase
+      endpoint: postgresql://192.168.1.2:5432/manyfold
+      database: manyfold
+      user: svc_manyfold
+      password_secret: /opt/docker/.secrets/postgres_manyfold_password
+    libraries:
+      models:
+        host_path: /home/jellyfish/media/Primary_5TB/3D_models
+        container_path: /libraries/3D_models
+        initial_mode: read-only
+    backup: manyfold-appdata-central-postgres-and-library
+    status: configured
+
   calibre-web-automated:
     display_name: Calibre Web Automated
     icon: calibre-web.png

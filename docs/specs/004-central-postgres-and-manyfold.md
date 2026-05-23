@@ -160,6 +160,28 @@ After PostgreSQL is running and verified:
   - `/home/jellyfish/media/Primary_5TB/3D_models:/libraries/3D_models`
   - `/home/jellyfish/media/Primary_5TB/3D_documents:/libraries/3D_documents`
 
+
+## Manyfold runtime design
+
+Manyfold runs on `jellyhome` using `lscr.io/linuxserver/manyfold:latest` and a private `manyfold-valkey` companion container. The application database remains the central PostgreSQL database on `jellybase` (`192.168.1.2:5432`).
+
+Runtime paths and secrets:
+
+```text
+/opt/docker/appdata/manyfold/config
+/opt/docker/appdata/manyfold/valkey
+/opt/docker/.secrets/postgres_manyfold_password
+/opt/docker/.secrets/manyfold_secret_key_base
+```
+
+The first library mount is read-only while adoption/indexing is proven:
+
+```text
+/home/jellyfish/media/Primary_5TB/3D_models:/libraries/3D_models:ro
+```
+
+`/opt/docker/bin` helper scripts are source-managed and recreated by `scripts/sync-docker-config`; secrets, database/appdata, systemd timers, and live firewall rules are runtime state and must be restored or re-applied during a host rebuild.
+
 ## Progress checklist
 
 - [x] Inspect legacy Manyfold and MariaDB state.
@@ -184,7 +206,9 @@ After PostgreSQL is running and verified:
 - [x] Create Manyfold database `manyfold` and user `svc_manyfold`.
 - [x] Verify `svc_manyfold` can connect to database `manyfold` and is not a superuser.
 - [x] Install timer, then run and verify logical dumps for central Postgres.
-- [ ] Add Manyfold service on `jellyhome`.
+- [x] Add Manyfold service on `jellyhome`.
+- [ ] Create Manyfold app secrets on `jellyhome`.
+- [ ] Deploy Manyfold and `manyfold-valkey` on `jellyhome`.
 - [ ] Verify Manyfold connects to central Postgres.
 - [ ] Index/validate 3D model libraries in Manyfold.
 - [ ] Document restore test for central Postgres using Borg and/or logical dump.

@@ -23,7 +23,8 @@
 - [x] Task 6 final: Apply and verify TCP-level firewall/network restrictions before production-ready status.
 - [x] Task 7 final: Install timer, run logical dump automation after deploy, and confirm dump artifacts.
 - [x] Task 8: Prepare Manyfold database `manyfold` and user `svc_manyfold`.
-- [ ] Task 9: Add Manyfold service on `jellyhome`.
+- [x] Task 9: Add Manyfold service on `jellyhome`.
+- [ ] Task 9b: Deploy Manyfold on `jellyhome`.
 - [ ] Task 10: Verify Manyfold library indexing and backup/restore notes.
 
 ---
@@ -314,3 +315,46 @@ Expected:
 - Manyfold database/user: database `manyfold`, user `svc_manyfold`.
 - Backup policy: Borg plus logical dumps from day one.
 - No secrets or dump contents are committed to Git.
+
+## Task 9: Add Manyfold service on `jellyhome`
+
+**Objective:** Add Manyfold to the jellyhome Compose overlay, backed by central PostgreSQL on jellybase.
+
+**Files:**
+- Modify: `docker/hosts/jellyhome.yaml`
+- Modify: `docker/.env.example`
+- Modify: `inventory/services.yml`
+- Modify: `inventory/backups.yml`
+
+**Implementation notes:**
+- Use `lscr.io/linuxserver/manyfold:latest`.
+- Add private `manyfold-valkey`; do not publish Redis/Valkey to the LAN.
+- Load database password and `SECRET_KEY_BASE` via Docker secret files under `/opt/docker/.secrets`.
+- Start with `/home/jellyfish/media/Primary_5TB/3D_models` mounted read-only at `/libraries/3D_models`.
+- Publish Manyfold on `192.168.1.1:3214` via host port `${MANYFOLD_PORT:-3214}`.
+
+**Verification:**
+```bash
+docker compose --env-file docker/.env.example -f docker/docker-compose.yml -f docker/hosts/jellyhome.yaml config >/tmp/jellyhome-manyfold-compose.yaml
+grep -n "manyfold" /tmp/jellyhome-manyfold-compose.yaml
+grep -n "192.168.1.2" /tmp/jellyhome-manyfold-compose.yaml
+grep -n "postgres_manyfold_password" /tmp/jellyhome-manyfold-compose.yaml
+```
+
+## Task 9b: Deploy Manyfold on `jellyhome`
+
+**Prerequisites:**
+- `/opt/docker/.secrets/postgres_manyfold_password` exists on `jellyhome` and matches the `svc_manyfold` password on central Postgres.
+- `/opt/docker/.secrets/manyfold_secret_key_base` exists on `jellyhome`.
+- `/home/jellyfish/media/Primary_5TB/3D_models` exists and is readable.
+- `jellyhome` can connect to `192.168.1.2:5432`.
+
+**Verification:**
+- `manyfold-valkey` is healthy.
+- `manyfold` starts without database migration errors.
+- `http://192.168.1.1:3214` responds.
+- Container can read `/libraries/3D_models`.
+
+## Rebuild note
+
+`/opt/docker/bin` helpers are recreated from Git by `scripts/sync-docker-config`. Host rebuilds still need explicit restore/reapply steps for `/opt/docker/.secrets`, database/appdata, systemd timers, and live firewall rules.

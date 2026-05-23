@@ -54,6 +54,18 @@ backup_classes:
       - temp files
     restore_priority: high
 
+  manyfold-appdata-central-postgres-and-library:
+    description: Manyfold appdata on jellyhome plus central Postgres database state and 3D model library.
+    includes:
+      - /opt/docker/appdata/manyfold
+      - central PostgreSQL database manyfold via postgres-volume-and-logical-dumps
+      - /home/jellyfish/media/Primary_5TB/3D_models
+    excludes:
+      - /opt/docker/.secrets
+      - cache
+      - temp files
+    restore_priority: high
+
   config-and-persistence:
     description: Service has config and small persistent runtime state.
     includes:
@@ -143,6 +155,7 @@ hosts:
     important_paths:
       - /opt/docker
       - /home/jellyfish/repo
+      - /home/jellyfish/media/Primary_5TB/3D_models
     notes:
       - Runs core management UI.
       - Runs planned Calibre and Mosquitto.
@@ -239,6 +252,17 @@ restore_rules:
       - restore library/media path
       - deploy service
       - verify application health
+
+  manyfold-appdata-central-postgres-and-library:
+    method: restore_appdata_postgres_and_library
+    steps:
+      - bootstrap jellyhome and jellybase
+      - restore /opt/docker/appdata/manyfold on jellyhome from Borg
+      - restore central PostgreSQL using postgres-volume-and-logical-dumps rules on jellybase
+      - restore or verify /home/jellyfish/media/Primary_5TB/3D_models
+      - recreate required secret files under /opt/docker/.secrets without printing values
+      - sync docker config and deploy manyfold plus manyfold-valkey
+      - verify Manyfold HTTP health and database connectivity
 
   config-and-persistence:
     method: restore_config_and_persistent_state
