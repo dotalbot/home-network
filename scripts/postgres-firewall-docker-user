@@ -3,12 +3,14 @@ set -euo pipefail
 
 # Manage the central Postgres Docker-published port allowlist in DOCKER-USER.
 # Default mode is check/print only. Use --apply only after reviewing current rules.
-# Docker DNAT happens before DOCKER-USER, so rules match conntrack original
-# destination (the host LAN IP/port) rather than the post-DNAT container IP.
+# On jellybase, Docker DNATs the host port to the container IP before the filter
+# DOCKER-USER chain, so enforcement matches the current central-postgres
+# container destination IP. Re-run --apply after recreating the container.
 
 ACTION="${1:---check}"
-BIND_IP="${POSTGRES_BIND_IP:-192.168.1.2}"
+CONTAINER="${POSTGRES_CONTAINER:-central-postgres}"
 PORT="${POSTGRES_PORT:-5432}"
+BIND_IP="${POSTGRES_BIND_IP:-192.168.1.2}"
 ALLOW_SOURCES=("${POSTGRES_ALLOW_SOURCES:-192.168.1.2 192.168.1.1}")
 
 if ! command -v iptables >/dev/null 2>&1; then
@@ -19,6 +21,12 @@ fi
 sudo_cmd=()
 if [ "$(id -u)" -ne 0 ]; then
   sudo_cmd=(sudo)
+fi
+
+container_ip="$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "$CONTAINER" 2>/dev/null || true)"
+if [ -z "$container_ip" ]; then
+  echo "container IP not found for $CONTAINER; start the container before applying/checking rules" >&2
+  exit 1
 fi
 
 rule_exists() {
@@ -34,9 +42,11 @@ insert_rule() {
 
 check_rule() {
   if rule_exists "$@"; then
-    printf 'ok rule: %s\n' "$*"
+    printf 'ok rule: %s
+' "$*"
   else
-    printf 'missing rule: %s\n' "$*"
+    printf 'missing rule: %s
+' "$*"
     return 1
   fi
 }
@@ -45,26 +55,33 @@ case "$ACTION" in
   --apply)
     pos=1
     for src in ${ALLOW_SOURCES[*]}; do
-      insert_rule "$pos" -p tcp -s "${src}/32" -m conntrack --ctorigdst "$BIND_IP" --ctorigdstport "$PORT" -j RETURN
+      insert_rule "$pos" -p tcp -s "${src}/32" -d "${container_ip}/32" --dport "$PORT" -j RETURN
       pos=$((pos + 1))
     done
-    insert_rule "$pos" -p tcp -m conntrack --ctorigdst "$BIND_IP" --ctorigdstport "$PORT" -j DROP
+    insert_rule "$pos" -p tcp -d "${container_ip}/32" --dport "$PORT" -j DROP
     "${sudo_cmd[@]}" iptables -S DOCKER-USER
     ;;
   --check)
     status=0
     for src in ${ALLOW_SOURCES[*]}; do
-      check_rule -p tcp -s "${src}/32" -m conntrack --ctorigdst "$BIND_IP" --ctorigdstport "$PORT" -j RETURN || status=1
+      check_rule -p tcp -s "${src}/32" -d "${container_ip}/32" --dport "$PORT" -j RETURN || status=1
     done
-    check_rule -p tcp -m conntrack --ctorigdst "$BIND_IP" --ctorigdstport "$PORT" -j DROP || status=1
+    check_rule -p tcp -d "${container_ip}/32" --dport "$PORT" -j DROP || status=1
     exit "$status"
     ;;
   --print)
-    printf 'Desired DOCKER-USER policy for central Postgres:\n'
+    printf 'Desired DOCKER-USER policy for central Postgres:
+'
+    printf '  host bind: %s:%s
+' "$BIND_IP" "$PORT"
+    printf '  current container: %s / %s
+' "$CONTAINER" "$container_ip"
     for src in ${ALLOW_SOURCES[*]}; do
-      printf '  allow tcp from %s to %s:%s\n' "$src" "$BIND_IP" "$PORT"
+      printf '  allow tcp from %s to container %s:%s
+' "$src" "$container_ip" "$PORT"
     done
-    printf '  drop other tcp traffic to %s:%s\n' "$BIND_IP" "$PORT"
+    printf '  drop other tcp traffic to container %s:%s
+' "$container_ip" "$PORT"
     ;;
   *)
     echo "usage: $0 [--print|--check|--apply]" >&2

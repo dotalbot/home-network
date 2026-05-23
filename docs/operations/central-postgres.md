@@ -58,7 +58,7 @@ Source-managed helper:
 /opt/docker/bin/postgres-firewall-docker-user --apply
 ```
 
-The helper manages intended `DOCKER-USER` rules for the Docker-published port using conntrack original-destination matching, because Docker DNAT occurs before the `DOCKER-USER` chain. If `jellybase` uses a different persistent firewall mechanism, translate the same allowlist policy instead of blindly applying duplicate rules.
+The helper manages intended `DOCKER-USER` rules for the Docker-published port by matching the current `central-postgres` container IP. Docker DNATs the host port before the filter path, so re-run the helper after recreating the container. If `jellybase` uses a different persistent firewall mechanism, translate the same allowlist policy instead of blindly applying duplicate rules.
 
 Minimum network verification after deploy:
 

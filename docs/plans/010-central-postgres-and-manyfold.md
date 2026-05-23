@@ -180,7 +180,7 @@ nc -vz 192.168.1.2 5432
 **Implementation notes:**
 - Compose binding to `192.168.1.2` avoids `0.0.0.0` exposure but does not by itself restrict source hosts.
 - `pg_hba.conf` rejects non-approved PostgreSQL auth sources, but non-approved hosts may still complete TCP connection attempts unless host firewall/network policy blocks them.
-- Use `scripts/postgres-firewall-docker-user --print` and `--check` to inspect intended policy; the helper uses conntrack original-destination matching for Docker-published port traffic.
+- Use `scripts/postgres-firewall-docker-user --print` and `--check` to inspect intended policy; the helper matches the current `central-postgres` container IP for Docker-published port traffic.
 - Use `scripts/postgres-firewall-docker-user --apply` only after inspecting live `DOCKER-USER`/firewall rules.
 - If `jellybase` uses nftables or another persistent mechanism, translate the same allowlist policy and document the choice.
 - Do not blindly overwrite firewall state.
