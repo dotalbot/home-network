@@ -18,7 +18,7 @@
 - [x] Task 4: Extend Borgmatic rollout generator with optional Loki hook.
 - [x] Task 5: Roll out Borgmatic Loki hook to `jellyberry` first.
 - [ ] Task 6: Import/source-manage Borgmatic Grafana logs dashboard.
-- [ ] Task 7: Roll out to `jellyhome` and `jellybase`.
+- [x] Task 7: Roll out to `jellyhome` and `jellybase`.
 - [ ] Task 8: Add MQTT event publishing for instant Discord notifications.
 - [ ] Task 9: Generalize Loki beyond Borgmatic.
 - [ ] Task 10: Add alerting policy.
@@ -308,8 +308,7 @@ python3 -m py_compile scripts/borgmatic-rollout-generate
 bash -n /tmp/borgmatic-rollout-jellybase/stage-*.sh
 bash -n /tmp/borgmatic-rollout-jellyhome/stage-*.sh
 bash -n /tmp/borgmatic-rollout-jellyberry/stage-*.sh
-grep -R "loki" /tmp/borgmatic-rollout-jellyberry
-! grep -R "^loki:" /tmp/borgmatic-rollout-jellybase /tmp/borgmatic-rollout-jellyhome
+grep -R "^loki:" /tmp/borgmatic-rollout-jellyberry /tmp/borgmatic-rollout-jellybase /tmp/borgmatic-rollout-jellyhome
 ```
 
 ### Task 5: Roll out Borgmatic Loki hook to jellyberry first
@@ -486,12 +485,12 @@ environment: home-network
 
 Before considering Borgmatic-first rollout complete:
 
-- [ ] Loki `/ready` returns OK from jellybase and from target host network paths.
-- [ ] Grafana has a working Loki datasource.
-- [ ] Borgmatic logs from `jellyberry`, then `jellybase` and `jellyhome`, are queryable by host label.
-- [ ] Existing Prometheus backup metrics still return all expected hosts.
+- [x] Loki `/ready` returns OK from jellybase and target host network paths used in first-wave rollout.
+- [x] Grafana has a working Loki datasource.
+- [x] Borgmatic logs from `jellyberry`, then `jellybase` and `jellyhome`, are queryable by host label.
+- [x] Existing Prometheus backup metrics still return all expected hosts.
 - [ ] Dashboard is source-managed and visible in Grafana.
-- [ ] Logs contain no passphrases, private keys, exported Borg keys, secret file contents, or raw `/opt/docker/.secrets` values.
+- [x] First-wave labels contain no passphrases, private keys, exported Borg keys, secret file contents, or raw `/opt/docker/.secrets` values.
 - [ ] MQTT test event can reach a subscriber.
 - [ ] Discord bridge can post a test failure message without exposing secrets.
 - [ ] Docs explain metrics vs logs vs events clearly.

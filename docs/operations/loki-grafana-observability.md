@@ -105,19 +105,18 @@ Leave `/opt/docker/appdata/loki/data` in place until you intentionally delete lo
 
 ## Remaining work
 
-- Add Borgmatic Loki hook support to the rollout generator.
-- Test one host's Borgmatic logs end-to-end in Loki.
-- Source-manage Grafana log panels/dashboards.
+- Source-manage Grafana log panels/dashboards for Borgmatic logs.
 - Add alerting and Discord/Hermes notification wiring for actionable failures.
+- Decide whether `jellybackup` should join the Borgmatic Loki/log-metrics rollout.
 
 
 ## Borgmatic Loki hook rollout
 
-`inventory/backups.yml` contains the first-pass `borgmatic_loki` block. It is intentionally enabled for `jellyberry` only until the first real Borgmatic run is verified in Loki.
+`inventory/backups.yml` contains the first-wave `borgmatic_loki` block. It is enabled for `jellyberry`, `jellybase`, and `jellyhome` after each host completed a manual Borgmatic run with queryable Loki entries and Prometheus success metrics.
 
 The rollout generator renders a Borgmatic `loki:` monitoring block into `/tmp/borgmatic-rollout-<host>/stage-05-configure-borgmatic.sh` only for enabled hosts. Keep labels low-cardinality and secret-free: `job`, `host`, `instance`, `environment`, and `backup_profile` are acceptable. Do not add repository URLs, archive names, file paths, error messages, passphrases, or key material as labels.
 
-Verification from a host after applying stage 05 and running a Borgmatic backup:
+Verification from a host after applying stage 05 and running a Borgmatic backup; replace the host label as needed:
 
 ```bash
 curl -fsS http://jellybase:3100/ready
@@ -126,9 +125,13 @@ curl -fsG \
   http://jellybase:3100/loki/api/v1/query_range
 ```
 
-Only expand `borgmatic_loki.enabled_hosts` after the first host has queryable logs and Prometheus metrics still update.
+Expand `borgmatic_loki.enabled_hosts` only after the target host has queryable logs and Prometheus metrics still update. The first-wave enabled hosts are now verified.
 
 
-## jellyberry verification result
+## First-wave verification result
 
-First host verification completed on `jellyberry` after applying the generated stage 05 Borgmatic config and running stage 06 manual backup. Loki query `{job="borgmatic",host="jellyberry"}` returned entries with labels `backup_profile="default"`, `environment="home-network"`, `host="jellyberry"`, `instance="jellyberry"`, and `job="borgmatic"`. Prometheus textfile metrics were also written by the manual run.
+Borgmatic Loki log shipping is verified for `jellyberry`, `jellybase`, and `jellyhome`. Each host has queryable Loki entries for `{job="borgmatic",host="<host>"}` and Prometheus reports `borgmatic_last_run_success{host="<host>"} 1`. The verified manual archives were:
+
+- `jellyberry-2026-05-23T09:23:49`
+- `jellybase-2026-05-23T08:39:51`
+- `jellyhome-2026-05-23T09:40:36`

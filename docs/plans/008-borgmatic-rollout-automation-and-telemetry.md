@@ -20,6 +20,7 @@
 - [x] Add optional inventory-gated Borgmatic Loki hook generation, enabled for `jellyberry` first.
 - [ ] Verify Borgmatic package/config/timer/repository setup is complete on every in-scope host.
 - [x] Roll out and verify Borgmatic Loki log shipping on `jellyberry`.
+- [x] Roll out and verify Borgmatic Loki log shipping on `jellyhome` and `jellybase`.
 - [ ] Add optional MQTT retained state/event publishing.
 - [ ] Add source-managed Grafana panels/dashboards for backup telemetry and logs.
 - [ ] Add alerting for backup failure and stale backup status.

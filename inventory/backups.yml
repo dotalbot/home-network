@@ -123,6 +123,11 @@ hosts:
     borg_enabled: true
     role: primary-docker-dev-host
     repository_path: /home/jellybackup/externaldisk/borg_jellyhome
+    rollout_status:
+      config_status: validated
+      latest_verified_archive: jellyhome-2026-05-23T09:40:36
+      loki_log_shipping_status: verified
+      metrics_status: verified
     important_paths:
       - /opt/docker
       - /home/jellyfish/repo
@@ -135,6 +140,11 @@ hosts:
     borg_enabled: true
     role: secondary-monitoring-host
     repository_path: /home/jellybackup/externaldisk/borg_jellybase
+    rollout_status:
+      config_status: validated
+      latest_verified_archive: jellybase-2026-05-23T08:39:51
+      loki_log_shipping_status: verified
+      metrics_status: verified
     important_paths:
       - /opt/docker
       - /home/jellyfish/repo
@@ -153,6 +163,7 @@ hosts:
       config_status: validated
       latest_verified_archive: jellyberry-2026-05-23T09:23:49
       loki_log_shipping_status: verified
+      metrics_status: verified
       check_status: passed
       restore_test_status: passed
       timer_status: enabled
