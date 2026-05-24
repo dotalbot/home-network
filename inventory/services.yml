@@ -357,6 +357,8 @@ services:
       local_path: /home/jellybot/3dprint_loader
       remote: git@github.com:dotalbot/3dprint_loader.git
       branch: feat/initial-mvp-scaffold
+      build_context: /home/jellybot/3dprint_loader
+      dockerfile: backend/Dockerfile and frontend/Dockerfile
       build_contexts:
         api: /home/jellybot/3dprint_loader/backend
         web: /home/jellybot/3dprint_loader/frontend
