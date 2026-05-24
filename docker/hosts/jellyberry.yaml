@@ -71,6 +71,27 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
 
+
+  promtail:
+    image: grafana/promtail:3.4.2
+    container_name: promtail
+    restart: unless-stopped
+    command:
+      - "-config.file=/etc/promtail/promtail.yml"
+      - "-config.expand-env=true"
+    environment:
+      HOSTNAME: jellyberry
+      TZ: ${TZ}
+    ports:
+      - "9080:9080"
+    volumes:
+      - /opt/docker/appdata/promtail/config/promtail.yml:/etc/promtail/promtail.yml:ro
+      - /opt/docker/appdata/promtail/positions:/tmp
+      - /var/log/journal:/var/log/journal:ro
+      - /run/log/journal:/run/log/journal:ro
+      - /etc/machine-id:/etc/machine-id:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+
 secrets:
   hermes_env:
     file: /home/jellybot/.hermes/.env

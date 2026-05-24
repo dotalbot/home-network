@@ -81,6 +81,9 @@ DEST_NETWORK_MAP="${DOCKER_DIR}/appdata/network-map"
 SRC_LOKI_CONFIG="${REPO_ROOT}/docker/appdata/loki/config"
 DEST_LOKI_CONFIG="${DOCKER_DIR}/appdata/loki/config"
 DEST_LOKI_DATA="${DOCKER_DIR}/appdata/loki/data"
+SRC_PROMTAIL_CONFIG="${REPO_ROOT}/docker/appdata/promtail/config"
+DEST_PROMTAIL_CONFIG="${DOCKER_DIR}/appdata/promtail/config"
+DEST_PROMTAIL_POSITIONS="${DOCKER_DIR}/appdata/promtail/positions"
 SRC_GRAFANA_PROVISIONING="${REPO_ROOT}/docker/appdata/grafana-provisioning"
 DEST_GRAFANA_PROVISIONING="${DOCKER_DIR}/appdata/grafana-provisioning"
 SRC_PROMETHEUS_CONFIG="${REPO_ROOT}/docker/appdata/prometheus/config"
@@ -134,6 +137,20 @@ if [ -d "$SRC_LOKI_CONFIG" ]; then
     chmod -R 777 "$DEST_LOKI_DATA" 2>/dev/null || echo "warning: $DEST_LOKI_DATA contains files whose modes could not be updated" >&2
   else
     echo "warning: $DEST_LOKI_DATA may need writable permissions for Loki writes" >&2
+  fi
+fi
+
+
+if [ -d "$SRC_PROMTAIL_CONFIG" ]; then
+  run_privileged mkdir -p "$DEST_PROMTAIL_CONFIG" "$DEST_PROMTAIL_POSITIONS"
+  run_privileged rsync "${RSYNC_OPTS[@]}" "$SRC_PROMTAIL_CONFIG"/ "$DEST_PROMTAIL_CONFIG"/
+  set_managed_perms "$DEST_PROMTAIL_CONFIG"
+  set_managed_perms "$DEST_PROMTAIL_POSITIONS"
+  if [ "$needs_sudo" -eq 1 ] || [ "$(id -u)" -eq 0 ]; then
+    run_privileged chmod -R 775 "$DEST_PROMTAIL_CONFIG" "$DEST_PROMTAIL_POSITIONS"
+  else
+    [ -O "$DEST_PROMTAIL_CONFIG" ] && chmod -R 775 "$DEST_PROMTAIL_CONFIG"
+    [ -O "$DEST_PROMTAIL_POSITIONS" ] && chmod -R 775 "$DEST_PROMTAIL_POSITIONS"
   fi
 fi
 

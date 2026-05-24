@@ -159,9 +159,9 @@ services:
     display_name: Netdata
     category: Retired
     mode: retired
-    description: retired legacy host diagnostics; containers/appdata remain until manual cleanup
+    description: retired legacy host diagnostics; containers/appdata have been removed from managed hosts after replacement by Prometheus/node_exporter/Loki/Promtail
     backup: config-and-cache
-    status: retired
+    status: retired-cleaned
 
 
   prometheus:
@@ -206,8 +206,30 @@ services:
         - loki
     urls:
       primary: http://192.168.1.2:3100
-    description: log history layer for Grafana; Borgmatic log shipping is follow-up
+    description: log history layer for Grafana; receives Borgmatic, host journal, and Docker container logs
     backup: appdata
+    status: active
+
+  promtail:
+    display_name: Promtail
+    icon: grafana.png
+    category: Monitoring
+    mode: per-host-agent
+    hosts:
+      - jellybase
+      - jellyhome
+      - jellyberry
+    containers:
+      jellybase:
+        - promtail
+      jellyhome:
+        - promtail
+      jellyberry:
+        - promtail
+    urls:
+      metrics: http://127.0.0.1:9080/metrics
+    description: per-host Loki log shipper for selected systemd journal and Docker container logs
+    backup: config-only
     status: active
 
   central-postgres:
@@ -325,9 +347,6 @@ services:
 
 drift:
   ignored_containers:
-    jellyhome:
-      - netdata
     jellybase:
       - onecli-postgres-1
       - onecli
-      - netdata

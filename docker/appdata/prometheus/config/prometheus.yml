@@ -14,21 +14,22 @@ scrape_configs:
       - targets:
           - localhost:9090
 
-  - job_name: netdata-parents
-    metrics_path: /api/v1/allmetrics
-    params:
-      format:
-        - prometheus_all_hosts
-      source:
-        - average
-    static_configs:
-      - targets:
-          - jellyhome:19999
-          - host.docker.internal:19999
-
   - job_name: node_exporter
     static_configs:
       - targets:
           - host.docker.internal:9100
           - jellyhome:9100
           - jellyberry:9100
+
+
+  - job_name: loki
+    static_configs:
+      - targets:
+          - loki:3100
+
+  - job_name: promtail
+    static_configs:
+      - targets:
+          - host.docker.internal:9080
+          - jellyhome:9080
+          - jellyberry:9080

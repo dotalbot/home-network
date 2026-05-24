@@ -1,0 +1,48 @@
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://jellybase:3100/loki/api/v1/push
+
+scrape_configs:
+  - job_name: systemd-journal
+    journal:
+      max_age: 24h
+      labels:
+        job: systemd-journal
+        host: ${HOSTNAME}
+        environment: home-network
+    relabel_configs:
+      - source_labels: [__journal__systemd_unit]
+        target_label: unit
+      - source_labels: [__journal__hostname]
+        target_label: instance
+      - source_labels: [__journal_priority_keyword]
+        target_label: priority
+
+  - job_name: docker
+    docker_sd_configs:
+      - host: unix:///var/run/docker.sock
+        refresh_interval: 15s
+    relabel_configs:
+      - source_labels: [__meta_docker_container_name]
+        regex: /(.+)
+        target_label: container
+      - source_labels: [__meta_docker_container_image]
+        target_label: image
+      - source_labels: [__meta_docker_container_label_com_docker_compose_service]
+        target_label: compose_service
+      - source_labels: [__meta_docker_container_label_com_docker_compose_project]
+        target_label: compose_project
+      - target_label: job
+        replacement: docker
+      - target_label: host
+        replacement: ${HOSTNAME}
+      - target_label: environment
+        replacement: home-network
+    pipeline_stages:
+      - docker: {}

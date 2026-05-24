@@ -1,6 +1,6 @@
 # Spec 003 — Loki + Grafana Observability
 
-Status: first-pass implemented; first-wave Borgmatic Loki verified; source-managed dashboard deployed; alerting follow-up
+Status: host/container log shipping rollout in progress; first-wave Borgmatic Loki verified; source-managed dashboard deployed
 Roadmap area: V5 — Logs and Grafana Observability
 Plan: `docs/plans/009-loki-grafana-observability.md`
 
@@ -20,9 +20,9 @@ Add lightweight, source-managed log visibility to the home-network platform whil
 - [x] Verify Borgmatic log labels stay low-cardinality and secret-free for first-wave hosts.
 - [x] Decide MQTT/Hermes/Discord backup event notifications belong to the next event-notification phase, not the Loki log-history phase.
 - [x] Implement MQTT/Hermes/Discord backup event notifications with compact, secret-free backup lifecycle events.
-- [ ] Extend host observability beyond backup logs to selected system/container logs, host performance stats, and available sensor information from each monitored host.
+- [x] Extend host observability beyond backup logs to selected system/container logs, host performance stats, and available sensor information from each monitored host.
 - [ ] Add Grafana views that correlate logs with CPU, memory, load, disk I/O, filesystem use, network throughput, uptime, temperature, throttling/undervoltage state, and available thermal/fan/disk sensor data.
-- [ ] Add alerting policy for backup failures/staleness, Loki availability, and log-investigation handoff.
+- [x] Add alerting policy for backup failures/staleness, Loki availability, and log-investigation handoff.
 
 ## Strategic direction
 
@@ -115,3 +115,13 @@ Discord routing requirement:
 - [x] Grafana provisioned dashboard `Borgmatic Backups` with UID `borgmatic-backups` in folder `Home Network`.
 - [x] Dashboard API verification returned `provisioned: true` and 9 panels.
 - [x] Supporting Prometheus and Loki dashboard queries returned Borgmatic success metrics/log entries for first-wave hosts.
+
+
+## Host/container log shipping scope
+
+Host and container logs are collected with a repo-managed Promtail service on each Docker-managed host. The first rollout target is `jellybase`, `jellyhome`, and `jellyberry`. Promtail ships two low-cardinality log streams to Loki:
+
+- `job="systemd-journal"` for recent host journal entries, with `host`, `unit`, `priority`, and `environment` labels.
+- `job="docker"` for Docker container logs discovered through the read-only Docker socket, with `host`, `container`, `image`, `compose_service`, `compose_project`, and `environment` labels.
+
+Promtail's HTTP metrics endpoint is published on TCP `9080` on each managed host and scraped by central Prometheus; keep it limited to trusted LAN/Tailnet/firewall scope. Alerts cover Loki and Promtail scrape health.

@@ -132,3 +132,23 @@ groups:
         annotations:
           summary: "Raspberry Pi throttling/undervoltage observed on {{ $labels.host }}"
           description: "The Pi has reported throttling or undervoltage within the last hour. Review power, thermal state, and storage health."
+
+      - alert: LokiDown
+        expr: up{job="loki"} == 0
+        for: 2m
+        labels:
+          severity: warning
+          service: loki
+        annotations:
+          summary: "Loki is down"
+          description: "Prometheus cannot scrape Loki on jellybase for more than 2 minutes."
+
+      - alert: PromtailDown
+        expr: up{job="promtail"} == 0
+        for: 5m
+        labels:
+          severity: warning
+          service: promtail
+        annotations:
+          summary: "Promtail is down on {{ $labels.instance }}"
+          description: "Promtail log shipping exporter {{ $labels.instance }} has been unreachable for more than 5 minutes."

@@ -159,3 +159,38 @@ Borgmatic Loki log shipping is verified for `jellyberry`, `jellybase`, and `jell
 - `jellyberry-2026-05-23T09:23:49`
 - `jellybase-2026-05-23T08:39:51`
 - `jellyhome-2026-05-23T09:40:36`
+
+
+## Host/container log shipping
+
+Promtail is source-managed under:
+
+```text
+docker/appdata/promtail/config/promtail.yml
+docker/hosts/<host>.yaml
+```
+
+Runtime paths on each host:
+
+```text
+/opt/docker/appdata/promtail/config/promtail.yml
+/opt/docker/appdata/promtail/positions/
+```
+
+The Compose service ships:
+
+- host systemd journal logs as `job="systemd-journal"`;
+- Docker container logs as `job="docker"`.
+
+Verification from `jellybase`:
+
+```bash
+curl -fsG --data-urlencode 'query={job="systemd-journal",environment="home-network"}' \
+  http://127.0.0.1:3100/loki/api/v1/query_range
+curl -fsG --data-urlencode 'query={job="docker",environment="home-network"}' \
+  http://127.0.0.1:3100/loki/api/v1/query_range
+curl -fsG --data-urlencode 'query=up{job="promtail"}' \
+  http://127.0.0.1:9090/api/v1/query
+```
+
+Keep labels low-cardinality. Do not add file paths, command lines, secret paths, full log messages, archive names, repository URLs, tokens, or user-provided content as Loki labels.
