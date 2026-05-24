@@ -9,11 +9,12 @@ Environment=MQTT_HOST=jellyhome
 Environment=MQTT_PORT=1883
 Environment=MQTT_TOPIC=home-network/backups/+/borgmatic/event
 Environment=MQTT_USERNAME=borgmatic
-Environment=MQTT_PASSWORD_FILE=/opt/docker/.secrets/mqtt_borgmatic_password
+Environment=MQTT_PASSWORD_FILE=/etc/home-network/mqtt_borgmatic_password
 Environment=HERMES_BIN=/home/jellybot/.hermes/hermes-agent/venv/bin/hermes
 Environment=SEND_START=0
 Environment=SEND_SUCCESS=0
 EnvironmentFile=-/etc/home-network/mqtt-backup-discord-bridge.env
+ExecStartPre=/usr/bin/test -r /etc/home-network/mqtt_borgmatic_password
 ExecStart=/opt/docker/bin/mqtt-backup-discord-bridge
 Restart=always
 RestartSec=10s

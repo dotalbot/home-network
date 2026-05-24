@@ -79,12 +79,13 @@ Payload rules:
 - No repository URLs with credentials.
 - No passphrases, key material, raw file lists, or verbose logs.
 - If broker auth is required, read the MQTT password from a local root-readable secret file such as `/opt/docker/.secrets/mqtt_borgmatic_password`; never print it.
+- Current deployment uses the dedicated `borgmatic` MQTT user for backup event/state topics. The password must exist in the local root-readable secret file on each backup host; the Hermes bridge uses a service-readable root-owned copy at `/etc/home-network/mqtt_borgmatic_password`, owned `root:jellybot` with mode `0640`.
 - Include host, component, status, timestamp, duration, exit code, severity, and a Grafana/Loki hint when useful.
 
 Discord routing requirement:
 
-- Backup MQTT event notifications must post to the new `#jellymax` Discord thread once its thread ID is pinned.
-- Parent channel ID is `1505100652659867678`; final target shape is `discord:1505100652659867678:<thread_id>`.
+- Backup MQTT event notifications must post to the new `#jellymax` Discord thread.
+- Parent channel ID is `1505100652659867678`; thread ID is `1507781022249648159`; final target is `discord:1505100652659867678:1507781022249648159`.
 
 ## Acceptance criteria
 

@@ -323,14 +323,22 @@ If the broker requires authentication, `inventory/backups.yml` can set `borgmati
 
 MQTT payloads are compact, secret-free JSON. They must not include passphrases, repo keys, repository URLs, source file paths, raw Borg/Borgmatic logs, credentials, or environment dumps.
 
+For the current jellyhome broker, backup event/state topics use the dedicated `borgmatic` MQTT user. Store the password in `/opt/docker/.secrets/mqtt_borgmatic_password` on each Borgmatic host. On the Hermes bridge host, install a service-readable root-owned copy at `/etc/home-network/mqtt_borgmatic_password` for the `jellybot` systemd service, owned `root:jellybot` with mode `0640`; do not print either file in logs or shell history.
+
 Useful MQTT checks:
 
 ```bash
-mosquitto_sub -h jellyhome -p 1883 -v -t 'home-network/backups/+/borgmatic/#'
+pw="$(sudo cat /opt/docker/.secrets/mqtt_borgmatic_password)"
+
+mosquitto_sub -h jellyhome -p 1883 -u borgmatic -P "$pw" \
+  -v -t 'home-network/backups/+/borgmatic/#'
 
 mosquitto_pub -h jellyhome -p 1883 \
+  -u borgmatic -P "$pw" \
   -t 'home-network/backups/jellybase/borgmatic/event' \
   -m '{"schema_version":1,"component":"borgmatic","host":"jellybase","status":"test"}'
+
+unset pw
 ```
 
 Generated metric names:

@@ -153,8 +153,8 @@ borgmatic_mqtt:
   password_file: /opt/docker/.secrets/mqtt_borgmatic_password
   topic_prefix: home-network
   retain_state: true
-  discord_target: discord:1505100652659867678:THREAD_ID_TBD
-  notes: Replace THREAD_ID_TBD with the new Jellymax Discord thread ID before enabling a Discord bridge.
+  discord_target: discord:1505100652659867678:1507781022249648159
+  notes: Jellymax Discord backup event thread target is configured; broker requires the dedicated borgmatic MQTT user, /opt/docker/.secrets/mqtt_borgmatic_password on backup hosts, and a service-readable /etc/home-network/mqtt_borgmatic_password copy on the bridge host.
 
 hosts:
 
