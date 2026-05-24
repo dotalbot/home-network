@@ -1,0 +1,183 @@
+# 3D Print Loader Operations
+
+## Purpose
+
+`3dprint-loader` is a cross-repo web application for resolving, previewing, and eventually importing 3D-print model links into Manyfold.
+
+It is developed in its own application repository and deployed by `home-network` onto `/opt/docker` on `jellyhome`.
+
+```text
+App source:      /home/jellybot/3dprint_loader
+Runtime host:    jellyhome
+Runtime URL:     http://192.168.1.1:8793
+Health URL:      http://192.168.1.1:8793/health
+Compose owner:   home-network
+Runtime copy:    /opt/docker
+```
+
+## Source-of-truth split
+
+```text
+/home/jellybot/3dprint_loader
+  owns app source, Dockerfiles, tests, API/frontend code, and app docs
+
+/home/jellybot/home-network
+  owns runtime placement, Compose overlay, service inventory, secrets paths, and this runbook
+
+/opt/docker
+  owns synced runtime Compose copy, host-local .env, .secrets, and appdata
+```
+
+Do not hand-edit `/opt/docker/hosts/jellyhome.yaml` as the durable fix. Edit `home-network/docker/hosts/jellyhome.yaml`, then sync.
+
+## Services
+
+```text
+3dprint-loader-api
+3dprint-loader-web
+```
+
+The web container exposes the application on port `8793` and proxies same-origin `/api` and `/health` requests to the API container.
+
+The API container receives the default-network alias `api` because the frontend Nginx config proxies to `http://api:8000`.
+
+## Runtime paths
+
+```text
+/opt/docker/appdata/3dprint-loader/storage
+/opt/docker/.secrets/3dprint-loader/
+/opt/docker/.secrets/3dprint-loader/makerworld-storage-state.json
+```
+
+`makerworld-storage-state.json` is optional and password-equivalent when present. Never commit it. Store it only under `/opt/docker/.secrets/3dprint-loader/` or another approved host-local secret path.
+
+## Code refresh deployment
+
+From the operator host, usually Hermes on `jellyberry`, deploy by SSHing to `jellyhome` as `jellybot`.
+
+The runtime checkout must be refreshed before every rebuild:
+
+```bash
+ssh jellybot@jellyhome '
+  set -euo pipefail
+  cd /home/jellybot/3dprint_loader
+  git fetch origin
+  git checkout feat/initial-mvp-scaffold
+  git pull --ff-only origin feat/initial-mvp-scaffold
+'
+```
+
+Then refresh `home-network` and sync `/opt/docker`:
+
+```bash
+ssh jellybot@jellyhome '
+  set -euo pipefail
+  cd /home/jellybot/home-network
+  git fetch origin
+  git checkout main
+  git pull --ff-only origin main
+  ./scripts/sync-docker-config
+'
+```
+
+Then rebuild/recreate the selected services:
+
+```bash
+ssh jellybot@jellyhome '
+  set -euo pipefail
+  cd /opt/docker
+  docker compose \
+    --env-file .env \
+    -f docker-compose.yml \
+    -f hosts/jellyhome.yaml \
+    up -d --build --force-recreate 3dprint-loader-api 3dprint-loader-web
+'
+```
+
+## First-time host preparation
+
+Create the runtime directories before the first deploy so Docker does not create them with surprising ownership:
+
+```bash
+ssh jellybot@jellyhome '
+  set -euo pipefail
+  install -d -m 2775 /opt/docker/appdata/3dprint-loader/storage
+  install -d -m 2770 /opt/docker/.secrets/3dprint-loader
+'
+```
+
+If ownership has drifted, fix it with root/sudo using the `dockerops` group before deploying.
+
+## Verification
+
+```bash
+ssh jellybot@jellyhome 'docker ps --filter name=3dprint-loader'
+ssh jellybot@jellyhome 'curl -fsS http://192.168.1.1:8793/health'
+curl -fsS http://192.168.1.1:8793/health
+```
+
+Expected health response:
+
+```json
+{"status":"ok","service":"3dprint-loader-api"}
+```
+
+For source-site preview smoke tests, use the app UI and a known working public link. Thingiverse ZIP archive preview is supported through the app's safe archive inspection endpoints; unsafe ZIP entries are filtered and archives are not extracted to disk.
+
+## Rollback
+
+Rollback app code:
+
+```bash
+ssh jellybot@jellyhome '
+  set -euo pipefail
+  cd /home/jellybot/3dprint_loader
+  git checkout <known-good-ref>
+  cd /opt/docker
+  docker compose --env-file .env -f docker-compose.yml -f hosts/jellyhome.yaml \
+    up -d --build --force-recreate 3dprint-loader-api 3dprint-loader-web
+'
+```
+
+Rollback runtime config by reverting the relevant `home-network` commit, syncing `/opt/docker`, and recreating the services.
+
+## Troubleshooting
+
+### Web page loads but API calls fail
+
+Check that the API service has network alias `api` in `docker/hosts/jellyhome.yaml` and that both containers share the default Compose network:
+
+```bash
+ssh jellybot@jellyhome 'docker inspect 3dprint-loader-api 3dprint-loader-web --format "{{.Name}} {{json .NetworkSettings.Networks}}"'
+```
+
+### Compose cannot build
+
+Verify the app checkout exists on `jellyhome`:
+
+```bash
+ssh jellybot@jellyhome 'test -d /home/jellybot/3dprint_loader/.git && git -C /home/jellybot/3dprint_loader status --short --branch'
+```
+
+### MakerWorld authenticated discovery does not work
+
+Check whether the optional Playwright storage-state file exists without printing it:
+
+```bash
+ssh jellybot@jellyhome 'test -s /opt/docker/.secrets/3dprint-loader/makerworld-storage-state.json && echo present || echo missing'
+```
+
+If it is missing, the app should still support public-source flows but may not access auth-gated MakerWorld downloads.
+
+## Backup and restore
+
+Backup class: `appdata-and-source-repo`.
+
+Restore requires:
+
+- the `3dprint_loader` Git repository checkout,
+- the `home-network` Compose/inventory/runbook state,
+- `/opt/docker/appdata/3dprint-loader/storage`, if retained,
+- `/opt/docker/.secrets/3dprint-loader/`, recreated manually from secret backups where applicable.
+
+Secrets are intentionally excluded from Git.

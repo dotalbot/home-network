@@ -337,6 +337,39 @@ services:
     backup: manyfold-appdata-central-postgres-and-library
     status: active
 
+  3dprint-loader:
+    display_name: 3D Print Loader
+    icon: mdi-cube-scan
+    category: Projects
+    mode: single-primary-home-network-compose
+    hosts:
+      - jellyhome
+    containers:
+      jellyhome:
+        - 3dprint-loader-api
+        - 3dprint-loader-web
+    urls:
+      primary: http://192.168.1.1:8793
+      health: http://192.168.1.1:8793/health
+    description: Cross-repo 3D model source resolver and previewer for MakerWorld, Printables, Thingiverse, and future Manyfold import; developed on jellyberry, runtime on jellyhome via home-network.
+    source:
+      type: git
+      local_path: /home/jellybot/3dprint_loader
+      remote: git@github.com:dotalbot/3dprint_loader.git
+      branch: feat/initial-mvp-scaffold
+      build_contexts:
+        api: /home/jellybot/3dprint_loader/backend
+        web: /home/jellybot/3dprint_loader/frontend
+      restore_note: Requires source checkout on jellyhome plus /opt/docker appdata/secrets; refresh with git fetch and git pull --ff-only before compose rebuild.
+    appdata:
+      storage: /opt/docker/appdata/3dprint-loader/storage
+      secrets: /opt/docker/.secrets/3dprint-loader
+      makerworld_storage_state: /opt/docker/.secrets/3dprint-loader/makerworld-storage-state.json
+    integrations:
+      manyfold_base_url: http://manyfold:3214
+    backup: appdata-and-source-repo
+    status: active
+
   calibre-web-automated:
     display_name: Calibre Web Automated
     icon: calibre-web.png
