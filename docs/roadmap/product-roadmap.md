@@ -66,9 +66,12 @@ The platform should make the home lab understandable, reproducible, observable, 
 - [x] Scrape node_exporter targets from Prometheus on `jellybase`.
 - [x] Expose disk-health, backup age, backup duration, and backup success metrics.
 - [x] Treat Pi/microSD/USB SMART gaps as explicit `unknown` status instead of false failure.
+- [ ] Add per-host performance dashboards for CPU, memory, load, disk I/O, filesystem use, network throughput, and uptime.
+- [ ] Add per-host sensor telemetry where available, including CPU/GPU temperature, disk temperature, throttling/undervoltage state, fan/thermal-zone readings, and other safe hardware-health signals.
+- [ ] Keep sensor gaps explicit as `unknown`/`not available` rather than false healthy or false failure.
 - [ ] Harden node_exporter TCP `9100` access to approved scraper hosts.
 - [ ] Source-manage Prometheus alert rules for stale backups, failed backups, disk pressure, disk-health failures, and stale probes.
-- [ ] Source-manage Grafana dashboards and provisioning for the same signals.
+- [ ] Source-manage Grafana dashboards and provisioning for backup, disk-health, host performance, and host sensor signals.
 
 ## V5 — Logs and Grafana Observability
 
@@ -76,7 +79,8 @@ The platform should make the home lab understandable, reproducible, observable, 
 - [x] Add Loki datasource provisioning to Grafana.
 - [x] Send Borgmatic run logs to Loki using the Borgmatic Loki hook.
 - [x] Add Grafana log panels/search for backup runs.
-- [ ] Extend log shipping beyond Borgmatic now that the Borgmatic first pass is stable.
+- [ ] Extend log shipping beyond Borgmatic now that the Borgmatic first pass is stable, starting with allowlisted host system logs and selected container logs.
+- [ ] Correlate host logs with Prometheus host performance and sensor telemetry in Grafana so operators can move from “what happened?” to “what was the host doing?”.
 - [x] Keep Grafana as the primary observability UI and Loki as the log-history layer.
 
 ## V6 — Scheduled Operations and Alerting
@@ -125,7 +129,7 @@ Do not build a Netdata streaming topology unless this decision is explicitly rev
 | Scheduled operations | Drift/backup/status checks are manual unless scheduled elsewhere | cron/systemd timers or Hermes cron jobs plus docs |
 | Alerting | Failed checks should notify instead of waiting for manual review | Discord/Hermes alert path or monitoring alerts |
 | Node exporter hardening | TCP `9100` is live and should be restricted to approved scrapers | staged hardening generator plus positive/negative verification |
-| Grafana/Loki observability | Loki, datasource provisioning, first-wave Borgmatic log hooks, and the Borgmatic dashboard exist; alerts and broader log shipping remain | Alerting policy/docs, MQTT/Hermes notification integration, and future non-Borgmatic log shipping |
+| Grafana/Loki observability | Loki, datasource provisioning, first-wave Borgmatic log hooks, and the Borgmatic dashboard exist; alerts and broader log shipping remain | Alerting policy/docs, future non-Borgmatic log shipping, future alert routing, and host log/performance/sensor correlation |
 | Reverse proxy + TLS | Needed before safe broader access | proxy/TLS spec, Compose changes, rollback notes |
 | Metadata maturity | Inventory needs richer fields for automation | inventory schema notes and validation checks |
 | Database-aware backups | Databases need dump/restore discipline, not only volume backup | central Postgres runbook, logical dump automation, and service restore runbooks |
@@ -134,11 +138,10 @@ Do not build a Netdata streaming topology unless this decision is explicitly rev
 
 ## Immediate next actions
 
-1. Finalize and deploy central Postgres on `jellybase` with LAN access restricted to `jellybase` and `jellyhome`, plus Borg and logical dumps from day one.
-2. Create Manyfold database `manyfold` and user `svc_manyfold`, then add Manyfold on `jellyhome` with the verified 3D library mounts.
-3. Source-manage Prometheus alert rules for backup freshness, backup failures, disk pressure, disk-health failures, stale probes, and Loki availability/log-investigation handoff.
+1. Complete Borg/Borgmatic setup and verification for any remaining in-scope hosts, especially `jellybackup` if it joins monitored/backup-client scope.
+2. Add restore runbooks for Home Assistant, Mosquitto, Prometheus, Grafana, Portfolio Mission Control, and other key stateful services; then run one safe restore drill.
+3. Source-manage Grafana/Prometheus host observability for logs, performance stats, and sensor telemetry: system/container logs in Loki; CPU, memory, load, disk I/O, filesystem, network, uptime, temperature, throttling, and other safe host sensors in Prometheus/Grafana.
 4. Add staged access-control hardening for node_exporter TCP `9100` so only the Prometheus scraper path can reach it.
-5. Clean up retired Netdata containers/appdata from `jellyhome` and `jellybase` when approved.
-6. Complete Borg/Borgmatic setup and verification for any remaining in-scope hosts, especially `jellybackup` if it joins monitored/backup-client scope.
-7. Add service restore runbooks for Home Assistant and Mosquitto.
-8. Add scheduled drift/backup/status checks and route failures to an alert channel.
+5. Source-manage Prometheus alert rules for backup freshness, backup failures, disk pressure, disk-health failures, stale probes, Loki availability, and host temperature/throttling risk.
+6. Add scheduled drift/backup/status checks and route failures to an alert channel.
+7. Clean up retired Netdata containers/appdata from `jellyhome` and `jellybase` when approved.

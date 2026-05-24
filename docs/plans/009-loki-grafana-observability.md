@@ -2,9 +2,9 @@
 
 > **For Hermes:** Use subagent-driven-development skill to implement this plan task-by-task.
 
-**Goal:** Add self-hosted Loki + Grafana log visibility, starting with Borgmatic backup logs and then extending the same log pipeline to system and container logs across the homelab.
+**Goal:** Add self-hosted Loki + Grafana log visibility, starting with Borgmatic backup logs and then extending observability to system/container logs, host performance stats, and sensor information across the homelab.
 
-**Architecture:** Keep Prometheus/node_exporter as the metrics and alert-state layer. Add Loki as the central log history layer, with Borgmatic sending run logs directly to Loki using borgmatic's Loki monitoring hook. Grafana becomes the shared viewing layer for metrics plus logs. MQTT remains the low-latency event bus for instant notifications and state fan-out, not the long-term log store.
+**Architecture:** Keep Prometheus/node_exporter as the metrics and alert-state layer for host performance and sensors. Add Loki as the central log history layer, with Borgmatic sending run logs directly to Loki using borgmatic's Loki monitoring hook. Grafana becomes the shared viewing layer for metrics, sensors, and logs. MQTT remains the low-latency event bus for instant notifications and state fan-out, not the long-term log store.
 
 **Tech Stack:** Borgmatic Loki hook, self-hosted Grafana Loki, Grafana dashboard provisioning, Prometheus/node_exporter textfile metrics, optional Alertmanager, Mosquitto MQTT, Hermes/Discord notification bridge, Docker Compose under `/opt/docker` managed by this repo.
 
@@ -20,7 +20,7 @@
 - [x] Task 6: Import/source-manage Borgmatic Grafana logs dashboard.
 - [x] Task 7: Roll out to `jellyhome` and `jellybase`.
 - [x] Task 8: Add MQTT event publishing for instant Discord notifications.
-- [ ] Task 9: Generalize Loki beyond Borgmatic.
+- [ ] Task 9: Generalize observability beyond Borgmatic to host logs, performance stats, and sensor telemetry.
 - [ ] Task 10: Add alerting policy.
 
 ## 1. What this adds
@@ -424,17 +424,25 @@ mosquitto_sub -v -t 'home-network/backups/+/borgmatic/#'
 mosquitto_pub -t 'home-network/backups/jellybase/borgmatic/event' -m '{"host":"jellybase","status":"test"}'
 ```
 
-### Task 9: Generalize Loki beyond Borgmatic
+### Task 9: Generalize observability beyond Borgmatic
 
-**Objective:** Extend the same pattern to system and container logs after backup logs are stable.
+**Objective:** Extend the same pattern after backup logs are stable so each monitored host contributes selected logs, performance stats, and sensor telemetry.
 
-**Candidate sources:**
+**Candidate log sources:**
 
 - systemd journal logs via Promtail/Alloy or another lightweight log shipper.
 - Docker container logs from selected services.
 - Home Assistant logs if useful.
 - Mosquitto logs.
 - Prometheus/Grafana/Loki stack logs.
+
+**Candidate metrics and sensor sources:**
+
+- node_exporter built-in collectors for CPU, memory, load, filesystem, disk I/O, network, uptime, and systemd/service state where enabled.
+- node_exporter textfile collectors for host-specific sensors or commands that need sanitizing before scrape.
+- Raspberry Pi temperature and throttling/undervoltage state.
+- Disk temperature/health where supported, keeping missing SMART/sensor data explicit as `unknown`.
+- Thermal zone, fan, or hardware sensors where available and safe to expose without serials or sensitive identifiers.
 
 **Rules:**
 
@@ -443,6 +451,9 @@ mosquitto_pub -t 'home-network/backups/jellybase/borgmatic/event' -m '{"host":"j
 3. Avoid labels with unbounded values.
 4. Do not ship secrets or verbose application payloads without review.
 5. Keep Dozzle for live container tailing; use Loki for history/search/correlation.
+6. Keep performance/sensor metrics low-cardinality and host-focused.
+7. Represent unsupported sensors as `unknown`/`not available`, not as healthy or failing guesses.
+8. Keep hardware identifiers such as disk serials out of labels and dashboards unless explicitly approved.
 
 **Future label shape:**
 
@@ -453,6 +464,12 @@ unit: <systemd unit, allowlisted>
 container: <container name, allowlisted>
 environment: home-network
 ```
+
+**Metric dashboard scope:**
+
+- Per-host overview: up/down, uptime, CPU, load, memory, filesystem, disk I/O, network throughput/errors.
+- Per-host sensors: CPU/GPU temperature, disk temperature if supported, throttling/undervoltage, thermal-zone/fan readings where available.
+- Correlation panels: host logs beside performance and sensor timelines for the same host/time window.
 
 ### Task 10: Add alerting policy
 
@@ -465,6 +482,7 @@ environment: home-network
   - backup stale
   - node exporter down
   - disk-health failed/stale
+  - host temperature or throttling risk
   - Loki target unavailable
 - Loki/Grafana for log investigation and optional log-derived alerts:
   - repeated Borgmatic warnings

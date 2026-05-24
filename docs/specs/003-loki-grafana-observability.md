@@ -6,7 +6,7 @@ Plan: `docs/plans/009-loki-grafana-observability.md`
 
 ## Goal
 
-Add lightweight, source-managed log visibility to the home-network platform while keeping Grafana as the main observability UI.
+Add lightweight, source-managed log visibility to the home-network platform while keeping Grafana as the main observability UI, and correlate those logs with host performance and available sensor telemetry from each monitored host.
 
 ## Progress checklist
 
@@ -20,6 +20,8 @@ Add lightweight, source-managed log visibility to the home-network platform whil
 - [x] Verify Borgmatic log labels stay low-cardinality and secret-free for first-wave hosts.
 - [x] Decide MQTT/Hermes/Discord backup event notifications belong to the next event-notification phase, not the Loki log-history phase.
 - [x] Implement MQTT/Hermes/Discord backup event notifications with compact, secret-free backup lifecycle events.
+- [ ] Extend host observability beyond backup logs to selected system/container logs, host performance stats, and available sensor information from each monitored host.
+- [ ] Add Grafana views that correlate logs with CPU, memory, load, disk I/O, filesystem use, network throughput, uptime, temperature, throttling/undervoltage state, and available thermal/fan/disk sensor data.
 - [ ] Add alerting policy for backup failures/staleness, Loki availability, and log-investigation handoff.
 
 ## Strategic direction
@@ -27,6 +29,7 @@ Add lightweight, source-managed log visibility to the home-network platform whil
 - Prometheus and node_exporter remain the metrics and alert-state layer.
 - Loki is the log-history layer on `jellybase`.
 - Grafana is the shared UI for metrics and logs.
+- Host performance and sensor telemetry belong in Prometheus/Grafana alongside logs so operators can correlate incidents with host load, temperatures, throttling, disk pressure, and network activity.
 - MQTT/Hermes/Discord may carry notifications, but they are not the long-term log store.
 - Netdata has been retired from the managed Compose/inventory/dashboard/status path; existing containers/appdata are cleanup-only.
 
@@ -37,6 +40,18 @@ Add lightweight, source-managed log visibility to the home-network platform whil
 3. Send Borgmatic run logs to Loki using Borgmatic's Loki monitoring hook. [first-wave hosts verified]
 4. Keep labels low-cardinality: host, job, instance, backup_profile, and environment are acceptable; archive names, file paths, repo URLs, and error strings belong in log content.
 5. Add a source-managed Grafana dashboard or panels for Borgmatic log search and backup-run context. [implemented]
+
+## Host performance and sensor telemetry scope
+
+The next observability phase should make each monitored host visible in Grafana, not just its backup logs.
+
+Collect where available:
+
+- Performance: CPU utilization, load average, memory/swap, filesystem usage, disk I/O, network throughput/errors, uptime, process/service availability.
+- Sensors: CPU/GPU temperature, disk temperature where supported, Raspberry Pi throttling/undervoltage flags, fan/thermal-zone readings, and other safe hardware-health gauges.
+- Health state: explicit `unknown` or `not available` for unsupported sensors, rather than false healthy/failing values.
+
+Prometheus/node_exporter and textfile collectors are the preferred path for these metrics. Loki remains for logs. Grafana should present both together so a host incident can be investigated by time, host, service, log stream, and metric state.
 
 ## Non-goals
 
