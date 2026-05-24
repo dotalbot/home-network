@@ -19,7 +19,7 @@ Add lightweight, source-managed log visibility to the home-network platform whil
 - [x] Add/source-manage Grafana Borgmatic logs dashboard or panels.
 - [x] Verify Borgmatic log labels stay low-cardinality and secret-free for first-wave hosts.
 - [x] Decide MQTT/Hermes/Discord backup event notifications belong to the next event-notification phase, not the Loki log-history phase.
-- [ ] Implement MQTT/Hermes/Discord backup event notifications with compact, secret-free backup lifecycle events.
+- [x] Implement MQTT/Hermes/Discord backup event notifications with compact, secret-free backup lifecycle events.
 - [ ] Add alerting policy for backup failures/staleness, Loki availability, and log-investigation handoff.
 
 ## Strategic direction

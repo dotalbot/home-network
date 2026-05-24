@@ -19,7 +19,7 @@
 - [x] Task 5: Roll out Borgmatic Loki hook to `jellyberry` first.
 - [x] Task 6: Import/source-manage Borgmatic Grafana logs dashboard.
 - [x] Task 7: Roll out to `jellyhome` and `jellybase`.
-- [ ] Task 8: Add MQTT event publishing for instant Discord notifications.
+- [x] Task 8: Add MQTT event publishing for instant Discord notifications.
 - [ ] Task 9: Generalize Loki beyond Borgmatic.
 - [ ] Task 10: Add alerting policy.
 
@@ -491,8 +491,8 @@ Before considering Borgmatic-first rollout complete:
 - [x] Existing Prometheus backup metrics still return all expected hosts.
 - [x] Dashboard is source-managed and visible in Grafana.
 - [x] First-wave labels contain no passphrases, private keys, exported Borg keys, secret file contents, or raw `/opt/docker/.secrets` values.
-- [ ] MQTT test event can reach a subscriber.
-- [ ] Discord bridge can post a test failure message without exposing secrets.
+- [x] MQTT test event can reach a subscriber.
+- [x] Discord bridge can post a test failure message without exposing secrets.
 - [x] Docs explain metrics vs logs vs events clearly.
 - [x] Rollback steps are documented.
 
