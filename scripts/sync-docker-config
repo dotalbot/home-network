@@ -155,7 +155,9 @@ if [ -d "$SRC_ALLOY_CONFIG" ]; then
     run_privileged chmod -R 775 "$DEST_ALLOY_CONFIG" "$DEST_ALLOY_DATA"
   else
     [ -O "$DEST_ALLOY_CONFIG" ] && chmod -R 775 "$DEST_ALLOY_CONFIG"
-    [ -O "$DEST_ALLOY_DATA" ] && chmod -R 775 "$DEST_ALLOY_DATA"
+    if [ -O "$DEST_ALLOY_DATA" ]; then
+      chmod -R 775 "$DEST_ALLOY_DATA" 2>/dev/null || echo "warning: $DEST_ALLOY_DATA contains files whose modes could not be updated" >&2
+    fi
   fi
 fi
 
