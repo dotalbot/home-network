@@ -118,6 +118,16 @@ services:
       start_period: 30s
 
 
+  jellyfood-web:
+    build:
+      context: /home/jellylady/repo/jellyfood
+      dockerfile: Dockerfile
+    image: jellyfood-web:latest
+    container_name: jellyfood-web
+    restart: unless-stopped
+    ports:
+      - "8793:80"
+
   homeassistant:
     image: ghcr.io/home-assistant/home-assistant:stable
     container_name: homeassistant
@@ -139,21 +149,23 @@ services:
       start_period: 60s
 
 
-  promtail:
-    image: grafana/promtail:3.4.2
-    container_name: promtail
+  alloy:
+    image: grafana/alloy:latest
+    container_name: alloy
     restart: unless-stopped
     command:
-      - "-config.file=/etc/promtail/promtail.yml"
-      - "-config.expand-env=true"
+      - run
+      - "--server.http.listen-addr=0.0.0.0:12345"
+      - "--storage.path=/var/lib/alloy/data"
+      - /etc/alloy/config.alloy
     environment:
       HOSTNAME: jellybase
       TZ: ${TZ}
     ports:
-      - "9080:9080"
+      - "12345:12345"
     volumes:
-      - /opt/docker/appdata/promtail/config/promtail.yml:/etc/promtail/promtail.yml:ro
-      - /opt/docker/appdata/promtail/positions:/tmp
+      - /opt/docker/appdata/alloy/config/config.alloy:/etc/alloy/config.alloy:ro
+      - /opt/docker/appdata/alloy/data:/var/lib/alloy/data
       - /var/log/journal:/var/log/journal:ro
       - /run/log/journal:/run/log/journal:ro
       - /etc/machine-id:/etc/machine-id:ro

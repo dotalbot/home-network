@@ -81,9 +81,9 @@ DEST_NETWORK_MAP="${DOCKER_DIR}/appdata/network-map"
 SRC_LOKI_CONFIG="${REPO_ROOT}/docker/appdata/loki/config"
 DEST_LOKI_CONFIG="${DOCKER_DIR}/appdata/loki/config"
 DEST_LOKI_DATA="${DOCKER_DIR}/appdata/loki/data"
-SRC_PROMTAIL_CONFIG="${REPO_ROOT}/docker/appdata/promtail/config"
-DEST_PROMTAIL_CONFIG="${DOCKER_DIR}/appdata/promtail/config"
-DEST_PROMTAIL_POSITIONS="${DOCKER_DIR}/appdata/promtail/positions"
+SRC_ALLOY_CONFIG="${REPO_ROOT}/docker/appdata/alloy/config"
+DEST_ALLOY_CONFIG="${DOCKER_DIR}/appdata/alloy/config"
+DEST_ALLOY_DATA="${DOCKER_DIR}/appdata/alloy/data"
 SRC_GRAFANA_PROVISIONING="${REPO_ROOT}/docker/appdata/grafana-provisioning"
 DEST_GRAFANA_PROVISIONING="${DOCKER_DIR}/appdata/grafana-provisioning"
 SRC_PROMETHEUS_CONFIG="${REPO_ROOT}/docker/appdata/prometheus/config"
@@ -141,16 +141,16 @@ if [ -d "$SRC_LOKI_CONFIG" ]; then
 fi
 
 
-if [ -d "$SRC_PROMTAIL_CONFIG" ]; then
-  run_privileged mkdir -p "$DEST_PROMTAIL_CONFIG" "$DEST_PROMTAIL_POSITIONS"
-  run_privileged rsync "${RSYNC_OPTS[@]}" "$SRC_PROMTAIL_CONFIG"/ "$DEST_PROMTAIL_CONFIG"/
-  set_managed_perms "$DEST_PROMTAIL_CONFIG"
-  set_managed_perms "$DEST_PROMTAIL_POSITIONS"
+if [ -d "$SRC_ALLOY_CONFIG" ]; then
+  run_privileged mkdir -p "$DEST_ALLOY_CONFIG" "$DEST_ALLOY_DATA"
+  run_privileged rsync "${RSYNC_OPTS[@]}" "$SRC_ALLOY_CONFIG"/ "$DEST_ALLOY_CONFIG"/
+  set_managed_perms "$DEST_ALLOY_CONFIG"
+  set_managed_perms "$DEST_ALLOY_DATA"
   if [ "$needs_sudo" -eq 1 ] || [ "$(id -u)" -eq 0 ]; then
-    run_privileged chmod -R 775 "$DEST_PROMTAIL_CONFIG" "$DEST_PROMTAIL_POSITIONS"
+    run_privileged chmod -R 775 "$DEST_ALLOY_CONFIG" "$DEST_ALLOY_DATA"
   else
-    [ -O "$DEST_PROMTAIL_CONFIG" ] && chmod -R 775 "$DEST_PROMTAIL_CONFIG"
-    [ -O "$DEST_PROMTAIL_POSITIONS" ] && chmod -R 775 "$DEST_PROMTAIL_POSITIONS"
+    [ -O "$DEST_ALLOY_CONFIG" ] && chmod -R 775 "$DEST_ALLOY_CONFIG"
+    [ -O "$DEST_ALLOY_DATA" ] && chmod -R 775 "$DEST_ALLOY_DATA"
   fi
 fi
 

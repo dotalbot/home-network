@@ -143,12 +143,12 @@ groups:
           summary: "Loki is down"
           description: "Prometheus cannot scrape Loki on jellybase for more than 2 minutes."
 
-      - alert: PromtailDown
-        expr: up{job="promtail"} == 0
+      - alert: AlloyDown
+        expr: up{job="alloy"} == 0
         for: 5m
         labels:
           severity: warning
-          service: promtail
+          service: alloy
         annotations:
-          summary: "Promtail is down on {{ $labels.instance }}"
-          description: "Promtail log shipping exporter {{ $labels.instance }} has been unreachable for more than 5 minutes."
+          summary: "Alloy is down on {{ $labels.instance }}"
+          description: "Alloy log shipping agent {{ $labels.instance }} has been unreachable for more than 5 minutes."

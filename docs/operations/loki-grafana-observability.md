@@ -163,18 +163,18 @@ Borgmatic Loki log shipping is verified for `jellyberry`, `jellybase`, and `jell
 
 ## Host/container log shipping
 
-Promtail is source-managed under:
+Alloy is source-managed under:
 
 ```text
-docker/appdata/promtail/config/promtail.yml
+docker/appdata/alloy/config/config.alloy
 docker/hosts/<host>.yaml
 ```
 
 Runtime paths on each host:
 
 ```text
-/opt/docker/appdata/promtail/config/promtail.yml
-/opt/docker/appdata/promtail/positions/
+/opt/docker/appdata/alloy/config/config.alloy
+/opt/docker/appdata/alloy/data/
 ```
 
 The Compose service ships:
@@ -189,7 +189,7 @@ curl -fsG --data-urlencode 'query={job="systemd-journal",environment="home-netwo
   http://127.0.0.1:3100/loki/api/v1/query_range
 curl -fsG --data-urlencode 'query={job="docker",environment="home-network"}' \
   http://127.0.0.1:3100/loki/api/v1/query_range
-curl -fsG --data-urlencode 'query=up{job="promtail"}' \
+curl -fsG --data-urlencode 'query=up{job="alloy"}' \
   http://127.0.0.1:9090/api/v1/query
 ```
 

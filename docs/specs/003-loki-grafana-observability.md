@@ -119,9 +119,9 @@ Discord routing requirement:
 
 ## Host/container log shipping scope
 
-Host and container logs are collected with a repo-managed Promtail service on each Docker-managed host. The first rollout target is `jellybase`, `jellyhome`, and `jellyberry`. Promtail ships two low-cardinality log streams to Loki:
+Host and container logs are collected with a repo-managed Alloy service on each Docker-managed host. The first rollout target is `jellybase`, `jellyhome`, and `jellyberry`. Alloy ships two low-cardinality log streams to Loki:
 
 - `job="systemd-journal"` for recent host journal entries, with `host`, `unit`, `priority`, and `environment` labels.
 - `job="docker"` for Docker container logs discovered through the read-only Docker socket, with `host`, `container`, `image`, `compose_service`, `compose_project`, and `environment` labels.
 
-Promtail's HTTP metrics endpoint is published on TCP `9080` on each managed host and scraped by central Prometheus; keep it limited to trusted LAN/Tailnet/firewall scope. Alerts cover Loki and Promtail scrape health.
+Alloy's HTTP metrics endpoint is published on TCP `12345` on each managed host and scraped by central Prometheus; keep it limited to trusted LAN/Tailnet/firewall scope. Alerts cover Loki and Alloy scrape health.

@@ -430,7 +430,7 @@ mosquitto_pub -t 'home-network/backups/jellybase/borgmatic/event' -m '{"host":"j
 
 **Candidate log sources:**
 
-- systemd journal logs via Promtail/Alloy or another lightweight log shipper.
+- systemd journal logs via Grafana Alloy or another supported lightweight log shipper.
 - Docker container logs from selected services.
 - Home Assistant logs if useful.
 - Mosquitto logs.

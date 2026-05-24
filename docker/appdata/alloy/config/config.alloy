@@ -1,0 +1,81 @@
+logging {
+  level  = "info"
+  format = "logfmt"
+}
+
+loki.write "home_network" {
+  endpoint {
+    url = "http://jellybase:3100/loki/api/v1/push"
+  }
+}
+
+discovery.docker "local" {
+  host = "unix:///var/run/docker.sock"
+}
+
+loki.relabel "journal" {
+  forward_to = [loki.write.home_network.receiver]
+
+  rule {
+    source_labels = ["__journal__systemd_unit"]
+    target_label  = "unit"
+  }
+
+  rule {
+    source_labels = ["__journal__hostname"]
+    target_label  = "instance"
+  }
+
+  rule {
+    source_labels = ["__journal_priority_keyword"]
+    target_label  = "priority"
+  }
+}
+
+loki.source.journal "system" {
+  max_age       = "24h"
+  relabel_rules = loki.relabel.journal.rules
+  labels = {
+    job         = "systemd-journal",
+    host        = sys.env("HOSTNAME"),
+    environment = "home-network",
+  }
+  forward_to = [loki.relabel.journal.receiver]
+}
+
+loki.relabel "docker" {
+  forward_to = [loki.write.home_network.receiver]
+
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/(.+)"
+    target_label  = "container"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_image"]
+    target_label  = "image"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_service"]
+    target_label  = "compose_service"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_project"]
+    target_label  = "compose_project"
+  }
+}
+
+loki.source.docker "local" {
+  host          = "unix:///var/run/docker.sock"
+  targets       = discovery.docker.local.targets
+  relabel_rules = loki.relabel.docker.rules
+  labels = {
+    job         = "docker",
+    host        = sys.env("HOSTNAME"),
+    environment = "home-network",
+  }
+  forward_to = [loki.relabel.docker.receiver]
+}

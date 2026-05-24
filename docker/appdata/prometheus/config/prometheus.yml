@@ -27,9 +27,9 @@ scrape_configs:
       - targets:
           - loki:3100
 
-  - job_name: promtail
+  - job_name: alloy
     static_configs:
       - targets:
-          - host.docker.internal:9080
-          - jellyhome:9080
-          - jellyberry:9080
+          - host.docker.internal:12345
+          - jellyhome:12345
+          - jellyberry:12345
