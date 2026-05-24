@@ -29,11 +29,13 @@ Unless stated otherwise, paths in this index are relative to the repository root
 - `docs/operations/image-pastebin.md` — Image Pastebin runtime notes.
 - `docs/operations/node-exporter-disk-health.md` — current node_exporter, Prometheus scrape, Borgmatic telemetry, and disk-health operations.
 - `docs/operations/loki-grafana-observability.md` — Loki/Grafana operations, verification, and rollback.
+- `docs/operations/cross-repo-app-deployment.md` — deployment method for apps developed in one repo/host and run through `home-network` on another Docker host.
 
 ## Runbooks
 
 - `docs/runbooks/rebuild-ubuntu-host.md` — rebuild an Ubuntu host.
 - `docs/runbooks/service-restore-template.md` — template for service-specific restore docs.
+- `docs/runbooks/adopt-project-service-template.md` — checklist for adopting a cross-repo app into the `/opt/docker` deployment model.
 
 ## Plans
 

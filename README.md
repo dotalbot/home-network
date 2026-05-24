@@ -59,6 +59,13 @@ Runtime Docker files are synced to:
 
 `home-network` is the source of truth. `/opt/docker` is the runtime copy.
 
+Cross-repo applications, such as apps developed on `jellyberry` but deployed on `jellyhome`, follow:
+
+```text
+docs/operations/cross-repo-app-deployment.md
+docs/runbooks/adopt-project-service-template.md
+```
+
 ## Managed hosts
 
 Primary inventory file:
