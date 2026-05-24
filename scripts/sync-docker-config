@@ -201,7 +201,7 @@ run_privileged mkdir -p "$DEST_BIN"
 for helper in postgres-logical-dump postgres-bootstrap-manyfold postgres-firewall-docker-user; do
   if [ -f "${REPO_ROOT}/scripts/${helper}" ]; then
     dest_helper="${DEST_BIN}/${helper}"
-    if [ "$needs_sudo" -eq 1 ] || [ "$(id -u)" -eq 0 ] || [ ! -e "$dest_helper" ] || [ -w "$dest_helper" ] || [ -w "$DEST_BIN" ]; then
+    if [ "$needs_sudo" -eq 1 ] || [ "$(id -u)" -eq 0 ] || [ -w "$dest_helper" ] || { [ ! -e "$dest_helper" ] && [ -w "$DEST_BIN" ]; }; then
       run_privileged cp "${REPO_ROOT}/scripts/${helper}" "$dest_helper"
       set_managed_perms "$dest_helper"
       if [ "$needs_sudo" -eq 1 ] || [ "$(id -u)" -eq 0 ]; then
