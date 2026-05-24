@@ -63,6 +63,7 @@ Cross-repo applications, such as apps developed on `jellyberry` but deployed on 
 
 ```text
 docs/operations/cross-repo-app-deployment.md
+docs/operations/jellybot-operator-bootstrap.md
 docs/runbooks/adopt-project-service-template.md
 ```
 

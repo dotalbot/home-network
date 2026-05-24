@@ -30,6 +30,7 @@ Unless stated otherwise, paths in this index are relative to the repository root
 - `docs/operations/node-exporter-disk-health.md` — current node_exporter, Prometheus scrape, Borgmatic telemetry, and disk-health operations.
 - `docs/operations/loki-grafana-observability.md` — Loki/Grafana operations, verification, and rollback.
 - `docs/operations/cross-repo-app-deployment.md` — deployment method for apps developed in one repo/host and run through `home-network` on another Docker host.
+- `docs/operations/jellybot-operator-bootstrap.md` — prepare future hosts with the `jellybot` operator account, Docker groups, `/opt/docker` permissions, GitHub SSH keys, and inter-host deploy SSH access.
 
 ## Runbooks
 

@@ -1,0 +1,319 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+  cat <<'USAGE'
+Usage: sudo ./scripts/bootstrap-jellybot-operator [options]
+
+Bootstrap a future Docker host for home-network code deployment by creating a
+jellybot operator account, Docker/operator groups, /opt/docker permissions, and
+SSH key material for GitHub plus inter-host deployment access.
+
+Options:
+  --user NAME                 Operator user to create/configure (default: jellybot)
+  --github-email EMAIL        Email/comment for generated GitHub SSH key
+  --github-key PATH           Absolute SSH private key path under ~/.ssh
+                              (default: ~/.ssh/id_ed25519_github)
+  --authorized-key-file PATH  Public key file to append to the user's authorized_keys
+                              (for example jellyberry jellybot's public key)
+  --authorized-key TEXT       Public key text to append to authorized_keys
+  --skip-github-key           Do not generate a GitHub SSH key
+  --dry-run                   Print actions without changing the host
+  -h, --help                  Show this help
+
+Examples:
+  sudo ./scripts/bootstrap-jellybot-operator \
+    --github-email jellybot@example.local \
+    --authorized-key-file /tmp/jellyberry-jellybot.pub
+
+  sudo ./scripts/bootstrap-jellybot-operator \
+    --github-email jellybot@example.local \
+    --authorized-key 'ssh-ed25519 AAAA... jellybot@jellyberry'
+USAGE
+}
+
+OPERATOR_USER="jellybot"
+GITHUB_EMAIL=""
+GITHUB_KEY_PATH=""
+AUTHORIZED_KEY_FILE=""
+AUTHORIZED_KEY_TEXT=""
+SKIP_GITHUB_KEY=0
+DRY_RUN=0
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --user)
+      OPERATOR_USER="${2:?missing value for --user}"
+      shift 2
+      ;;
+    --github-email)
+      GITHUB_EMAIL="${2:?missing value for --github-email}"
+      shift 2
+      ;;
+    --github-key)
+      GITHUB_KEY_PATH="${2:?missing value for --github-key}"
+      shift 2
+      ;;
+    --authorized-key-file)
+      AUTHORIZED_KEY_FILE="${2:?missing value for --authorized-key-file}"
+      shift 2
+      ;;
+    --authorized-key)
+      AUTHORIZED_KEY_TEXT="${2:?missing value for --authorized-key}"
+      shift 2
+      ;;
+    --skip-github-key)
+      SKIP_GITHUB_KEY=1
+      shift
+      ;;
+    --dry-run)
+      DRY_RUN=1
+      shift
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      echo "not good: unknown argument: $1" >&2
+      usage >&2
+      exit 2
+      ;;
+  esac
+done
+
+if [ "$(id -u)" -ne 0 ]; then
+  echo "not good: run with sudo/root" >&2
+  exit 1
+fi
+
+if [ "$SKIP_GITHUB_KEY" -eq 0 ] && [ -z "$GITHUB_EMAIL" ]; then
+  echo "not good: pass --github-email or --skip-github-key" >&2
+  exit 1
+fi
+
+if [ -n "$AUTHORIZED_KEY_FILE" ] && [ ! -f "$AUTHORIZED_KEY_FILE" ]; then
+  echo "not good: missing authorized key file: $AUTHORIZED_KEY_FILE" >&2
+  exit 1
+fi
+
+run() {
+  if [ "$DRY_RUN" -eq 1 ]; then
+    printf 'DRY-RUN:'
+    printf ' %q' "$@"
+    printf '\n'
+  else
+    "$@"
+  fi
+}
+
+run_as_operator() {
+  if [ "$DRY_RUN" -eq 1 ]; then
+    printf 'DRY-RUN: as %q:' "$OPERATOR_USER"
+    printf ' %q' "$@"
+    printf '\n'
+    return 0
+  fi
+
+  if command -v runuser >/dev/null 2>&1; then
+    runuser -u "$OPERATOR_USER" -- "$@"
+  elif command -v su >/dev/null 2>&1; then
+    su -s /bin/sh "$OPERATOR_USER" -c "$(printf '%q ' "$@")"
+  else
+    echo "not good: need runuser or su to execute commands as $OPERATOR_USER" >&2
+    exit 1
+  fi
+}
+
+is_public_ssh_key() {
+  local key="$1"
+  case "$key" in
+    *"PRIVATE KEY"*|*$'\n'*|*$'\r'*|"") return 1 ;;
+  esac
+
+  case "$key" in
+    ssh-ed25519\ *|ssh-rsa\ *|ecdsa-sha2-*\ *)
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+read_public_key_file() {
+  local file="$1"
+  local matches
+  matches="$(grep -E '^(ssh-ed25519|ssh-rsa|ecdsa-sha2-) ' "$file" || true)"
+  local count
+  count="$(printf '%s\n' "$matches" | sed '/^$/d' | wc -l)"
+  if [ "$count" -ne 1 ]; then
+    echo "not good: $file must contain exactly one public SSH key line" >&2
+    exit 1
+  fi
+  printf '%s\n' "$matches" | sed -n '1p'
+}
+
+append_line_if_missing() {
+  local line="$1"
+  local file="$2"
+
+  [ -n "$line" ] || return 0
+  if ! is_public_ssh_key "$line"; then
+    echo "not good: authorized key is not a valid single-line public SSH key" >&2
+    exit 1
+  fi
+
+  if [ "$DRY_RUN" -eq 1 ]; then
+    echo "DRY-RUN: append public key to $file if missing"
+    return 0
+  fi
+
+  touch "$file"
+  chmod 600 "$file"
+  if ! grep -qxF "$line" "$file"; then
+    printf '%s\n' "$line" >>"$file"
+  fi
+}
+
+if id "$OPERATOR_USER" >/dev/null 2>&1; then
+  echo "User exists: $OPERATOR_USER"
+else
+  run useradd --create-home --shell /bin/bash "$OPERATOR_USER"
+fi
+
+run groupadd -f dockerops
+run groupadd -f docker
+run usermod -aG docker,dockerops "$OPERATOR_USER"
+
+USER_HOME="$(getent passwd "$OPERATOR_USER" | cut -d: -f6 || true)"
+if [ -z "$USER_HOME" ] && [ "$DRY_RUN" -eq 1 ]; then
+  USER_HOME="/home/$OPERATOR_USER"
+  echo "DRY-RUN: assuming future home directory $USER_HOME"
+fi
+if [ -z "$USER_HOME" ]; then
+  echo "not good: could not determine home for $OPERATOR_USER" >&2
+  exit 1
+fi
+
+SSH_DIR="${USER_HOME}/.ssh"
+if [ -z "$GITHUB_KEY_PATH" ]; then
+  GITHUB_KEY_PATH="${SSH_DIR}/id_ed25519_github"
+fi
+case "$GITHUB_KEY_PATH" in
+  "$SSH_DIR"/*) ;;
+  *)
+    echo "not good: --github-key must be an absolute path under $SSH_DIR" >&2
+    exit 1
+    ;;
+esac
+
+run install -d -m 700 -o "$OPERATOR_USER" -g "$OPERATOR_USER" "$SSH_DIR"
+
+AUTHORIZED_KEYS="${SSH_DIR}/authorized_keys"
+if [ -n "$AUTHORIZED_KEY_FILE" ]; then
+  AUTHORIZED_KEY_TEXT_FROM_FILE="$(read_public_key_file "$AUTHORIZED_KEY_FILE")"
+  append_line_if_missing "$AUTHORIZED_KEY_TEXT_FROM_FILE" "$AUTHORIZED_KEYS"
+fi
+if [ -n "$AUTHORIZED_KEY_TEXT" ]; then
+  append_line_if_missing "$AUTHORIZED_KEY_TEXT" "$AUTHORIZED_KEYS"
+fi
+run chown "$OPERATOR_USER:$OPERATOR_USER" "$AUTHORIZED_KEYS" 2>/dev/null || true
+run chmod 600 "$AUTHORIZED_KEYS" 2>/dev/null || true
+
+run install -d -m 2775 -o root -g dockerops /opt/docker
+run install -d -m 2775 -o root -g dockerops /opt/docker/appdata
+run install -d -m 2775 -o root -g dockerops /opt/docker/hosts
+run install -d -m 2775 -o root -g dockerops /opt/docker/bin
+run install -d -m 2770 -o root -g dockerops /opt/docker/.secrets
+
+if [ ! -f /opt/docker/.env ]; then
+  if [ "$DRY_RUN" -eq 1 ]; then
+    echo "DRY-RUN: create /opt/docker/.env with TZ=Europe/London"
+  else
+    printf 'TZ=Europe/London\n' >/opt/docker/.env
+  fi
+fi
+run chown root:dockerops /opt/docker/.env
+run chmod 660 /opt/docker/.env
+
+GITHUB_CONFIG_WARNING=0
+if [ "$SKIP_GITHUB_KEY" -eq 0 ]; then
+  if [ -f "$GITHUB_KEY_PATH" ]; then
+    echo "GitHub SSH key already exists: $GITHUB_KEY_PATH"
+  else
+    run_as_operator ssh-keygen \
+      -t ed25519 \
+      -C "$GITHUB_EMAIL" \
+      -f "$GITHUB_KEY_PATH" \
+      -N ""
+  fi
+
+  SSH_CONFIG="${SSH_DIR}/config"
+  if [ "$DRY_RUN" -eq 1 ]; then
+    echo "DRY-RUN: ensure GitHub Host block exists in $SSH_CONFIG"
+  else
+    touch "$SSH_CONFIG"
+    chmod 600 "$SSH_CONFIG"
+    chown "$OPERATOR_USER:$OPERATOR_USER" "$SSH_CONFIG"
+    if grep -q '^Host github.com$' "$SSH_CONFIG"; then
+      if ! grep -q "IdentityFile $GITHUB_KEY_PATH" "$SSH_CONFIG"; then
+        GITHUB_CONFIG_WARNING=1
+      fi
+    else
+      cat >>"$SSH_CONFIG" <<EOF
+Host github.com
+  HostName github.com
+  User git
+  IdentityFile $GITHUB_KEY_PATH
+  IdentitiesOnly yes
+EOF
+    fi
+  fi
+fi
+
+run chown -R "$OPERATOR_USER:$OPERATOR_USER" "$SSH_DIR"
+run chmod 700 "$SSH_DIR"
+
+cat <<EOF
+
+good: $OPERATOR_USER operator bootstrap staged/completed on $(hostname -s)
+
+Next manual steps:
+1. Start a fresh login/session for $OPERATOR_USER so docker/dockerops group membership applies.
+2. Add this public key to GitHub as an SSH key for repository access:
+
+EOF
+
+if [ "$SKIP_GITHUB_KEY" -eq 0 ]; then
+  if [ "$DRY_RUN" -eq 1 ]; then
+    echo "DRY-RUN: public key would be at ${GITHUB_KEY_PATH}.pub"
+  else
+    cat "${GITHUB_KEY_PATH}.pub"
+  fi
+else
+  echo "Skipped GitHub key generation."
+fi
+
+cat <<EOF
+
+3. Test GitHub SSH as $OPERATOR_USER:
+   sudo -iu $OPERATOR_USER ssh -T git@github.com
+
+4. Test /opt/docker access as $OPERATOR_USER:
+   sudo -iu $OPERATOR_USER test -w /opt/docker && echo writable
+
+5. If this host must accept deploy commands from another host, copy that source host's
+   ${OPERATOR_USER} public SSH key into:
+   ${AUTHORIZED_KEYS}
+
+Reminder: private keys are never printed by this script.
+EOF
+
+if [ "$GITHUB_CONFIG_WARNING" -eq 1 ]; then
+  cat <<EOF >&2
+
+warning: $SSH_CONFIG already contains a Host github.com block that does not
+reference $GITHUB_KEY_PATH. Verify the IdentityFile before testing GitHub SSH.
+EOF
+fi

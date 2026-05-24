@@ -159,9 +159,18 @@ Supported options:
 Recommended for frequent deployments.
 
 - Allow `jellybot@jellyberry` to SSH to `jellybot@jellyhome`.
-- Add the runtime user to `dockerops` on the runtime host.
+- Add the runtime user to `docker` and `dockerops` on the runtime host.
 - Ensure `/opt/docker` is `root:dockerops` and group-writable.
+- Generate a runtime-host `jellybot` SSH key and add only its public key to GitHub.
+- Copy the operator/source host `jellybot` public key into the runtime host `authorized_keys`.
 - Start a fresh login/session after group changes.
+
+Use the helper and full runbook:
+
+```text
+scripts/bootstrap-jellybot-operator
+docs/operations/jellybot-operator-bootstrap.md
+```
 
 This gives the agent enough access to sync and deploy, so treat it as high trust.
 
