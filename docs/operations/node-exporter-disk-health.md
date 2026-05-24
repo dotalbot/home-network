@@ -1,11 +1,11 @@
 # Node Exporter, Disk Health, and Prometheus Operations
 
-Status: first-pass implemented
-Last updated: 2026-05-22
+Status: first-pass implemented; host overview dashboard source-managed
+Last updated: 2026-05-24
 
 ## Current reality
 
-`jellyhome`, `jellybase`, and `jellyberry` now expose host telemetry through node_exporter on TCP `9100`. Prometheus runs on `jellybase` and scrapes the targets under job `node_exporter`. Grafana is reachable on `jellybase`, but source-managed dashboards and alert rules are still follow-up work.
+`jellyhome`, `jellybase`, and `jellyberry` now expose host telemetry through node_exporter on TCP `9100`. Prometheus runs on `jellybase` and scrapes the targets under job `node_exporter`. Grafana is reachable on `jellybase`. The repo now source-manages a Borgmatic dashboard and a Host Observability dashboard; alert rules and broader log shipping are still follow-up work.
 
 Current endpoints:
 
@@ -33,7 +33,7 @@ The runtime setup remains stage-based and operator-controlled. Future hosts shou
 
 ## What is visible
 
-Standard node_exporter metrics include CPU, memory, load, network, filesystem, inode, and disk I/O metrics.
+Standard node_exporter metrics include CPU, memory, load, network, filesystem, inode, disk I/O, thermal-zone, and hwmon metrics where the host exposes them.
 
 Sanitized Borgmatic metrics are exported through node_exporter textfile collector when status files exist:
 
@@ -53,7 +53,7 @@ home_network_disk_health_probe_success
 home_network_disk_health_unknown_devices
 ```
 
-Pi-style hosts may also expose indirect early-warning metrics, such as read-only filesystem state, kernel storage error counts, USB reset counts, throttling/undervoltage flags, and tiny storage probe success/latency. Treat these as risk indicators, not proof that storage is healthy.
+Pi-style hosts may also expose indirect early-warning metrics, such as read-only filesystem state, kernel storage error counts, USB reset counts, throttling/undervoltage flags, CPU/GPU temperature via `vcgencmd`, and tiny storage probe success/latency. Treat these as risk indicators, not proof that storage is healthy. Unsupported sensors must stay explicit as missing/unknown rather than implied healthy.
 
 ## Quick verification
 
@@ -65,6 +65,7 @@ curl -fsS http://jellybase:9100/metrics | grep '^node_uname_info'
 curl -fsS http://jellyberry:9100/metrics | grep '^node_uname_info'
 curl -fsS 'http://jellybase:9090/api/v1/query?query=up%7Bjob%3D%22node_exporter%22%7D'
 curl -fsS 'http://jellybase:9090/api/v1/query?query=home_network_disk_health_last_run_timestamp_seconds'
+curl -fsS 'http://jellybase:9090/api/v1/query?query=node_hwmon_temp_celsius%20or%20node_thermal_zone_temp%20or%20home_network_pi_temperature_celsius'
 curl -fsS 'http://jellybase:9090/api/v1/query?query=borgmatic_last_run_success'
 just host-monitoring-policy-check
 just node-exporter-rollout-generate
@@ -85,7 +86,7 @@ The repo remains the source of truth. Runtime config/scripts on hosts should be 
 
 1. Add staged node_exporter access-control hardening so TCP `9100` is only reachable from the approved Prometheus scraper path.
 2. Source-manage Prometheus alert rules for scrape down, stale backup metrics, failed backups, disk pressure, disk-health failure, disk-health unknown, and stale disk-health probe.
-3. Source-manage Grafana dashboard/provisioning for the same metrics.
+3. Deploy and verify the source-managed `Host Observability` Grafana dashboard on `jellybase`.
 4. Decide whether to add `jellybackup` to the node_exporter/disk-health rollout now that the first three hosts work.
 5. Fold any live Prometheus/Grafana config changes back into repo-managed files if they were made directly on the host.
 

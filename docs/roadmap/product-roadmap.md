@@ -71,7 +71,7 @@ The platform should make the home lab understandable, reproducible, observable, 
 - [ ] Keep sensor gaps explicit as `unknown`/`not available` rather than false healthy or false failure.
 - [ ] Harden node_exporter TCP `9100` access to approved scraper hosts.
 - [ ] Source-manage Prometheus alert rules for stale backups, failed backups, disk pressure, disk-health failures, and stale probes.
-- [ ] Source-manage Grafana dashboards and provisioning for backup, disk-health, host performance, and host sensor signals.
+- [x] Source-manage Grafana dashboards and provisioning for backup, disk-health, host performance, and host sensor signals.
 
 ## V5 — Logs and Grafana Observability
 
