@@ -45,9 +45,12 @@ The API container receives the default-network alias `api` because the frontend 
 
 ```text
 /opt/docker/appdata/3dprint-loader/storage
+/opt/docker/appdata/3dprint-loader/storage/imports/<import_id>/
 /opt/docker/.secrets/3dprint-loader/
 /opt/docker/.secrets/3dprint-loader/makerworld-storage-state.json
 ```
+
+`storage/imports/<import_id>/` holds staged STL/3MF files and `manifest.json` records created by the app's "Stage for Manyfold" action. These files are the handoff point for the future Manyfold upload job.
 
 `makerworld-storage-state.json` is optional and password-equivalent when present. Never commit it. Store it only under `/opt/docker/.secrets/3dprint-loader/` or another approved host-local secret path.
 
@@ -122,7 +125,17 @@ Expected health response:
 {"status":"ok","service":"3dprint-loader-api"}
 ```
 
-For source-site preview smoke tests, use the app UI and a known working public link. Thingiverse ZIP archive preview is supported through the app's safe archive inspection endpoints; unsafe ZIP entries are filtered and archives are not extracted to disk.
+For source-site preview smoke tests, use the app UI and a known working public link. Thingiverse ZIP archive preview is supported through the app's safe archive inspection endpoints; unsafe ZIP entries are filtered and archives are not extracted to disk unless a selected STL/3MF is explicitly staged for import.
+
+Staging smoke test shape:
+
+```bash
+curl -fsS -X POST http://192.168.1.1:8793/api/imports/stage-archive-entry \
+  -H 'Content-Type: application/json' \
+  --data '{"archive_url":"https://tv-zip.thingiverse.com/zip/7356921","entry":"files/example.stl","source_url":"https://www.thingiverse.com/thing:7356921"}'
+```
+
+Use a real entry returned by `/api/assets/archive-entries`; the staged output should appear under `/opt/docker/appdata/3dprint-loader/storage/imports/<import_id>/`.
 
 ## Rollback
 
