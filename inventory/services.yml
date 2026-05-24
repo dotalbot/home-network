@@ -155,6 +155,30 @@ services:
     backup: uploads-if-needed
     status: active
 
+  jellyfood-web:
+    display_name: Jellyfood
+    icon: mdi-food-apple-outline
+    category: Projects
+    mode: single-primary-home-network-compose
+    hosts:
+      - jellybase
+    containers:
+      jellybase:
+        - jellyfood-web
+    urls:
+      primary: http://192.168.1.2:8793
+      local: http://127.0.0.1:8793
+    description: mobile-first food diary web app | static Expo export served by nginx
+    source:
+      type: git
+      local_path: /home/jellylady/repo/jellyfood
+      remote: git@github.com:dotalbot/jellyfood.git
+      build_context: /home/jellylady/repo/jellyfood
+      dockerfile: Dockerfile
+      restore_note: Requires the Jellyfood source repository at the recorded build context; app diary data is browser/device-local and is not stored on the server.
+    backup: source-repo
+    status: active
+
   netdata:
     display_name: Netdata
     category: Retired

@@ -50,6 +50,12 @@
       description: portfolio dashboard | home-network managed on jellyberry
       icon: mdi-view-dashboard-outline
       siteMonitor: http://192.168.1.159:8787
+  - Jellyfood:
+      href: http://192.168.1.2:8793
+      description: mobile-first food diary web app | static Expo export served by
+        nginx
+      icon: mdi-food-apple-outline
+      siteMonitor: http://192.168.1.2:8793
 - Study:
   - SC-401 Study Hub:
       href: http://192.168.1.159:8791

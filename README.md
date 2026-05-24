@@ -90,6 +90,7 @@ Currently tracked service groups include:
 - Portainer
 - Network Map
 - Portfolio Mission Control
+- Jellyfood
 - SC-401 Study Hub
 - Image Pastebin
 - Prometheus
@@ -99,11 +100,12 @@ Currently tracked service groups include:
 - Home Assistant
 - planned media/IoT services
 
-The active jellyberry local services are managed via `/opt/docker`:
+The active local project/tool services are managed via `/opt/docker`:
 
 ```text
 http://jellyberry:8788  Network Map
 http://jellyberry:8787  Portfolio Mission Control
+http://jellybase:8793   Jellyfood
 http://jellyberry:8791  SC-401 Study Hub
 http://jellyberry:8792  Image Pastebin
 ```

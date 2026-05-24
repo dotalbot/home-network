@@ -85,6 +85,16 @@ services:
       - /opt/docker/appdata/loki/data:/loki
 
 
+  jellyfood-web:
+    build:
+      context: /home/jellylady/repo/jellyfood
+      dockerfile: Dockerfile
+    image: jellyfood-web:latest
+    container_name: jellyfood-web
+    restart: unless-stopped
+    ports:
+      - "8793:80"
+
   homeassistant:
     image: ghcr.io/home-assistant/home-assistant:stable
     container_name: homeassistant
