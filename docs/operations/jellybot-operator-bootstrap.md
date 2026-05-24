@@ -107,7 +107,7 @@ It does the following:
 
 The helper intentionally does not recursively rewrite existing nested appdata/config ownership under `/opt/docker`. Use service-specific runbooks for existing stateful data.
 
-The script does **not** install Docker. Install Docker Engine and the Docker Compose plugin separately first, or use the host bootstrap docs for that step.
+The script does **not** install Docker. Install Docker Engine and the Docker Compose plugin separately first, or use the host bootstrap docs for that step. For observability-capable hosts, the host bootstrap package set must include `prometheus-node-exporter`, `smartmontools`, `nvme-cli`, `lm-sensors`, and `util-linux`; Pi-style hosts also need `usbutils`, `hdparm`, `mmc-utils`, and `sysstat` for early-warning probes where available.
 
 ## Dry run
 

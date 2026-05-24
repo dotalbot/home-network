@@ -54,6 +54,7 @@ services:
       - "--web.enable-lifecycle"
     volumes:
       - /opt/docker/appdata/prometheus/config/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - /opt/docker/appdata/prometheus/config/rules:/etc/prometheus/rules:ro
       - /opt/docker/appdata/prometheus/data:/prometheus
 
   grafana:

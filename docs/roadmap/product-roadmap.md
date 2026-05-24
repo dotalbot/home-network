@@ -70,7 +70,7 @@ The platform should make the home lab understandable, reproducible, observable, 
 - [ ] Add per-host sensor telemetry where available, including CPU/GPU temperature, disk temperature, throttling/undervoltage state, fan/thermal-zone readings, and other safe hardware-health signals.
 - [ ] Keep sensor gaps explicit as `unknown`/`not available` rather than false healthy or false failure.
 - [ ] Harden node_exporter TCP `9100` access to approved scraper hosts.
-- [ ] Source-manage Prometheus alert rules for stale backups, failed backups, disk pressure, disk-health failures, and stale probes.
+- [x] Source-manage Prometheus alert rules for stale backups, failed backups, disk pressure, disk-health failures, and stale probes.
 - [x] Source-manage Grafana dashboards and provisioning for backup, disk-health, host performance, and host sensor signals.
 
 ## V5 — Logs and Grafana Observability

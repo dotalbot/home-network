@@ -17,6 +17,7 @@ sudo apt-get install -y \
   smartmontools \
   nvme-cli \
   util-linux \
+  lm-sensors \
   usbutils \
   hdparm \
   mmc-utils \

@@ -31,6 +31,8 @@ apt-get install -y \
   smartmontools \
   nvme-cli \
   util-linux \
+  lm-sensors \
+  sysstat \
   ufw \
   lsb-release \
   software-properties-common

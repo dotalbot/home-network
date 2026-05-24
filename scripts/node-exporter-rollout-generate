@@ -349,7 +349,7 @@ def stages(host: str, cfg: dict[str, Any], scrape_targets: list[str]) -> dict[st
     scheme = cfg["scrape_scheme"]
     scrape_host = cfg["scrape_host"]
     pi_early = bool(cfg.get("pi_early_warning", False))
-    packages = "prometheus-node-exporter smartmontools nvme-cli util-linux"
+    packages = "prometheus-node-exporter smartmontools nvme-cli util-linux lm-sensors"
     if pi_early:
         packages += " usbutils hdparm mmc-utils sysstat"
     probe = disk_probe_for_host(host, textfile_dir, pi_early)

@@ -33,7 +33,7 @@ The runtime setup remains stage-based and operator-controlled. Future hosts shou
 
 ## What is visible
 
-Standard node_exporter metrics include CPU, memory, load, network, filesystem, inode, disk I/O, thermal-zone, and hwmon metrics where the host exposes them.
+Standard node_exporter metrics include CPU, memory, load, network, filesystem, inode, disk I/O, thermal-zone, and hwmon metrics where the host exposes them. The rollout/bootstrap package set must include `lm-sensors` so operators can locally inspect hwmon/thermal readings with `sensors` while node_exporter exposes the same kernel sensor families to Prometheus.
 
 Sanitized Borgmatic metrics are exported through node_exporter textfile collector when status files exist:
 
@@ -85,7 +85,7 @@ The repo remains the source of truth. Runtime config/scripts on hosts should be 
 ## Remaining work
 
 1. Add staged node_exporter access-control hardening so TCP `9100` is only reachable from the approved Prometheus scraper path.
-2. Source-manage Prometheus alert rules for scrape down, stale backup metrics, failed backups, disk pressure, disk-health failure, disk-health unknown, and stale disk-health probe.
+2. Deploy and verify source-managed Prometheus config/rules on `jellybase`, then wire alert delivery through the chosen Discord/Hermes or Alertmanager path.
 3. Deploy and verify the source-managed `Host Observability` Grafana dashboard on `jellybase`.
 4. Decide whether to add `jellybackup` to the node_exporter/disk-health rollout now that the first three hosts work.
 5. Fold any live Prometheus/Grafana config changes back into repo-managed files if they were made directly on the host.

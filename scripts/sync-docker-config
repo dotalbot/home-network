@@ -83,6 +83,9 @@ DEST_LOKI_CONFIG="${DOCKER_DIR}/appdata/loki/config"
 DEST_LOKI_DATA="${DOCKER_DIR}/appdata/loki/data"
 SRC_GRAFANA_PROVISIONING="${REPO_ROOT}/docker/appdata/grafana-provisioning"
 DEST_GRAFANA_PROVISIONING="${DOCKER_DIR}/appdata/grafana-provisioning"
+SRC_PROMETHEUS_CONFIG="${REPO_ROOT}/docker/appdata/prometheus/config"
+DEST_PROMETHEUS_CONFIG="${DOCKER_DIR}/appdata/prometheus/config"
+DEST_PROMETHEUS_DATA="${DOCKER_DIR}/appdata/prometheus/data"
 SRC_POSTGRES_CONFIG="${REPO_ROOT}/docker/appdata/postgres/config"
 DEST_POSTGRES_CONFIG="${DOCKER_DIR}/appdata/postgres/config"
 DEST_POSTGRES_DUMPS="${DOCKER_DIR}/appdata/postgres/logical-dumps"
@@ -142,6 +145,24 @@ if [ -d "$SRC_GRAFANA_PROVISIONING" ]; then
     run_privileged chmod -R 775 "$DEST_GRAFANA_PROVISIONING"
   elif [ -O "$DEST_GRAFANA_PROVISIONING" ]; then
     chmod -R 775 "$DEST_GRAFANA_PROVISIONING"
+  fi
+fi
+
+if [ -d "$SRC_PROMETHEUS_CONFIG" ]; then
+  run_privileged mkdir -p "$DEST_PROMETHEUS_CONFIG" "$DEST_PROMETHEUS_DATA"
+  run_privileged rsync "${RSYNC_OPTS[@]}" "$SRC_PROMETHEUS_CONFIG"/ "$DEST_PROMETHEUS_CONFIG"/
+  set_managed_perms "$DEST_PROMETHEUS_CONFIG"
+  if [ "$needs_sudo" -eq 1 ] || [ "$(id -u)" -eq 0 ]; then
+    run_privileged chmod -R 775 "$DEST_PROMETHEUS_CONFIG"
+  elif [ -O "$DEST_PROMETHEUS_CONFIG" ]; then
+    chmod -R 775 "$DEST_PROMETHEUS_CONFIG"
+  fi
+  # Do not recursively rewrite Prometheus TSDB ownership during routine syncs.
+  # Existing runtime data is state, not source-managed config. A brand-new empty
+  # data directory still needs Prometheus-compatible ownership before first run.
+  if [ -z "$(run_privileged find "$DEST_PROMETHEUS_DATA" -mindepth 1 -maxdepth 1 -print -quit)" ]; then
+    run_privileged chown 65534:65534 "$DEST_PROMETHEUS_DATA" 2>/dev/null || true
+    run_privileged chmod 775 "$DEST_PROMETHEUS_DATA" 2>/dev/null || true
   fi
 fi
 

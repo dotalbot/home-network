@@ -1,0 +1,134 @@
+groups:
+  - name: home-network-backups
+    rules:
+      - alert: BorgmaticLastRunFailed
+        expr: borgmatic_last_run_success{job="node_exporter"} == 0
+        for: 5m
+        labels:
+          severity: critical
+          category: backup
+        annotations:
+          summary: "Borgmatic last run failed on {{ $labels.host }}"
+          description: "The last Borgmatic status exported by {{ $labels.host }} reports failure. Check Loki logs and the MQTT/Discord backup event thread."
+
+      - alert: BorgmaticMetricsStale
+        expr: time() - borgmatic_last_run_timestamp_seconds{job="node_exporter"} > 93600
+        for: 15m
+        labels:
+          severity: warning
+          category: backup
+        annotations:
+          summary: "Borgmatic metrics are stale on {{ $labels.host }}"
+          description: "No fresh Borgmatic run timestamp has been exported for more than 26 hours. Confirm the managed systemd timer and recent logs."
+
+  - name: home-network-host-health
+    rules:
+      - alert: NodeExporterDown
+        expr: up{job="node_exporter"} == 0
+        for: 5m
+        labels:
+          severity: warning
+          category: host
+        annotations:
+          summary: "node_exporter is down for {{ $labels.instance }}"
+          description: "Prometheus cannot scrape node_exporter on {{ $labels.instance }}. Host performance, disk-health, and sensor telemetry may be missing."
+
+      - alert: FilesystemSpaceLow
+        expr: |
+          100 * (
+            node_filesystem_avail_bytes{job="node_exporter",fstype!~"tmpfs|overlay|squashfs|ramfs",mountpoint!~"/run.*|/var/lib/docker/.*"}
+            /
+            node_filesystem_size_bytes{job="node_exporter",fstype!~"tmpfs|overlay|squashfs|ramfs",mountpoint!~"/run.*|/var/lib/docker/.*"}
+          ) < 10
+        for: 15m
+        labels:
+          severity: warning
+          category: disk
+        annotations:
+          summary: "Filesystem space low on {{ $labels.instance }} {{ $labels.mountpoint }}"
+          description: "Less than 10% filesystem space is available. Check Docker/appdata growth, logs, backups, and old images."
+
+      - alert: FilesystemInodesLow
+        expr: |
+          100 * (
+            node_filesystem_files_free{job="node_exporter",fstype!~"tmpfs|overlay|squashfs|ramfs",mountpoint!~"/run.*|/var/lib/docker/.*"}
+            /
+            node_filesystem_files{job="node_exporter",fstype!~"tmpfs|overlay|squashfs|ramfs",mountpoint!~"/run.*|/var/lib/docker/.*"}
+          ) < 10
+        for: 15m
+        labels:
+          severity: warning
+          category: disk
+        annotations:
+          summary: "Filesystem inodes low on {{ $labels.instance }} {{ $labels.mountpoint }}"
+          description: "Less than 10% filesystem inodes are available. Check for runaway small-file generation."
+
+      - alert: DiskHealthFailure
+        expr: home_network_disk_health_status{job="node_exporter"} == 0
+        for: 10m
+        labels:
+          severity: critical
+          category: disk
+        annotations:
+          summary: "Disk health failure on {{ $labels.host }} {{ $labels.device }}"
+          description: "The sanitized disk-health probe reports failure. Check the host directly; dashboards intentionally avoid exposing serials/raw SMART JSON."
+
+      - alert: DiskHealthUnknown
+        expr: home_network_disk_health_status{job="node_exporter"} == -1
+        for: 24h
+        labels:
+          severity: info
+          category: disk
+        annotations:
+          summary: "Disk health unknown on {{ $labels.host }} {{ $labels.device }}"
+          description: "Disk-health status has remained unknown for 24h. This can be expected for unsupported Pi/USB/microSD paths, but should stay explicit."
+
+      - alert: DiskHealthProbeStale
+        expr: time() - home_network_disk_health_last_run_timestamp_seconds{job="node_exporter"} > 7200
+        for: 15m
+        labels:
+          severity: warning
+          category: disk
+        annotations:
+          summary: "Disk-health probe is stale on {{ $labels.host }}"
+          description: "The disk-health textfile collector has not written fresh metrics for more than 2 hours. Check home-network-disk-health.timer/service."
+
+      - alert: HostTemperatureHigh
+        expr: max by (instance) ((node_hwmon_temp_celsius{job="node_exporter"}) or (node_thermal_zone_temp{job="node_exporter"})) > 80
+        for: 10m
+        labels:
+          severity: warning
+          category: sensor
+        annotations:
+          summary: "High host temperature on {{ $labels.instance }}"
+          description: "A hwmon or thermal-zone sensor is above 80C for 10 minutes. Check cooling, load, and the Host Observability dashboard."
+
+      - alert: PiTemperatureHigh
+        expr: home_network_pi_temperature_celsius{job="node_exporter"} > 75
+        for: 10m
+        labels:
+          severity: warning
+          category: sensor
+        annotations:
+          summary: "High Raspberry Pi temperature on {{ $labels.host }}"
+          description: "The vcgencmd temperature probe is above 75C for 10 minutes. Check case airflow, fan state, and throttling flags."
+
+      - alert: PiUndervoltageNow
+        expr: home_network_pi_undervoltage_now{job="node_exporter"} == 1
+        for: 2m
+        labels:
+          severity: critical
+          category: sensor
+        annotations:
+          summary: "Raspberry Pi undervoltage now on {{ $labels.host }}"
+          description: "The Pi reports active undervoltage. Check PSU/cable and storage risk immediately."
+
+      - alert: PiThrottlingOrUndervoltageSeen
+        expr: max_over_time(home_network_pi_undervoltage_seen{job="node_exporter"}[1h]) > 0 or max_over_time(home_network_pi_throttled_seen{job="node_exporter"}[1h]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          category: sensor
+        annotations:
+          summary: "Raspberry Pi throttling/undervoltage observed on {{ $labels.host }}"
+          description: "The Pi has reported throttling or undervoltage within the last hour. Review power, thermal state, and storage health."
