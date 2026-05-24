@@ -203,6 +203,24 @@ services:
     backup: appdata
     status: active
 
+  alertmanager:
+    display_name: Alertmanager
+    icon: prometheus.png
+    category: Monitoring
+    mode: single-primary
+    hosts:
+      - jellybase
+    containers:
+      jellybase:
+        - alertmanager
+        - alertmanager-discord-bridge
+    urls:
+      primary: http://192.168.1.2:9093
+      bridge_health_internal: http://alertmanager-discord-bridge:9094/healthz
+    description: Prometheus alert grouping, dedupe, silences, and Discord wake-up delivery bridge
+    backup: config-only
+    status: active
+
   grafana:
     display_name: Grafana
     icon: grafana.png

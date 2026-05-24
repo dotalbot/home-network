@@ -88,13 +88,13 @@ The platform should make the home lab understandable, reproducible, observable, 
 - [ ] Schedule status, drift, backup policy, Borg/Borgmatic, and dashboard validation checks.
 - [ ] Add lock handling so recurring checks cannot overlap.
 - [ ] Write check results atomically to a known state directory.
-- [ ] Route Prometheus alerts through Alertmanager and a Discord delivery bridge.
-  - [ ] Add source-managed Alertmanager service on `jellybase`.
-  - [ ] Add `alerting.alertmanagers` wiring to Prometheus.
-  - [ ] Store Discord webhook URL outside Git under `/opt/docker/.secrets/alertmanager/discord_webhook_url` or an equivalent host-local secret.
-  - [ ] Route critical alerts immediately: backup failures/staleness, `node_exporter` down, Loki down, Alloy down, critical disk/temperature/voltage/throttling conditions.
-  - [ ] Group warning alerts with conservative repeat intervals for filesystem/inode pressure, stale probes, and non-critical capacity warnings.
-  - [ ] Add silence/runbook docs for maintenance windows, fake-alert testing, first-response checks, and rollback.
+- [x] Route Prometheus alerts through Alertmanager and a Discord delivery bridge.
+  - [x] Add source-managed Alertmanager service on `jellybase`.
+  - [x] Add `alerting.alertmanagers` wiring to Prometheus.
+  - [x] Store Discord webhook URL outside Git under `/opt/docker/.secrets/alertmanager/discord_webhook_url` or an equivalent host-local secret.
+  - [x] Route critical alerts immediately: backup failures/staleness, `node_exporter` down, Loki down, Alloy down, critical disk/temperature/voltage/throttling conditions.
+  - [x] Group warning alerts with conservative repeat intervals for filesystem/inode pressure, stale probes, and non-critical capacity warnings.
+  - [x] Add silence/runbook docs for maintenance windows, fake-alert testing, first-response checks, and rollback.
 - [ ] Document how to pause, resume, troubleshoot, and verify scheduled checks.
 
 ## V7 — Network Access, TLS, and Hardening
@@ -133,7 +133,7 @@ Do not build a Netdata streaming topology unless this decision is explicitly rev
 | Borg/Borgmatic host rollout | Borg/Borgmatic must be installed, configured, and verified on every in-scope host | `docs/operations/borgmatic-host-rollout.md` plus `borg-check` passing per host |
 | Service restore coverage | Stateful services need exact restore steps | `docs/runbooks/<service>-restore.md` or completed service templates |
 | Scheduled operations | Drift/backup/status checks are manual unless scheduled elsewhere | cron/systemd timers or Hermes cron jobs plus docs |
-| Alerting | Prometheus rules currently evaluate locally, but operators need grouped/deduped notifications and silences | Alertmanager on `jellybase`, Prometheus alertmanager wiring, Discord delivery bridge, host-local webhook secret, route policy, silence/test runbook |
+| Alerting | Alertmanager/Discord path is source-managed; runtime still requires the host-local Discord webhook secret and live delivery test after deploy | `/opt/docker/.secrets/alertmanager/discord_webhook_url`, `docs/operations/prometheus-alerting.md`, fake-alert delivery test |
 | Node exporter hardening | TCP `9100` is live and should be restricted to approved scrapers | staged hardening generator plus positive/negative verification |
 | Grafana/Loki observability | Loki, datasource provisioning, Borgmatic log hooks, Alloy host/container log shipping, and Grafana dashboards exist; alert routing and deeper cross-panel correlation remain | Alertmanager/Discord routing plus Grafana host log/performance/sensor correlation |
 | Reverse proxy + TLS | Needed before safe broader access | proxy/TLS spec, Compose changes, rollback notes |
@@ -146,7 +146,7 @@ Do not build a Netdata streaming topology unless this decision is explicitly rev
 
 1. Complete Borg/Borgmatic setup and verification for any remaining in-scope hosts, especially `jellybackup` if it joins monitored/backup-client scope.
 2. Add restore runbooks for Home Assistant, Mosquitto, Prometheus, Grafana, Portfolio Mission Control, and other key stateful services; then run one safe restore drill.
-3. Add Alertmanager on `jellybase`, wire Prometheus to it, and deliver grouped/deduped alerts to Discord with secrets kept outside Git.
+3. Deploy the source-managed Alertmanager/Discord alert path on `jellybase`, add the host-local webhook secret, and run the fake-alert delivery test from `docs/operations/prometheus-alerting.md`.
 4. Add staged access-control hardening for node_exporter TCP `9100` so only the Prometheus scraper path can reach it.
 5. Add scheduled drift/backup/status checks and route failures to the same alert channel or a clearly documented Hermes-only path.
 6. Finish Grafana correlation between host logs, performance stats, and sensor telemetry.

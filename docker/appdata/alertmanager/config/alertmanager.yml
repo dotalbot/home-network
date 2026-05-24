@@ -1,0 +1,46 @@
+global:
+  resolve_timeout: 5m
+
+route:
+  receiver: discord-warning
+  group_by:
+    - alertname
+    - host
+    - instance
+    - category
+    - service
+  group_wait: 30s
+  group_interval: 10m
+  repeat_interval: 4h
+  routes:
+    - receiver: discord-critical
+      matchers:
+        - severity="critical"
+      group_wait: 10s
+      group_interval: 5m
+      repeat_interval: 1h
+    - receiver: discord-info
+      matchers:
+        - severity="info"
+      group_wait: 5m
+      group_interval: 30m
+      repeat_interval: 12h
+
+receivers:
+  - name: discord-critical
+    webhook_configs:
+      - url: http://alertmanager-discord-bridge:9094/alertmanager?route=critical
+        send_resolved: true
+        max_alerts: 10
+
+  - name: discord-warning
+    webhook_configs:
+      - url: http://alertmanager-discord-bridge:9094/alertmanager?route=warning
+        send_resolved: true
+        max_alerts: 10
+
+  - name: discord-info
+    webhook_configs:
+      - url: http://alertmanager-discord-bridge:9094/alertmanager?route=info
+        send_resolved: true
+        max_alerts: 10

@@ -56,6 +56,48 @@ services:
       - /opt/docker/appdata/prometheus/config/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - /opt/docker/appdata/prometheus/config/rules:/etc/prometheus/rules:ro
       - /opt/docker/appdata/prometheus/data:/prometheus
+    depends_on:
+      - alertmanager
+
+  alertmanager:
+    image: prom/alertmanager:latest
+    container_name: alertmanager
+    restart: unless-stopped
+    ports:
+      - "9093:9093"
+    command:
+      - "--config.file=/etc/alertmanager/alertmanager.yml"
+      - "--storage.path=/alertmanager"
+      - "--web.external-url=http://jellybase:9093"
+    volumes:
+      - /opt/docker/appdata/alertmanager/config/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - /opt/docker/appdata/alertmanager/data:/alertmanager
+    depends_on:
+      alertmanager-discord-bridge:
+        condition: service_healthy
+
+  alertmanager-discord-bridge:
+    image: python:3.12-alpine
+    container_name: alertmanager-discord-bridge
+    restart: unless-stopped
+    command:
+      - python
+      - /app/bridge.py
+    environment:
+      TZ: ${TZ}
+      DISCORD_WEBHOOK_FILE: /run/secrets/alertmanager_discord_webhook_url
+    expose:
+      - "9094"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:9094/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    secrets:
+      - alertmanager_discord_webhook_url
+    volumes:
+      - /opt/docker/appdata/alertmanager-discord-bridge/bridge.py:/app/bridge.py:ro
 
   grafana:
     image: grafana/grafana-oss:latest
@@ -174,3 +216,5 @@ services:
 secrets:
   postgres_superuser_password:
     file: /opt/docker/.secrets/postgres_superuser_password
+  alertmanager_discord_webhook_url:
+    file: /opt/docker/.secrets/alertmanager/discord_webhook_url

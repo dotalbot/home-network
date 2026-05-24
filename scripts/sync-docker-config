@@ -89,6 +89,11 @@ DEST_GRAFANA_PROVISIONING="${DOCKER_DIR}/appdata/grafana-provisioning"
 SRC_PROMETHEUS_CONFIG="${REPO_ROOT}/docker/appdata/prometheus/config"
 DEST_PROMETHEUS_CONFIG="${DOCKER_DIR}/appdata/prometheus/config"
 DEST_PROMETHEUS_DATA="${DOCKER_DIR}/appdata/prometheus/data"
+SRC_ALERTMANAGER_CONFIG="${REPO_ROOT}/docker/appdata/alertmanager/config"
+DEST_ALERTMANAGER_CONFIG="${DOCKER_DIR}/appdata/alertmanager/config"
+DEST_ALERTMANAGER_DATA="${DOCKER_DIR}/appdata/alertmanager/data"
+SRC_ALERTMANAGER_DISCORD_BRIDGE="${REPO_ROOT}/docker/appdata/alertmanager-discord-bridge"
+DEST_ALERTMANAGER_DISCORD_BRIDGE="${DOCKER_DIR}/appdata/alertmanager-discord-bridge"
 SRC_POSTGRES_CONFIG="${REPO_ROOT}/docker/appdata/postgres/config"
 DEST_POSTGRES_CONFIG="${DOCKER_DIR}/appdata/postgres/config"
 DEST_POSTGRES_DUMPS="${DOCKER_DIR}/appdata/postgres/logical-dumps"
@@ -180,6 +185,33 @@ if [ -d "$SRC_PROMETHEUS_CONFIG" ]; then
   if [ -z "$(run_privileged find "$DEST_PROMETHEUS_DATA" -mindepth 1 -maxdepth 1 -print -quit)" ]; then
     run_privileged chown 65534:65534 "$DEST_PROMETHEUS_DATA" 2>/dev/null || true
     run_privileged chmod 775 "$DEST_PROMETHEUS_DATA" 2>/dev/null || true
+  fi
+fi
+
+if [ -d "$SRC_ALERTMANAGER_CONFIG" ]; then
+  run_privileged mkdir -p "$DEST_ALERTMANAGER_CONFIG" "$DEST_ALERTMANAGER_DATA"
+  run_privileged rsync "${RSYNC_OPTS[@]}" "$SRC_ALERTMANAGER_CONFIG"/ "$DEST_ALERTMANAGER_CONFIG"/
+  set_managed_perms "$DEST_ALERTMANAGER_CONFIG"
+  set_managed_perms "$DEST_ALERTMANAGER_DATA"
+  if [ "$needs_sudo" -eq 1 ] || [ "$(id -u)" -eq 0 ]; then
+    run_privileged chmod -R 775 "$DEST_ALERTMANAGER_CONFIG"
+  elif [ -O "$DEST_ALERTMANAGER_CONFIG" ]; then
+    chmod -R 775 "$DEST_ALERTMANAGER_CONFIG"
+  fi
+  if [ -z "$(run_privileged find "$DEST_ALERTMANAGER_DATA" -mindepth 1 -maxdepth 1 -print -quit)" ]; then
+    run_privileged chown -R 65534:65534 "$DEST_ALERTMANAGER_DATA" 2>/dev/null || true
+    run_privileged chmod -R 775 "$DEST_ALERTMANAGER_DATA" 2>/dev/null || true
+  fi
+fi
+
+if [ -d "$SRC_ALERTMANAGER_DISCORD_BRIDGE" ]; then
+  run_privileged mkdir -p "$DEST_ALERTMANAGER_DISCORD_BRIDGE"
+  run_privileged rsync "${RSYNC_OPTS[@]}" "$SRC_ALERTMANAGER_DISCORD_BRIDGE"/ "$DEST_ALERTMANAGER_DISCORD_BRIDGE"/
+  set_managed_perms "$DEST_ALERTMANAGER_DISCORD_BRIDGE"
+  if [ "$needs_sudo" -eq 1 ] || [ "$(id -u)" -eq 0 ]; then
+    run_privileged chmod -R 775 "$DEST_ALERTMANAGER_DISCORD_BRIDGE"
+  elif [ -O "$DEST_ALERTMANAGER_DISCORD_BRIDGE" ]; then
+    chmod -R 775 "$DEST_ALERTMANAGER_DISCORD_BRIDGE"
   fi
 fi
 
