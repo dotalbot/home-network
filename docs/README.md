@@ -37,6 +37,10 @@ Unless stated otherwise, paths in this index are relative to the repository root
 
 - `docs/runbooks/rebuild-ubuntu-host.md` — rebuild an Ubuntu host.
 - `docs/runbooks/service-restore-template.md` — template for service-specific restore docs.
+- `docs/runbooks/homeassistant-restore.md` — restore/drill Home Assistant on jellybase.
+- `docs/runbooks/mosquitto-restore.md` — restore/drill Mosquitto MQTT on jellyhome.
+- `docs/runbooks/monitoring-stack-restore.md` — restore/drill Prometheus, Alertmanager, Grafana, Loki, and Alloy config on jellybase.
+- `docs/runbooks/portfolio-mission-control-restore.md` — restore/drill Portfolio Mission Control V2 on jellyberry.
 - `docs/runbooks/adopt-project-service-template.md` — checklist for adopting a cross-repo app into the `/opt/docker` deployment model.
 
 ## Plans
@@ -60,10 +64,11 @@ Unless stated otherwise, paths in this index are relative to the repository root
 Use `docs/roadmap/product-roadmap.md` as the active gap register. Current high-value gaps:
 
 1. Complete Borg/Borgmatic setup and verification on every in-scope host.
-2. Add service-specific restore runbooks for active stateful services.
-3. Document scheduled operations and alerting once implemented.
-4. Harden node_exporter TCP `9100` access and source-manage Prometheus/Grafana alert/dashboard definitions.
-5. Add observability alerts and MQTT/Hermes notification wiring now that Borgmatic Loki hook rollout and log dashboards are complete.
-6. Clean up retired Netdata containers/appdata from jellyhome and jellybase when approved.
-7. Draft reverse proxy/TLS design before exposing services beyond direct LAN/Tailnet URLs.
-8. Add inventory validation for required service metadata.
+2. Run and document the first safe non-destructive restore drill.
+3. Document scheduled operations and check pause/resume handling.
+4. Harden node_exporter TCP `9100` access.
+5. Finish Grafana correlation across host logs, performance stats, and sensor telemetry.
+6. Reconcile preserved generated files from the Alertmanager deployment and plan the unrelated jellybase OS reboot.
+7. Clean up retired Netdata containers/appdata from jellyhome and jellybase when approved.
+8. Draft reverse proxy/TLS design before exposing services beyond direct LAN/Tailnet URLs.
+9. Add inventory validation for required service metadata.

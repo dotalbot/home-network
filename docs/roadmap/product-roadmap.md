@@ -37,7 +37,7 @@ The platform should make the home lab understandable, reproducible, observable, 
 - [x] Route Borg traffic to `jellybackup@192.168.1.75` using LAN IPs instead of FQDN/Tailscale.
 - [x] Expose Borgmatic status as sanitized node_exporter textfile metrics on `jellyhome`, `jellybase`, and `jellyberry`.
 - [ ] Complete Borg/Borgmatic setup and verification for every in-scope host.
-- [ ] Add restore runbooks for Home Assistant, Mosquitto, Prometheus, Grafana, Portfolio Mission Control, and key stateful services.
+- [x] Add restore runbooks for Home Assistant, Mosquitto, Prometheus, Grafana, Portfolio Mission Control, and key stateful services.
 - [ ] Run and document at least one safe restore drill.
 
 
@@ -95,6 +95,8 @@ The platform should make the home lab understandable, reproducible, observable, 
   - [x] Route critical alerts immediately: backup failures/staleness, `node_exporter` down, Loki down, Alloy down, critical disk/temperature/voltage/throttling conditions.
   - [x] Group warning alerts with conservative repeat intervals for filesystem/inode pressure, stale probes, and non-critical capacity warnings.
   - [x] Add silence/runbook docs for maintenance windows, fake-alert testing, first-response checks, and rollback.
+  - [x] Verified on `jellybase`: Prometheus has active Alertmanager target, bridge health is OK, synthetic alert delivery returned HTTP 200, and synthetic groups cleared after expiry.
+  - [ ] Track operational caveats: host-local Discord webhook secret must be recreated during rebuilds; `/opt/docker/appdata/alloy/data` ownership drift may produce warning-only sync output; `jellybase` still needs a planned OS reboot after package updates.
 - [ ] Document how to pause, resume, troubleshoot, and verify scheduled checks.
 
 ## V7 — Network Access, TLS, and Hardening
@@ -133,9 +135,9 @@ Do not build a Netdata streaming topology unless this decision is explicitly rev
 | Borg/Borgmatic host rollout | Borg/Borgmatic must be installed, configured, and verified on every in-scope host | `docs/operations/borgmatic-host-rollout.md` plus `borg-check` passing per host |
 | Service restore coverage | Stateful services need exact restore steps | `docs/runbooks/<service>-restore.md` or completed service templates |
 | Scheduled operations | Drift/backup/status checks are manual unless scheduled elsewhere | cron/systemd timers or Hermes cron jobs plus docs |
-| Alerting | Alertmanager/Discord path is source-managed; runtime still requires the host-local Discord webhook secret and live delivery test after deploy | `/opt/docker/.secrets/alertmanager/discord_webhook_url`, `docs/operations/prometheus-alerting.md`, fake-alert delivery test |
+| Alerting | Alertmanager/Discord path is source-managed and live on `jellybase`; runtime still requires the host-local Discord webhook secret, fake-alert delivery after deploy, and caveat tracking for Alloy data ownership warnings plus planned `jellybase` reboot | `/opt/docker/.secrets/alertmanager/discord_webhook_url`, `docs/operations/prometheus-alerting.md`, fake-alert delivery test, `docs/plans/011-restore-drills-and-runtime-caveats.md` |
 | Node exporter hardening | TCP `9100` is live and should be restricted to approved scrapers | staged hardening generator plus positive/negative verification |
-| Grafana/Loki observability | Loki, datasource provisioning, Borgmatic log hooks, Alloy host/container log shipping, and Grafana dashboards exist; alert routing and deeper cross-panel correlation remain | Alertmanager/Discord routing plus Grafana host log/performance/sensor correlation |
+| Grafana/Loki observability | Loki, datasource provisioning, Borgmatic log hooks, Alloy host/container log shipping, Grafana dashboards, and Alertmanager/Discord routing exist; deeper cross-panel correlation remains | Grafana host log/performance/sensor correlation |
 | Reverse proxy + TLS | Needed before safe broader access | proxy/TLS spec, Compose changes, rollback notes |
 | Metadata maturity | Inventory needs richer fields for automation | inventory schema notes and validation checks |
 | Database-aware backups | Databases need dump/restore discipline, not only volume backup | central Postgres runbook, logical dump automation, and service restore runbooks |
@@ -145,9 +147,10 @@ Do not build a Netdata streaming topology unless this decision is explicitly rev
 ## Immediate next actions
 
 1. Complete Borg/Borgmatic setup and verification for any remaining in-scope hosts, especially `jellybackup` if it joins monitored/backup-client scope.
-2. Add restore runbooks for Home Assistant, Mosquitto, Prometheus, Grafana, Portfolio Mission Control, and other key stateful services; then run one safe restore drill.
-3. Deploy the source-managed Alertmanager/Discord alert path on `jellybase`, add the host-local webhook secret, and run the fake-alert delivery test from `docs/operations/prometheus-alerting.md`.
+2. Run a safe non-destructive restore drill, starting with Mosquitto or Prometheus config extraction, and record the result in the matching runbook.
+3. Reconcile preserved generated files from `/tmp/home-network-generated-before-alertmanager-20260524221726`, then decide whether to restore, regenerate, or discard them.
 4. Add staged access-control hardening for node_exporter TCP `9100` so only the Prometheus scraper path can reach it.
 5. Add scheduled drift/backup/status checks and route failures to the same alert channel or a clearly documented Hermes-only path.
 6. Finish Grafana correlation between host logs, performance stats, and sensor telemetry.
 7. Delete retired root-owned Netdata appdata from `jellyhome` and `jellybase` after sudo is available; containers are already retired from the managed path.
+8. Plan the unrelated `jellybase` OS reboot required after package updates.
