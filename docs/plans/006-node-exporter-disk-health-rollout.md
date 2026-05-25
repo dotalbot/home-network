@@ -212,6 +212,8 @@ git diff --check
 
 **Staged implementation status:** The rollout generator now emits `stage-07-configure-access-control.sh` for each node_exporter host. The stage uses inventory `allowed_scrapers` plus each scraper host `lan_ip`, applies UFW allow/deny rules only when UFW is already active, and otherwise prints exact recommended UFW policy without enabling or rewriting firewall state.
 
+**Runtime attempt on 2026-05-25:** Stage 07 was executed with sudo on `jellybase`, `jellyhome`, and `jellyberry`. All three hosts reported `Status: inactive` from UFW, so the generated stage intentionally made no firewall changes and printed the reviewed policy instead. Post-attempt Prometheus verification still returned `up{job="node_exporter"} == 1` for `jellyhome:9100`, `jellyberry:9100`, and `host.docker.internal:9100`; TCP `9100` from `jellyberry` to `192.168.1.1`, `192.168.1.2`, and `192.168.1.159` still connected, so negative verification has not passed and runtime hardening remains incomplete until the operator explicitly chooses UFW activation or equivalent nftables/iptables rules.
+
 **Default policy:**
 
 ```text
