@@ -43,7 +43,8 @@ This plan does not restore over production unless the operator explicitly approv
 - [x] Validate restored files without touching production data.
 - [x] Record drill result in the relevant runbook.
 - [x] Run second non-destructive drill for the monitoring stack on `jellybase`.
-- [x] Fix any backup policy or runbook gaps found by the drill.
+- [x] Run Home Assistant config extraction drill on `jellybase`.
+- [x] Validate Home Assistant restored config shape and selected `.storage` JSON without touching production data.
 
 ## Completed drills
 
@@ -58,7 +59,9 @@ Why Mosquitto was a good first target:
 - Easy non-destructive validation with a scratch `eclipse-mosquitto:2` container.
 - Exercises the same Borg path and secret-handling discipline needed for larger services.
 
-Next drill candidate: Home Assistant config extraction on `jellybase`, validating YAML shape only and not starting a scratch Home Assistant container with production secrets.
+Completed third drill: Home Assistant config on `jellybase`, recorded in `docs/runbooks/homeassistant-restore.md`.
+
+Next drill candidate: database-aware service restore validation for a service backed by central PostgreSQL, or a low-risk full rebuild drill on disposable hardware/VM.
 
 ## Acceptance criteria
 

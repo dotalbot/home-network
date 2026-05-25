@@ -16,20 +16,26 @@ High. Home Assistant contains local smart-home configuration and integrations. R
 Use this before any production restore.
 
 1. Choose a verified `jellybase` Borg archive.
-2. Extract only Home Assistant appdata into scratch space:
+2. Extract only Home Assistant appdata into timestamped scratch space:
 
 ```bash
-sudo install -d -m 700 /tmp/home-network-restore-drill/homeassistant
-cd /tmp/home-network-restore-drill/homeassistant
-sudo borg extract --list REPOSITORY::ARCHIVE opt/docker/appdata/homeassistant/config
+DRILL_BASE=/tmp/home-network-restore-drill
+STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
+DRILL="$DRILL_BASE/homeassistant-$STAMP"
+sudo install -d -m 700 "$DRILL"
+sudo borgmatic --config /etc/borgmatic/config.yaml extract \
+  --archive ARCHIVE \
+  --path opt/docker/appdata/homeassistant/config \
+  --destination "$DRILL"
 ```
 
 3. Inspect expected files without dumping secrets:
 
 ```bash
-sudo test -f opt/docker/appdata/homeassistant/config/configuration.yaml
-sudo test -d opt/docker/appdata/homeassistant/config/.storage
-sudo find opt/docker/appdata/homeassistant/config -maxdepth 2 -type f \
+DRILL=/tmp/home-network-restore-drill/homeassistant-YYYYMMDDTHHMMSSZ
+sudo test -f "$DRILL/opt/docker/appdata/homeassistant/config/configuration.yaml"
+sudo test -d "$DRILL/opt/docker/appdata/homeassistant/config/.storage"
+sudo find "$DRILL/opt/docker/appdata/homeassistant/config" -maxdepth 2 -type f \
   ! -name 'secrets.yaml' \
   ! -path '*/.storage/auth*' \
   -printf '%p size=%s\n' | head -50
@@ -41,9 +47,23 @@ sudo find opt/docker/appdata/homeassistant/config -maxdepth 2 -type f \
 python3 - <<'PY'
 from pathlib import Path
 import yaml
-p = Path('/tmp/home-network-restore-drill/homeassistant/opt/docker/appdata/homeassistant/config/configuration.yaml')
-yaml.safe_load(p.read_text())
-print('configuration_yaml=parse_ok')
+
+class Loader(yaml.SafeLoader):
+    pass
+
+Loader.add_constructor(
+    None,
+    lambda loader, node: loader.construct_scalar(node)
+    if isinstance(node, yaml.ScalarNode)
+    else loader.construct_sequence(node)
+    if isinstance(node, yaml.SequenceNode)
+    else loader.construct_mapping(node),
+)
+
+DRILL = Path('/tmp/home-network-restore-drill/homeassistant-YYYYMMDDTHHMMSSZ')
+p = DRILL / 'opt/docker/appdata/homeassistant/config/configuration.yaml'
+yaml.load(p.read_text(), Loader=Loader)
+print('configuration_yaml_shape=parse_ok')
 PY
 ```
 
@@ -111,4 +131,18 @@ Stop the container, restore the pre-restore tarball back under `/opt/docker/appd
 
 ## Drill log
 
-- Pending: first non-destructive restore drill.
+- 2026-05-25: non-destructive Home Assistant config restore drill completed on `jellybase`.
+  - Archive: `jellybase-2026-05-25T03:12:03`.
+  - Scratch path: `/tmp/home-network-restore-drill/homeassistant-20260525T091318Z`.
+  - Restored path only: `opt/docker/appdata/homeassistant/config`.
+  - Required restored files/directories found:
+    - `configuration.yaml`
+    - `.storage/`
+    - Home Assistant DB files and selected `.storage` registry/state files were present.
+  - Validation results:
+    - YAML shape parse passed for `configuration.yaml`, `automations.yaml`, `scripts.yaml`, and `scenes.yaml` using a Home Assistant-aware loader that tolerates custom tags such as `!include`.
+    - JSON parse passed for `.storage/core.config`, `.storage/core.config_entries`, `.storage/core.device_registry`, and `.storage/core.entity_registry`.
+    - Production `homeassistant` container remained running and healthy.
+    - `curl http://127.0.0.1:8123/manifest.json` returned successfully after the drill.
+  - Production `/opt/docker` data was not modified.
+  - Caveat found: generic `yaml.safe_load` is too strict for Home Assistant configs because `configuration.yaml` can use custom tags such as `!include`; future drills should use a tolerant shape parser or Home Assistant's own config checks in an isolated context.

@@ -99,7 +99,7 @@ The platform should make the home lab understandable, reproducible, observable, 
   - [x] Group warning alerts with conservative repeat intervals for filesystem/inode pressure, stale probes, and non-critical capacity warnings.
   - [x] Add silence/runbook docs for maintenance windows, fake-alert testing, first-response checks, and rollback.
   - [x] Verified on `jellybase`: Prometheus has active Alertmanager target, bridge health is OK, synthetic alert delivery returned HTTP 200, and synthetic groups cleared after expiry.
-  - [ ] Track operational caveats: host-local Discord webhook secret must be recreated during rebuilds; `/opt/docker/appdata/alloy/data` ownership drift may produce warning-only sync output; `jellybase` still needs a planned OS reboot after package updates.
+  - [x] Track operational caveats: host-local Discord webhook secret must be recreated during rebuilds; `/opt/docker/appdata/alloy/data` ownership drift may produce warning-only sync output; `jellybase` still needs a planned OS reboot after package updates.
 - [x] Document how to pause, resume, troubleshoot, and verify scheduled checks.
 
 ## V7 — Network Access, TLS, and Hardening
@@ -136,12 +136,12 @@ Do not build a Netdata streaming topology unless this decision is explicitly rev
 | Gap | Why it matters | Target artifact |
 | --- | --- | --- |
 | Borg/Borgmatic host rollout | Borg/Borgmatic is configured and verified for `jellyhome`, `jellybase`, and `jellyberry`; future hosts such as `jellybackup` need onboarding only if they become monitored backup clients | `docs/operations/borgmatic-host-rollout.md`, managed `home-network-borgmatic-<host>.timer`, node_exporter Borgmatic metrics |
-| Service restore coverage | Stateful services have exact restore steps and two completed non-destructive drills | `docs/runbooks/<service>-restore.md`, `docs/plans/011-restore-drills-and-runtime-caveats.md` |
-| Scheduled operations | Drift/backup/status checks are manual unless scheduled elsewhere | cron/systemd timers or Hermes cron jobs plus docs |
-| Alerting | Alertmanager/Discord path is source-managed and live on `jellybase`; runtime still requires the host-local Discord webhook secret, fake-alert delivery after deploy, and caveat tracking for Alloy data ownership warnings plus planned `jellybase` reboot | `/opt/docker/.secrets/alertmanager/discord_webhook_url`, `docs/operations/prometheus-alerting.md`, fake-alert delivery test, `docs/plans/011-restore-drills-and-runtime-caveats.md` |
+| Service restore coverage | Stateful services have exact restore steps and three completed non-destructive drills: Mosquitto, monitoring stack, and Home Assistant config | `docs/runbooks/<service>-restore.md`, `docs/plans/011-restore-drills-and-runtime-caveats.md` |
+| Scheduled operations | Drift/backup/status checks are scheduled via systemd timer and exported to Prometheus textfile metrics | `scripts/scheduled-ops-check`, `docs/operations/scheduled-ops-checks.md`, Prometheus rules |
+| Alerting | Alertmanager/Discord path is source-managed and live on `jellybase`; runtime still requires the host-local Discord webhook secret plus caveat tracking for Alloy data ownership warnings and planned `jellybase` reboot | `/opt/docker/.secrets/alertmanager/discord_webhook_url`, `docs/operations/prometheus-alerting.md`, `docs/plans/011-restore-drills-and-runtime-caveats.md` |
 | Node exporter hardening | TCP `9100` is live and staged hardening exists; stage 07 was run on `jellybase`, `jellyhome`, and `jellyberry` but UFW was inactive on all three, so no rules were applied and negative verification still fails open | defer direct `9100` firewall mutation into a broader UFW makeover with Tailscale SSH as the emergency access path, host firewall baseline, rollback notes, then generated `stage-07-configure-access-control.sh` plus positive/negative verification |
 | Host firewall/UFW makeover | UFW is intentionally inactive today; enabling it safely needs a designed sequence with Tailscale SSH/back-door access, SSH allow rules, Docker/LAN service allowances, rollback commands, and verification before node_exporter can be locked down | new firewall hardening spec/runbook covering Tailscale SSH access, UFW defaults, host/service allowlists, staged rollout, and recovery checks |
-| Grafana/Loki observability | Loki, datasource provisioning, Borgmatic log hooks, Alloy host/container log shipping, Grafana dashboards, and Alertmanager/Discord routing exist; deeper cross-panel correlation remains | Grafana host log/performance/sensor correlation |
+| Grafana/Loki observability | Loki, datasource provisioning, Borgmatic log hooks, Alloy host/container log shipping, Grafana dashboards, Alertmanager/Discord routing, and host log/metric/sensor correlation exist | keep Grafana dashboards source-managed and verify provisioning after changes |
 | Reverse proxy + TLS | Needed before safe broader access | proxy/TLS spec, Compose changes, rollback notes |
 | Metadata maturity | Inventory needs richer fields for automation | inventory schema notes and validation checks |
 | Database-aware backups | Databases need dump/restore discipline, not only volume backup | central Postgres runbook, logical dump automation, and service restore runbooks |
@@ -150,7 +150,7 @@ Do not build a Netdata streaming topology unless this decision is explicitly rev
 
 ## Immediate next actions
 
-1. Run the next safe non-destructive restore drill, preferably Home Assistant config extraction on `jellybase`, validating YAML shape only and avoiding scratch startup with production secrets.
-2. Delete retired root-owned Netdata appdata from `jellyhome` and `jellybase` after sudo is available; containers are already retired from the managed path.
-3. Plan the unrelated `jellybase` OS reboot required after package updates.
-4. Add a host firewall/UFW makeover spec before enabling UFW anywhere: Tailscale SSH must be verified as the emergency access path, SSH/service allowlists must be explicit, rollback must be documented, and node_exporter TCP `9100` hardening should be folded into that staged rollout.
+1. Delete retired root-owned Netdata appdata from `jellyhome` and `jellybase` after sudo is available; containers are already retired from the managed path.
+2. Plan the unrelated `jellybase` OS reboot required after package updates.
+3. Add a host firewall/UFW makeover spec before enabling UFW anywhere: Tailscale SSH must be verified as the emergency access path, SSH/service allowlists must be explicit, rollback must be documented, and node_exporter TCP `9100` hardening should be folded into that staged rollout.
+4. Plan the next recovery-confidence step: database-aware restore validation for a central PostgreSQL-backed service, or a low-risk full rebuild drill on disposable hardware/VM.
