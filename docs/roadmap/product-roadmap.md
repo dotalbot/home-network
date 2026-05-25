@@ -36,9 +36,9 @@ The platform should make the home lab understandable, reproducible, observable, 
 - [x] Add Borg/Borgmatic discovery and rollout generation.
 - [x] Route Borg traffic to `jellybackup@192.168.1.75` using LAN IPs instead of FQDN/Tailscale.
 - [x] Expose Borgmatic status as sanitized node_exporter textfile metrics on `jellyhome`, `jellybase`, and `jellyberry`.
-- [ ] Complete Borg/Borgmatic setup and verification for every in-scope host.
+- [x] Complete Borg/Borgmatic setup and verification for `jellyhome`, `jellybase`, and `jellyberry`; remaining scope is future hosts such as `jellybackup` if they become backup clients.
 - [x] Add restore runbooks for Home Assistant, Mosquitto, Prometheus, Grafana, Portfolio Mission Control, and key stateful services.
-- [x] Run and document at least one safe restore drill.
+- [x] Run and document safe restore drills for Mosquitto on `jellyhome` and monitoring-stack config on `jellybase`.
 
 
 ## V3.5 — Shared Database Platform and Manyfold Adoption
@@ -132,8 +132,8 @@ Do not build a Netdata streaming topology unless this decision is explicitly rev
 
 | Gap | Why it matters | Target artifact |
 | --- | --- | --- |
-| Borg/Borgmatic host rollout | Borg/Borgmatic must be installed, configured, and verified on every in-scope host | `docs/operations/borgmatic-host-rollout.md` plus `borg-check` passing per host |
-| Service restore coverage | Stateful services need exact restore steps | `docs/runbooks/<service>-restore.md` or completed service templates |
+| Borg/Borgmatic host rollout | Borg/Borgmatic is configured and verified for `jellyhome`, `jellybase`, and `jellyberry`; future hosts such as `jellybackup` need onboarding only if they become monitored backup clients | `docs/operations/borgmatic-host-rollout.md`, managed `home-network-borgmatic-<host>.timer`, node_exporter Borgmatic metrics |
+| Service restore coverage | Stateful services have exact restore steps and two completed non-destructive drills | `docs/runbooks/<service>-restore.md`, `docs/plans/011-restore-drills-and-runtime-caveats.md` |
 | Scheduled operations | Drift/backup/status checks are manual unless scheduled elsewhere | cron/systemd timers or Hermes cron jobs plus docs |
 | Alerting | Alertmanager/Discord path is source-managed and live on `jellybase`; runtime still requires the host-local Discord webhook secret, fake-alert delivery after deploy, and caveat tracking for Alloy data ownership warnings plus planned `jellybase` reboot | `/opt/docker/.secrets/alertmanager/discord_webhook_url`, `docs/operations/prometheus-alerting.md`, fake-alert delivery test, `docs/plans/011-restore-drills-and-runtime-caveats.md` |
 | Node exporter hardening | TCP `9100` is live and should be restricted to approved scrapers | staged hardening generator plus positive/negative verification |
@@ -146,11 +146,10 @@ Do not build a Netdata streaming topology unless this decision is explicitly rev
 
 ## Immediate next actions
 
-1. Complete Borg/Borgmatic setup and verification for any remaining in-scope hosts, especially `jellybackup` if it joins monitored/backup-client scope.
-2. Run the next safe non-destructive restore drill, preferably Prometheus config extraction on `jellybase` once SSH/sudo access is available, and record the result in the matching runbook.
-3. Reconcile preserved generated files from `/tmp/home-network-generated-before-alertmanager-20260524221726`, then decide whether to restore, regenerate, or discard them.
-4. Add staged access-control hardening for node_exporter TCP `9100` so only the Prometheus scraper path can reach it.
-5. Add scheduled drift/backup/status checks and route failures to the same alert channel or a clearly documented Hermes-only path.
-6. Finish Grafana correlation between host logs, performance stats, and sensor telemetry.
-7. Delete retired root-owned Netdata appdata from `jellyhome` and `jellybase` after sudo is available; containers are already retired from the managed path.
-8. Plan the unrelated `jellybase` OS reboot required after package updates.
+1. Reconcile preserved generated files from `/tmp/home-network-generated-before-alertmanager-20260524221726`, then decide whether to restore, regenerate, or discard them.
+2. Add staged access-control hardening for node_exporter TCP `9100` so only the Prometheus scraper path can reach it.
+3. Add scheduled drift/backup/status checks and route failures to the same alert channel or a clearly documented Hermes-only path.
+4. Finish Grafana correlation between host logs, performance stats, and sensor telemetry.
+5. Run the next safe non-destructive restore drill, preferably Home Assistant config extraction on `jellybase`, validating YAML shape only and avoiding scratch startup with production secrets.
+6. Delete retired root-owned Netdata appdata from `jellyhome` and `jellybase` after sudo is available; containers are already retired from the managed path.
+7. Plan the unrelated `jellybase` OS reboot required after package updates.

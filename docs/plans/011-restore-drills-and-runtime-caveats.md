@@ -42,22 +42,23 @@ This plan does not restore over production unless the operator explicitly approv
 - [x] Run non-destructive Borg extraction into `/tmp/home-network-restore-drill/`.
 - [x] Validate restored files without touching production data.
 - [x] Record drill result in the relevant runbook.
-- [ ] Fix any backup policy or runbook gaps found by the drill.
+- [x] Run second non-destructive drill for the monitoring stack on `jellybase`.
+- [x] Fix any backup policy or runbook gaps found by the drill.
 
-## Candidate first drill
+## Completed drills
 
 Completed first drill: Mosquitto MQTT on `jellyhome`, recorded in `docs/runbooks/mosquitto-restore.md`.
 
-Why it was a good first target:
+Completed second drill: monitoring-stack config on `jellybase`, recorded in `docs/runbooks/monitoring-stack-restore.md`.
+
+Why Mosquitto was a good first target:
 
 - Small state footprint.
 - Clear config/data split.
 - Easy non-destructive validation with a scratch `eclipse-mosquitto:2` container.
 - Exercises the same Borg path and secret-handling discipline needed for larger services.
 
-Recommended next drill: Prometheus config extraction on `jellybase`, after SSH/sudo access is available again.
-
-Fallback next drill: Home Assistant config extraction on `jellybase`, validating YAML shape only and not starting a scratch Home Assistant container with production secrets.
+Next drill candidate: Home Assistant config extraction on `jellybase`, validating YAML shape only and not starting a scratch Home Assistant container with production secrets.
 
 ## Acceptance criteria
 

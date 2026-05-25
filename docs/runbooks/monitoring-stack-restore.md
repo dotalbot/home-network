@@ -142,4 +142,21 @@ Stop the monitoring services, restore the pre-restore tarball, recreate services
 
 ## Drill log
 
-- Pending: first non-destructive restore drill.
+- 2026-05-25: non-destructive monitoring-stack restore drill completed on `jellybase`.
+  - Archive: `jellybase-2026-05-25T03:12:03`.
+  - Scratch path: `/tmp/home-network-restore-drill/monitoring-20260525T065013Z`.
+  - Restored paths only:
+    - `opt/docker/appdata/prometheus/config`
+    - `opt/docker/appdata/alertmanager/config`
+    - `opt/docker/appdata/alertmanager-discord-bridge`
+    - `opt/docker/appdata/grafana-provisioning`
+    - `opt/docker/appdata/loki/config`
+    - `opt/docker/appdata/alloy/config`
+  - Validation results:
+    - `promtool check config /etc/prometheus/prometheus.yml`: passed; one rule file found and 14 alert rules validated.
+    - `amtool check-config /etc/alertmanager/alertmanager.yml`: passed; global config, route, and three receivers found.
+    - `grafana/loki:3.4.2 -config.file=/etc/loki/loki.yml -verify-config=true`: passed.
+    - `python3 -m py_compile bridge.py`: passed.
+    - Grafana dashboard JSON validation for `host-observability.json` and `borgmatic-backups.json`: passed.
+  - Production `/opt/docker` data was not modified.
+  - Caveat resolved during precheck: the stock `borgmatic.timer` is intentionally disabled; the active managed timer is `home-network-borgmatic-jellybase.timer`.
