@@ -741,7 +741,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "{host=~\"${host:regex}\", job=~\"borgmatic|systemd-journal|docker|home-assistant|mosquitto|prometheus|grafana|loki\"}",
+          "expr": "{environment=\"home-network\",host=~\"${host:regex}\",job=~\"systemd-journal|docker|borgmatic\"}",
           "queryType": "range",
           "datasource": {
             "type": "loki",
@@ -758,7 +758,7 @@
         "showLabels": false,
         "wrapLogMessage": true
       },
-      "description": "Allowlisted Loki streams for the selected host. Borgmatic exists now; broader host/container streams are future rollout."
+      "description": "Selected host logs from Alloy/Loki. Prefer the Correlation panels below for triage workflows."
     },
     {
       "id": 15,
@@ -846,15 +846,239 @@
       },
       "options": {},
       "description": "Disk temperatures appear only when SMART/NVMe exposes them."
+    },
+    {
+      "id": 17,
+      "title": "Correlation guide",
+      "type": "text",
+      "gridPos": {
+        "h": 3,
+        "w": 24,
+        "x": 0,
+        "y": 49
+      },
+      "datasource": {
+        "type": "grafana",
+        "uid": "-- Grafana --"
+      },
+      "options": {
+        "mode": "markdown",
+        "content": "### Host correlation triage\nUse the same `$host` and time range across these panels. Start with CPU/load/memory/temperature above, then compare log volume and warning/error spikes below. If a spike lines up, open the recent logs panel or Explore with the same labels/time range."
+      }
+    },
+    {
+      "id": 18,
+      "title": "Correlation: log volume by host/job",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 52
+      },
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (host, job) (count_over_time({environment=\"home-network\",host=~\"${host:regex}\",job=~\"systemd-journal|docker|borgmatic\"}[$__interval]))",
+          "queryType": "range",
+          "legendFormat": "{{host}} {{job}}",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "description": "Log line volume from Alloy/Loki. Compare spikes with CPU, memory, disk I/O, temperature, and network panels above."
+    },
+    {
+      "id": 19,
+      "title": "Correlation: warning/error log volume",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 52
+      },
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (host, job) (count_over_time({environment=\"home-network\",host=~\"${host:regex}\",job=~\"systemd-journal|docker|borgmatic\"} |~ \"(?i)(error|failed|failure|critical|panic|traceback|oom|denied|undervoltage|throttl|unhealthy)\" [$__interval]))",
+          "queryType": "range",
+          "legendFormat": "{{host}} {{job}}",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "description": "Warning/error-like log line volume. This is intentionally broad for triage, not an alert source of truth."
+    },
+    {
+      "id": 20,
+      "title": "Correlation: service scrape availability",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 0,
+        "y": 60
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "up{job=~\"node_exporter|alloy|loki\"}",
+          "legendFormat": "{{job}} {{instance}}",
+          "instant": false,
+          "range": true,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "description": "Shows whether the metric/log collection path itself was up while investigating a host issue."
+    },
+    {
+      "id": 21,
+      "title": "Correlation: recent warning/error logs",
+      "type": "logs",
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 12,
+        "y": 60
+      },
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "{environment=\"home-network\",host=~\"${host:regex}\",job=~\"systemd-journal|docker|borgmatic\"} |~ \"(?i)(error|failed|failure|critical|panic|traceback|oom|denied|undervoltage|throttl|unhealthy)\"",
+          "queryType": "range",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          }
+        }
+      ],
+      "options": {
+        "showTime": true,
+        "showLabels": true,
+        "wrapLogMessage": true,
+        "sortOrder": "Descending"
+      },
+      "description": "Recent warning/error-like log lines for the selected host/time range."
+    },
+    {
+      "id": 22,
+      "title": "Correlation: recent selected host logs",
+      "type": "logs",
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 67
+      },
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "{environment=\"home-network\",host=~\"${host:regex}\",job=~\"systemd-journal|docker|borgmatic\"}",
+          "queryType": "range",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          }
+        }
+      ],
+      "options": {
+        "showTime": true,
+        "showLabels": true,
+        "wrapLogMessage": true,
+        "sortOrder": "Descending"
+      },
+      "description": "Raw recent logs for the selected host/time range. Keep labels visible so host/job/container context is available."
     }
   ],
   "refresh": "1m",
   "schemaVersion": 39,
   "style": "dark",
   "tags": [
+    "correlation",
     "home-network",
-    "node-exporter",
     "host-observability",
+    "loki",
+    "node-exporter",
+    "prometheus",
     "sensors"
   ],
   "templating": {
@@ -890,5 +1114,6 @@
   "title": "Host Observability",
   "uid": "host-observability",
   "version": 1,
-  "weekStart": ""
+  "weekStart": "",
+  "description": "Correlates home-network host metrics, sensor telemetry, disk health, and Loki logs by host/time range."
 }

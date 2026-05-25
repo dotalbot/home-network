@@ -80,7 +80,8 @@ The platform should make the home lab understandable, reproducible, observable, 
 - [x] Send Borgmatic run logs to Loki using the Borgmatic Loki hook.
 - [x] Add Grafana log panels/search for backup runs.
 - [x] Extend log shipping beyond Borgmatic using Grafana Alloy on `jellyhome`, `jellybase`, and `jellyberry` for host systemd journal logs and selected Docker container logs.
-- [ ] Correlate host logs with Prometheus host performance and sensor telemetry in Grafana so operators can move from “what happened?” to “what was the host doing?”.
+- [x] Correlate host logs with Prometheus host performance and sensor telemetry in Grafana so operators can move from “what happened?” to “what was the host doing?”.
+  - [x] Add host/time-range aligned correlation panels for Loki log volume, warning/error-like log volume, service scrape availability, recent warning/error logs, and raw selected host logs.
 - [x] Keep Grafana as the primary observability UI and Loki as the log-history layer.
 
 ## V6 — Scheduled Operations and Alerting
@@ -149,8 +150,7 @@ Do not build a Netdata streaming topology unless this decision is explicitly rev
 
 ## Immediate next actions
 
-1. Finish Grafana correlation between host logs, performance stats, and sensor telemetry.
-2. Run the next safe non-destructive restore drill, preferably Home Assistant config extraction on `jellybase`, validating YAML shape only and avoiding scratch startup with production secrets.
-3. Delete retired root-owned Netdata appdata from `jellyhome` and `jellybase` after sudo is available; containers are already retired from the managed path.
-4. Plan the unrelated `jellybase` OS reboot required after package updates.
-5. Add a host firewall/UFW makeover spec before enabling UFW anywhere: Tailscale SSH must be verified as the emergency access path, SSH/service allowlists must be explicit, rollback must be documented, and node_exporter TCP `9100` hardening should be folded into that staged rollout.
+1. Run the next safe non-destructive restore drill, preferably Home Assistant config extraction on `jellybase`, validating YAML shape only and avoiding scratch startup with production secrets.
+2. Delete retired root-owned Netdata appdata from `jellyhome` and `jellybase` after sudo is available; containers are already retired from the managed path.
+3. Plan the unrelated `jellybase` OS reboot required after package updates.
+4. Add a host firewall/UFW makeover spec before enabling UFW anywhere: Tailscale SSH must be verified as the emergency access path, SSH/service allowlists must be explicit, rollback must be documented, and node_exporter TCP `9100` hardening should be folded into that staged rollout.

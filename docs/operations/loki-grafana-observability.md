@@ -16,6 +16,7 @@ docker/appdata/loki/config/loki.yml
 docker/appdata/grafana-provisioning/datasources/datasources.yaml
 docker/appdata/grafana-provisioning/dashboards/dashboards.yaml
 docker/appdata/grafana-provisioning/dashboards/json/borgmatic-backups.json
+docker/appdata/grafana-provisioning/dashboards/json/host-observability.json
 scripts/sync-docker-config
 inventory/services.yml
 ```
@@ -111,6 +112,27 @@ folder: Home Network
 source: docker/appdata/grafana-provisioning/dashboards/json/borgmatic-backups.json
 runtime URL: /d/borgmatic-backups/borgmatic-backups
 verified: provisioned true, 9 panels
+```
+
+## Host/metric/log correlation dashboard
+
+The source-managed `Host Observability` dashboard (`uid: host-observability`) is the primary triage view for matching “what happened?” logs with “what was the host doing?” metrics.
+
+Correlation panels use the same `$host` variable and time range as the Prometheus panels above them:
+
+- Loki log volume by `host`/`job`;
+- warning/error-like Loki log volume;
+- service scrape availability for `node_exporter`, `alloy`, and `loki`;
+- recent warning/error-like logs;
+- raw recent selected host logs.
+
+Useful direct query checks from `jellybase`:
+
+```bash
+curl -fsG --data-urlencode 'query=sum by (host, job) (count_over_time({environment="home-network",job=~"systemd-journal|docker|borgmatic"}[5m]))' \
+  http://127.0.0.1:3100/loki/api/v1/query_range
+curl -fsG --data-urlencode 'query=up{job=~"node_exporter|alloy|loki"}' \
+  http://127.0.0.1:9090/api/v1/query
 ```
 
 ## Rollback
