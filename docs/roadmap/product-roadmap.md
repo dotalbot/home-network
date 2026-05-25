@@ -146,10 +146,9 @@ Do not build a Netdata streaming topology unless this decision is explicitly rev
 
 ## Immediate next actions
 
-1. Reconcile preserved generated files from `/tmp/home-network-generated-before-alertmanager-20260524221726`, then decide whether to restore, regenerate, or discard them.
-2. Add staged access-control hardening for node_exporter TCP `9100` so only the Prometheus scraper path can reach it.
-3. Add scheduled drift/backup/status checks and route failures to the same alert channel or a clearly documented Hermes-only path.
-4. Finish Grafana correlation between host logs, performance stats, and sensor telemetry.
-5. Run the next safe non-destructive restore drill, preferably Home Assistant config extraction on `jellybase`, validating YAML shape only and avoiding scratch startup with production secrets.
-6. Delete retired root-owned Netdata appdata from `jellyhome` and `jellybase` after sudo is available; containers are already retired from the managed path.
-7. Plan the unrelated `jellybase` OS reboot required after package updates.
+1. Add staged access-control hardening for node_exporter TCP `9100` so only the Prometheus scraper path can reach it.
+2. Add scheduled drift/backup/status checks and route failures to the same alert channel or a clearly documented Hermes-only path.
+3. Finish Grafana correlation between host logs, performance stats, and sensor telemetry.
+4. Run the next safe non-destructive restore drill, preferably Home Assistant config extraction on `jellybase`, validating YAML shape only and avoiding scratch startup with production secrets.
+5. Delete retired root-owned Netdata appdata from `jellyhome` and `jellybase` after sudo is available; containers are already retired from the managed path.
+6. Plan the unrelated `jellybase` OS reboot required after package updates.

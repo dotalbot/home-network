@@ -23,7 +23,7 @@ This plan does not restore over production unless the operator explicitly approv
 - `scripts/sync-docker-config` may warn that `/opt/docker/appdata/alloy/data` contains root/container-owned files whose modes cannot be updated by the operator account. This is expected runtime ownership drift and no longer blocks deployment.
 - `jellybase` reports a pending OS restart after package updates; unrelated to Alertmanager, but should be planned separately.
 - Retired Netdata containers are removed from the managed path; any remaining root-owned Netdata appdata should only be deleted with explicit sudo approval.
-- Historical generated runtime diffs from the Alertmanager deploy were preserved on `jellybase` under `/tmp/home-network-generated-before-alertmanager-20260524221726` for short-term reconciliation.
+- Historical generated runtime diffs from the Alertmanager deploy were reconciled on 2026-05-25. Current repo and runtime Homepage services plus Network Map inventory match; the preserved copies are older/stale and can be discarded during an explicit cleanup window.
 
 ## Restore-drill rules
 
