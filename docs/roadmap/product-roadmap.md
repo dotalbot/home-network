@@ -38,7 +38,7 @@ The platform should make the home lab understandable, reproducible, observable, 
 - [x] Expose Borgmatic status as sanitized node_exporter textfile metrics on `jellyhome`, `jellybase`, and `jellyberry`.
 - [ ] Complete Borg/Borgmatic setup and verification for every in-scope host.
 - [x] Add restore runbooks for Home Assistant, Mosquitto, Prometheus, Grafana, Portfolio Mission Control, and key stateful services.
-- [ ] Run and document at least one safe restore drill.
+- [x] Run and document at least one safe restore drill.
 
 
 ## V3.5 — Shared Database Platform and Manyfold Adoption
@@ -147,7 +147,7 @@ Do not build a Netdata streaming topology unless this decision is explicitly rev
 ## Immediate next actions
 
 1. Complete Borg/Borgmatic setup and verification for any remaining in-scope hosts, especially `jellybackup` if it joins monitored/backup-client scope.
-2. Run a safe non-destructive restore drill, starting with Mosquitto or Prometheus config extraction, and record the result in the matching runbook.
+2. Run the next safe non-destructive restore drill, preferably Prometheus config extraction on `jellybase` once SSH/sudo access is available, and record the result in the matching runbook.
 3. Reconcile preserved generated files from `/tmp/home-network-generated-before-alertmanager-20260524221726`, then decide whether to restore, regenerate, or discard them.
 4. Add staged access-control hardening for node_exporter TCP `9100` so only the Prometheus scraper path can reach it.
 5. Add scheduled drift/backup/status checks and route failures to the same alert channel or a clearly documented Hermes-only path.

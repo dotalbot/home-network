@@ -38,24 +38,26 @@ This plan does not restore over production unless the operator explicitly approv
 
 - [x] Alertmanager caveats captured in the roadmap/plan.
 - [x] Service-specific restore runbooks drafted for Home Assistant, Mosquitto, monitoring stack, and Portfolio Mission Control.
-- [ ] Pick first safe restore drill target.
-- [ ] Run non-destructive Borg extraction into `/tmp/home-network-restore-drill/`.
-- [ ] Validate restored files without touching production data.
-- [ ] Record drill result in the relevant runbook.
+- [x] Pick first safe restore drill target.
+- [x] Run non-destructive Borg extraction into `/tmp/home-network-restore-drill/`.
+- [x] Validate restored files without touching production data.
+- [x] Record drill result in the relevant runbook.
 - [ ] Fix any backup policy or runbook gaps found by the drill.
 
 ## Candidate first drill
 
-Recommended first drill: Mosquitto MQTT on `jellyhome`.
+Completed first drill: Mosquitto MQTT on `jellyhome`, recorded in `docs/runbooks/mosquitto-restore.md`.
 
-Why:
+Why it was a good first target:
 
 - Small state footprint.
 - Clear config/data split.
-- Easy non-destructive validation with `mosquitto -c <scratch-config> -p <unused-port>` if needed.
+- Easy non-destructive validation with a scratch `eclipse-mosquitto:2` container.
 - Exercises the same Borg path and secret-handling discipline needed for larger services.
 
-Fallback first drill: Prometheus config-only/data listing on `jellybase`, extracting to scratch and validating `promtool check config` against restored config.
+Recommended next drill: Prometheus config extraction on `jellybase`, after SSH/sudo access is available again.
+
+Fallback next drill: Home Assistant config extraction on `jellybase`, validating YAML shape only and not starting a scratch Home Assistant container with production secrets.
 
 ## Acceptance criteria
 

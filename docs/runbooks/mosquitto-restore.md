@@ -115,4 +115,12 @@ Stop Mosquitto, restore the pre-restore tarball, recreate the container, then ve
 
 ## Drill log
 
-- Pending: first non-destructive restore drill.
+- 2026-05-25: non-destructive restore drill passed on `jellyhome`.
+  - Archive: `jellyhome-2026-05-23T09:40:36`.
+  - Repository: `ssh://jellybackup@192.168.1.75/home/jellybackup/externaldisk/borg_jellyhome`.
+  - Scratch path: `/tmp/home-network-restore-drill/mosquitto`.
+  - Restored paths: `opt/docker/appdata/mosquitto/config` and `opt/docker/appdata/mosquitto/data`.
+  - Verified files without printing secrets: `mosquitto.conf`, `passwd`, and `mosquitto.db` were present in scratch.
+  - Scratch config validation: `eclipse-mosquitto:2` started successfully against the restored config under a timeout.
+  - Production `/opt/docker/appdata/mosquitto` was not overwritten.
+  - Caveat: Borg access from the `jellyfish` operator account prompted for `jellybackup` SSH credentials; the working restore path used `sudo` so root's Borg SSH key and root-readable passphrase file were used, matching the system Borgmatic runtime model.
