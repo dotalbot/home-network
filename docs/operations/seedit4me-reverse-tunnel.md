@@ -139,4 +139,9 @@ sudo systemctl disable home-network-seedit4me-reverse-tunnel.service
 - The tunnel exposes only SSH on `jellyberry`, not dashboards or Docker sockets.
 - The systemd service uses `sshpass -f` so the password is read from a root/dockerops-controlled file rather than command-line arguments or environment variables.
 - The persistent process is `autossh -M 0` under systemd, with SSH keepalives and `Restart=always` as a second safety net.
+- Reconnect behaviour is intentionally polite to the remote host:
+  - SSH keepalives detect a dead tunnel after roughly 90 seconds (`ServerAliveInterval=30`, `ServerAliveCountMax=3`).
+  - `autossh` has `AUTOSSH_GATETIME=30`, so immediate repeated startup failures bubble back to systemd instead of tight-looping.
+  - systemd waits at least 60 seconds before restarting, then uses `RestartSteps=6` up to `RestartMaxDelaySec=10min` on repeated failures.
+  - `StartLimitBurst=10` over `StartLimitIntervalSec=3600` prevents endless rapid retries during a bad outage or auth/provider problem.
 - If seedit4.me supports SSH keys later, replace password auth with a dedicated key and remove the password secret.

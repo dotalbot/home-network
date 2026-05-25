@@ -3,14 +3,14 @@ Description=home-network reverse SSH tunnel to seedit4.me for jellyberry emergen
 Documentation=file:/home/jellybot/home-network/docs/operations/seedit4me-reverse-tunnel.md
 Wants=network-online.target
 After=network-online.target
-StartLimitIntervalSec=300
-StartLimitBurst=6
+StartLimitIntervalSec=3600
+StartLimitBurst=10
 
 [Service]
 Type=simple
 User=jellybot
 WorkingDirectory=/home/jellybot
-Environment=AUTOSSH_GATETIME=0
+Environment=AUTOSSH_GATETIME=30
 Environment=AUTOSSH_LOGLEVEL=0
 ExecStart=/usr/bin/sshpass -f /opt/docker/.secrets/seedit4me/ssh_password /usr/bin/autossh -M 0 -N -T -p 2088 \
   -o BatchMode=no \
@@ -24,7 +24,9 @@ ExecStart=/usr/bin/sshpass -f /opt/docker/.secrets/seedit4me/ssh_password /usr/b
   -R 127.0.0.1:22022:127.0.0.1:22 \
   seedit4me@nl13.seedit4.me
 Restart=always
-RestartSec=15s
+RestartSec=60s
+RestartSteps=6
+RestartMaxDelaySec=10min
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectKernelTunables=true
