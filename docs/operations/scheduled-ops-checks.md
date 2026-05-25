@@ -93,7 +93,7 @@ sudo systemctl daemon-reload
 sudo systemctl enable --now home-network-scheduled-ops-check.timer
 ```
 
-The service file runs the repo copy at `/home/jellybot/home-network/scripts/scheduled-ops-check` so source updates apply after the jellybase checkout is refreshed. If that path changes, update the service file before enabling the timer.
+The service file runs the `jellybase` operator checkout at `/home/jellyfish/home-network/scripts/scheduled-ops-check` so source updates apply after the jellybase checkout is refreshed. If that path changes, update the service file before enabling the timer.
 
 ## Manual run
 
