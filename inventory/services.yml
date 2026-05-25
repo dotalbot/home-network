@@ -405,7 +405,7 @@ services:
       remote_loopback: ssh://127.0.0.1:22022
     description: fallback reverse SSH tunnel for jellyberry when Tailscale is blocked; remote port is loopback-only on seedit4.me
     backup: config-only
-    status: planned
+    status: active
 
   calibre-web-automated:
     display_name: Calibre Web Automated
