@@ -1,0 +1,15 @@
+[Unit]
+Description=Home-network scheduled operational checks
+Wants=network-online.target
+After=network-online.target docker.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/home/jellybot/home-network
+Environment=PROMETHEUS_URL=http://127.0.0.1:9090
+Environment=ALERTMANAGER_URL=http://127.0.0.1:9093
+ExecStart=/home/jellybot/home-network/scripts/scheduled-ops-check --default-textfile
+
+# The script writes a Prometheus textfile collector metric and exits non-zero when
+# checks fail. systemd should record the failure, while Prometheus/Alertmanager
+# handles notification from the exported metrics.

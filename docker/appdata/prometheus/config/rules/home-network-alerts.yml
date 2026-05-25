@@ -152,3 +152,25 @@ groups:
         annotations:
           summary: "Alloy is down on {{ $labels.instance }}"
           description: "Alloy log shipping agent {{ $labels.instance }} has been unreachable for more than 5 minutes."
+
+  - name: home-network-scheduled-operations
+    rules:
+      - alert: HomeNetworkScheduledOpsCheckFailed
+        expr: home_network_scheduled_check_overall_success{job="node_exporter"} == 0
+        for: 10m
+        labels:
+          severity: warning
+          category: scheduled-ops
+        annotations:
+          summary: "Home-network scheduled operational checks failed"
+          description: "The scheduled operations check runner exported a failed status. Query home_network_scheduled_check_success and check the systemd journal for home-network-scheduled-ops-check.service on jellybase."
+
+      - alert: HomeNetworkScheduledOpsCheckStale
+        expr: time() - home_network_scheduled_check_last_run_timestamp_seconds{job="node_exporter"} > 7200
+        for: 15m
+        labels:
+          severity: warning
+          category: scheduled-ops
+        annotations:
+          summary: "Home-network scheduled operational checks are stale"
+          description: "The scheduled operations check textfile metric has not been refreshed for more than 2 hours. Check home-network-scheduled-ops-check.timer/service on jellybase."

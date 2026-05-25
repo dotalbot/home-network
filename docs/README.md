@@ -28,6 +28,7 @@ Unless stated otherwise, paths in this index are relative to the repository root
 - `docs/operations/sc401-study-hub.md` — SC-401 Study Hub runtime notes.
 - `docs/operations/image-pastebin.md` — Image Pastebin runtime notes.
 - `docs/operations/node-exporter-disk-health.md` — current node_exporter, Prometheus scrape, Borgmatic telemetry, and disk-health operations.
+- `docs/operations/scheduled-ops-checks.md` — scheduled drift/backup/status checks, delivery paths, timer install, pause/resume, and troubleshooting.
 - `docs/operations/loki-grafana-observability.md` — Loki/Grafana operations, verification, and rollback.
 - `docs/operations/cross-repo-app-deployment.md` — deployment method for apps developed in one repo/host and run through `home-network` on another Docker host.
 - `docs/operations/3dprint-loader.md` — runtime operations, code refresh deploy, verification, and rollback for the 3D Print Loader service on jellyhome.

@@ -1,0 +1,248 @@
+#!/usr/bin/env python3
+"""Run scheduled home-network operational checks and optionally export metrics.
+
+Default delivery path: run on jellybase via systemd timer, write Prometheus
+textfile metrics, and let Prometheus/Alertmanager/Discord handle wake-up
+notifications. Output is secret-free and suitable for journald.
+"""
+
+from __future__ import annotations
+
+import argparse
+import fcntl
+import json
+import os
+import subprocess
+import sys
+import tempfile
+import time
+import urllib.parse
+import urllib.request
+from dataclasses import dataclass
+from pathlib import Path
+
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+DEFAULT_PROMETHEUS_URL = "http://127.0.0.1:9090"
+DEFAULT_ALERTMANAGER_URL = "http://127.0.0.1:9093"
+DEFAULT_TEXTFILE = "/var/lib/node_exporter/textfile_collector/home_network_scheduled_ops.prom"
+DEFAULT_LOCK_FILE = "/run/lock/home-network-scheduled-ops-check.lock"
+
+
+@dataclass
+class CheckResult:
+    name: str
+    ok: bool
+    detail: str
+    duration_seconds: float
+
+
+def run_command(name: str, command: list[str], cwd: Path = REPO_ROOT, timeout: int = 60) -> CheckResult:
+    start = time.monotonic()
+    try:
+        proc = subprocess.run(
+            command,
+            cwd=cwd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            timeout=timeout,
+            check=False,
+        )
+        output = " ".join((proc.stdout or "").strip().split())
+        if len(output) > 220:
+            output = output[:217] + "..."
+        detail = output or f"exit={proc.returncode}"
+        return CheckResult(name, proc.returncode == 0, detail, time.monotonic() - start)
+    except subprocess.TimeoutExpired:
+        return CheckResult(name, False, f"timeout after {timeout}s", time.monotonic() - start)
+    except Exception as exc:  # noqa: BLE001 - keep check runner defensive
+        return CheckResult(name, False, f"exception: {exc.__class__.__name__}: {exc}", time.monotonic() - start)
+
+
+def http_get(url: str, timeout: int = 5) -> tuple[bool, str]:
+    try:
+        with urllib.request.urlopen(url, timeout=timeout) as response:  # noqa: S310 - fixed internal URLs by default
+            body = response.read(512).decode("utf-8", errors="replace")
+            return 200 <= response.status < 300, f"http={response.status} {body.strip()[:160]}"
+    except Exception as exc:  # noqa: BLE001
+        return False, f"{exc.__class__.__name__}: {exc}"
+
+
+def prometheus_query(prometheus_url: str, query: str, timeout: int = 8) -> tuple[bool, dict | str]:
+    params = urllib.parse.urlencode({"query": query})
+    url = f"{prometheus_url.rstrip('/')}/api/v1/query?{params}"
+    try:
+        with urllib.request.urlopen(url, timeout=timeout) as response:  # noqa: S310 - fixed internal URL by default
+            data = json.loads(response.read().decode("utf-8"))
+        if data.get("status") != "success":
+            return False, f"prometheus status={data.get('status')}"
+        return True, data
+    except Exception as exc:  # noqa: BLE001
+        return False, f"{exc.__class__.__name__}: {exc}"
+
+
+def check_http_ready(name: str, url: str) -> CheckResult:
+    start = time.monotonic()
+    ok, detail = http_get(url)
+    return CheckResult(name, ok, detail, time.monotonic() - start)
+
+
+def check_prometheus_node_exporters(prometheus_url: str) -> CheckResult:
+    start = time.monotonic()
+    ok, data_or_detail = prometheus_query(prometheus_url, 'up{job="node_exporter"}')
+    if not ok:
+        return CheckResult("prometheus_node_exporters_up", False, str(data_or_detail), time.monotonic() - start)
+
+    result = data_or_detail.get("data", {}).get("result", [])  # type: ignore[union-attr]
+    if not result:
+        return CheckResult("prometheus_node_exporters_up", False, "no node_exporter targets returned", time.monotonic() - start)
+
+    down = []
+    up = []
+    for item in result:
+        instance = item.get("metric", {}).get("instance", "unknown")
+        value = item.get("value", [None, "0"])[1]
+        if value == "1":
+            up.append(instance)
+        else:
+            down.append(instance)
+
+    if down:
+        return CheckResult("prometheus_node_exporters_up", False, "down=" + ",".join(down), time.monotonic() - start)
+    return CheckResult("prometheus_node_exporters_up", True, "up=" + ",".join(up), time.monotonic() - start)
+
+
+def check_prometheus_alertmanagers(prometheus_url: str) -> CheckResult:
+    start = time.monotonic()
+    ok, data_or_detail = prometheus_query(prometheus_url, 'prometheus_notifications_alertmanagers_discovered')
+    if not ok:
+        return CheckResult("prometheus_alertmanager_discovered", False, str(data_or_detail), time.monotonic() - start)
+
+    result = data_or_detail.get("data", {}).get("result", [])  # type: ignore[union-attr]
+    discovered = 0
+    for item in result:
+        try:
+            discovered += int(float(item.get("value", [None, "0"])[1]))
+        except (TypeError, ValueError):
+            pass
+    if discovered < 1:
+        return CheckResult("prometheus_alertmanager_discovered", False, "discovered=0", time.monotonic() - start)
+    return CheckResult("prometheus_alertmanager_discovered", True, f"discovered={discovered}", time.monotonic() - start)
+
+
+def metric_escape(value: str) -> str:
+    return value.replace("\\", "\\\\").replace('"', '\\"').replace("\n", " ")
+
+
+def render_metrics(results: list[CheckResult], started_at: int, finished_at: int) -> str:
+    lines = [
+        "# HELP home_network_scheduled_check_success Whether a scheduled operational check succeeded.",
+        "# TYPE home_network_scheduled_check_success gauge",
+    ]
+    for result in results:
+        lines.append(
+            f'home_network_scheduled_check_success{{check="{metric_escape(result.name)}"}} {1 if result.ok else 0}'
+        )
+    lines.extend([
+        "# HELP home_network_scheduled_check_duration_seconds Runtime duration for a scheduled operational check.",
+        "# TYPE home_network_scheduled_check_duration_seconds gauge",
+    ])
+    for result in results:
+        lines.append(
+            f'home_network_scheduled_check_duration_seconds{{check="{metric_escape(result.name)}"}} {result.duration_seconds:.3f}'
+        )
+    lines.extend([
+        "# HELP home_network_scheduled_check_last_run_timestamp_seconds Last scheduled operational check run timestamp.",
+        "# TYPE home_network_scheduled_check_last_run_timestamp_seconds gauge",
+        f"home_network_scheduled_check_last_run_timestamp_seconds {finished_at}",
+        "# HELP home_network_scheduled_check_overall_success Whether all scheduled operational checks succeeded.",
+        "# TYPE home_network_scheduled_check_overall_success gauge",
+        f"home_network_scheduled_check_overall_success {1 if all(r.ok for r in results) else 0}",
+        "# HELP home_network_scheduled_check_info Last check detail as labels; intended for low-cardinality operator diagnostics.",
+        "# TYPE home_network_scheduled_check_info gauge",
+    ])
+    for result in results:
+        detail = result.detail
+        if len(detail) > 180:
+            detail = detail[:177] + "..."
+        lines.append(
+            f'home_network_scheduled_check_info{{check="{metric_escape(result.name)}",status="{"good" if result.ok else "not_good"}",detail="{metric_escape(detail)}"}} 1'
+        )
+    lines.append("")
+    return "\n".join(lines)
+
+
+def write_atomic(path: Path, content: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp_name = tempfile.mkstemp(prefix=f".{path.name}.", dir=str(path.parent), text=True)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            handle.write(content)
+        os.replace(tmp_name, path)
+    finally:
+        if os.path.exists(tmp_name):
+            os.unlink(tmp_name)
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Run home-network scheduled operational checks")
+    parser.add_argument("--prometheus-url", default=os.environ.get("PROMETHEUS_URL", DEFAULT_PROMETHEUS_URL))
+    parser.add_argument("--alertmanager-url", default=os.environ.get("ALERTMANAGER_URL", DEFAULT_ALERTMANAGER_URL))
+    parser.add_argument("--textfile", default=os.environ.get("TEXTFILE", ""), help="Write Prometheus textfile metrics to this path")
+    parser.add_argument("--default-textfile", action="store_true", help=f"Write metrics to {DEFAULT_TEXTFILE}")
+    parser.add_argument("--lock-file", default=os.environ.get("LOCK_FILE", DEFAULT_LOCK_FILE), help="Non-blocking lock file to prevent overlapping runs")
+    parser.add_argument("--no-lock", action="store_true", help="Disable overlap lock; intended only for one-off tests")
+    parser.add_argument("--no-command-checks", action="store_true", help="Skip local just/script command checks")
+    args = parser.parse_args()
+
+    lock_handle = None
+    if not args.no_lock:
+        lock_path = Path(args.lock_file)
+        lock_path.parent.mkdir(parents=True, exist_ok=True)
+        lock_handle = lock_path.open("w", encoding="utf-8")
+        try:
+            fcntl.flock(lock_handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            print(f"another scheduled-ops check is already running; lock={lock_path}")
+            return 0
+        lock_handle.write(f"pid={os.getpid()} started_at={int(time.time())}\n")
+        lock_handle.flush()
+
+    started_at = int(time.time())
+    results: list[CheckResult] = []
+
+    if not args.no_command_checks:
+        results.extend([
+            run_command("repo_status", ["git", "status", "--short", "--branch"], timeout=20),
+            run_command("service_status", [str(REPO_ROOT / "scripts" / "status")], timeout=45),
+            run_command("docker_drift", [str(REPO_ROOT / "scripts" / "drift-check")], timeout=45),
+            run_command("backup_policy", [str(REPO_ROOT / "scripts" / "backup-policy-check")], timeout=45),
+            run_command("host_monitoring_policy", [str(REPO_ROOT / "scripts" / "host-monitoring-policy-check")], timeout=45),
+        ])
+
+    results.extend([
+        check_http_ready("prometheus_ready", f"{args.prometheus_url.rstrip('/')}/-/ready"),
+        check_http_ready("alertmanager_ready", f"{args.alertmanager_url.rstrip('/')}/-/ready"),
+        check_prometheus_node_exporters(args.prometheus_url),
+        check_prometheus_alertmanagers(args.prometheus_url),
+    ])
+
+    finished_at = int(time.time())
+    metrics = render_metrics(results, started_at, finished_at)
+
+    textfile = args.textfile or (DEFAULT_TEXTFILE if args.default_textfile else "")
+    if textfile:
+        write_atomic(Path(textfile), metrics)
+
+    print("Home-network scheduled operational checks")
+    for result in results:
+        status = "good" if result.ok else "not good"
+        print(f"{result.name}: {status} ({result.detail})")
+    print(f"overall: {'good' if all(r.ok for r in results) else 'not good'}")
+
+    return 0 if all(r.ok for r in results) else 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

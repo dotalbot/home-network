@@ -1,0 +1,12 @@
+[Unit]
+Description=Run home-network scheduled operational checks every 30 minutes
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=30min
+RandomizedDelaySec=5min
+Persistent=true
+Unit=home-network-scheduled-ops-check.service
+
+[Install]
+WantedBy=timers.target

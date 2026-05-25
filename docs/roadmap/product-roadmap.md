@@ -85,9 +85,11 @@ The platform should make the home lab understandable, reproducible, observable, 
 
 ## V6 — Scheduled Operations and Alerting
 
-- [ ] Schedule status, drift, backup policy, Borg/Borgmatic, and dashboard validation checks.
-- [ ] Add lock handling so recurring checks cannot overlap.
-- [ ] Write check results atomically to a known state directory.
+- [x] Add scheduled drift/backup/status checks and route failures to the same alert channel or a clearly documented Hermes-only path.
+  - [x] Use Prometheus textfile metrics plus Alertmanager/Discord as the default wake-up path.
+  - [x] Keep Hermes cron for human summaries/reminders, not as the only critical alert path.
+- [x] Add lock handling so recurring checks cannot overlap.
+- [x] Write check results atomically to a known state directory.
 - [x] Route Prometheus alerts through Alertmanager and a Discord delivery bridge.
   - [x] Add source-managed Alertmanager service on `jellybase`.
   - [x] Add `alerting.alertmanagers` wiring to Prometheus.
@@ -97,7 +99,7 @@ The platform should make the home lab understandable, reproducible, observable, 
   - [x] Add silence/runbook docs for maintenance windows, fake-alert testing, first-response checks, and rollback.
   - [x] Verified on `jellybase`: Prometheus has active Alertmanager target, bridge health is OK, synthetic alert delivery returned HTTP 200, and synthetic groups cleared after expiry.
   - [ ] Track operational caveats: host-local Discord webhook secret must be recreated during rebuilds; `/opt/docker/appdata/alloy/data` ownership drift may produce warning-only sync output; `jellybase` still needs a planned OS reboot after package updates.
-- [ ] Document how to pause, resume, troubleshoot, and verify scheduled checks.
+- [x] Document how to pause, resume, troubleshoot, and verify scheduled checks.
 
 ## V7 — Network Access, TLS, and Hardening
 
@@ -147,9 +149,8 @@ Do not build a Netdata streaming topology unless this decision is explicitly rev
 
 ## Immediate next actions
 
-1. Add a host firewall/UFW makeover spec before enabling UFW anywhere: Tailscale SSH must be verified as the emergency access path, SSH/service allowlists must be explicit, rollback must be documented, and node_exporter TCP `9100` hardening should be folded into that staged rollout.
-2. Add scheduled drift/backup/status checks and route failures to the same alert channel or a clearly documented Hermes-only path.
-3. Finish Grafana correlation between host logs, performance stats, and sensor telemetry.
-4. Run the next safe non-destructive restore drill, preferably Home Assistant config extraction on `jellybase`, validating YAML shape only and avoiding scratch startup with production secrets.
-5. Delete retired root-owned Netdata appdata from `jellyhome` and `jellybase` after sudo is available; containers are already retired from the managed path.
-6. Plan the unrelated `jellybase` OS reboot required after package updates.
+1. Finish Grafana correlation between host logs, performance stats, and sensor telemetry.
+2. Run the next safe non-destructive restore drill, preferably Home Assistant config extraction on `jellybase`, validating YAML shape only and avoiding scratch startup with production secrets.
+3. Delete retired root-owned Netdata appdata from `jellyhome` and `jellybase` after sudo is available; containers are already retired from the managed path.
+4. Plan the unrelated `jellybase` OS reboot required after package updates.
+5. Add a host firewall/UFW makeover spec before enabling UFW anywhere: Tailscale SSH must be verified as the emergency access path, SSH/service allowlists must be explicit, rollback must be documented, and node_exporter TCP `9100` hardening should be folded into that staged rollout.

@@ -70,6 +70,9 @@ backup-policy-check:
 host-monitoring-policy-check:
     ./scripts/host-monitoring-policy-check
 
+scheduled-ops-check:
+    ./scripts/scheduled-ops-check
+
 borg-check:
     ./scripts/borg-check
 
