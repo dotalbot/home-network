@@ -1,0 +1,78 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SERVICE_NAME="${SERVICE_NAME:-home-network-seedit4me-reverse-tunnel.service}"
+REMOTE_HOST="${REMOTE_HOST:-nl13.seedit4.me}"
+REMOTE_USER="${REMOTE_USER:-seedit4me}"
+REMOTE_SSH_PORT="${REMOTE_SSH_PORT:-2088}"
+REMOTE_TUNNEL_BIND="${REMOTE_TUNNEL_BIND:-127.0.0.1}"
+REMOTE_TUNNEL_PORT="${REMOTE_TUNNEL_PORT:-22022}"
+SECRET_FILE="${SECRET_FILE:-/opt/docker/.secrets/seedit4me/ssh_password}"
+KNOWN_HOSTS="${KNOWN_HOSTS:-/home/jellybot/.ssh/known_hosts}"
+TEXTFILE="${TEXTFILE:-/var/lib/node_exporter/textfile_collector/home_network_seedit4me_tunnel.prom}"
+HOST_LABEL="${HOST_LABEL:-$(hostname -s)}"
+
+service_active=0
+remote_port_open=0
+overall_success=0
+detail="unknown"
+
+if systemctl is-active --quiet "$SERVICE_NAME"; then
+  service_active=1
+else
+  detail="systemd_service_not_active"
+fi
+
+if [[ ! -s "$SECRET_FILE" ]]; then
+  detail="secret_missing_or_empty"
+elif [[ ! -r "$SECRET_FILE" ]]; then
+  detail="secret_not_readable"
+elif [[ ! -s "$KNOWN_HOSTS" ]]; then
+  detail="known_hosts_missing_or_empty"
+elif ! ssh-keygen -F "[${REMOTE_HOST}]:${REMOTE_SSH_PORT}" -f "$KNOWN_HOSTS" >/dev/null; then
+  detail="remote_host_key_not_pinned"
+else
+  if timeout 20 sshpass -f "$SECRET_FILE" ssh -p "$REMOTE_SSH_PORT" \
+      -o BatchMode=no \
+      -o PubkeyAuthentication=no \
+      -o PreferredAuthentications=password,keyboard-interactive \
+      -o StrictHostKeyChecking=yes \
+      -o UserKnownHostsFile="$KNOWN_HOSTS" \
+      "${REMOTE_USER}@${REMOTE_HOST}" \
+      "timeout 5 bash -lc '</dev/tcp/${REMOTE_TUNNEL_BIND}/${REMOTE_TUNNEL_PORT}'" >/dev/null 2>&1; then
+    remote_port_open=1
+  else
+    detail="remote_loopback_port_closed"
+  fi
+fi
+
+if [[ "$service_active" -eq 1 && "$remote_port_open" -eq 1 ]]; then
+  overall_success=1
+  detail="good"
+fi
+
+timestamp="$(date +%s)"
+mkdir -p "$(dirname "$TEXTFILE")"
+tmp="$(mktemp "$(dirname "$TEXTFILE")/.home_network_seedit4me_tunnel.XXXXXX")"
+cat > "$tmp" <<EOF
+# HELP home_network_seedit4me_tunnel_success Whether the seedit4me reverse SSH tunnel is healthy end-to-end.
+# TYPE home_network_seedit4me_tunnel_success gauge
+home_network_seedit4me_tunnel_success{host="${HOST_LABEL}",remote="${REMOTE_HOST}",remote_port="${REMOTE_TUNNEL_PORT}"} ${overall_success}
+# HELP home_network_seedit4me_tunnel_service_active Whether the local systemd reverse tunnel service is active.
+# TYPE home_network_seedit4me_tunnel_service_active gauge
+home_network_seedit4me_tunnel_service_active{host="${HOST_LABEL}",service="${SERVICE_NAME}"} ${service_active}
+# HELP home_network_seedit4me_tunnel_remote_port_open Whether seedit4.me can connect to its loopback tunnel port.
+# TYPE home_network_seedit4me_tunnel_remote_port_open gauge
+home_network_seedit4me_tunnel_remote_port_open{host="${HOST_LABEL}",remote="${REMOTE_HOST}",remote_port="${REMOTE_TUNNEL_PORT}"} ${remote_port_open}
+# HELP home_network_seedit4me_tunnel_last_run_timestamp_seconds Last seedit4me tunnel healthcheck run timestamp.
+# TYPE home_network_seedit4me_tunnel_last_run_timestamp_seconds gauge
+home_network_seedit4me_tunnel_last_run_timestamp_seconds{host="${HOST_LABEL}"} ${timestamp}
+# HELP home_network_seedit4me_tunnel_info Last seedit4me tunnel healthcheck detail.
+# TYPE home_network_seedit4me_tunnel_info gauge
+home_network_seedit4me_tunnel_info{host="${HOST_LABEL}",status="$([[ "$overall_success" -eq 1 ]] && echo good || echo not_good)",detail="${detail}"} 1
+EOF
+chmod 0644 "$tmp"
+mv "$tmp" "$TEXTFILE"
+
+echo "seedit4me_tunnel=${detail}"
+exit $(( overall_success == 1 ? 0 : 1 ))

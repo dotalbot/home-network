@@ -34,6 +34,7 @@ Create a persistent fallback access path into `jellyberry` for networks that blo
 - [x] Operator stores password at `/opt/docker/.secrets/seedit4me/ssh_password`.
 - [x] Install package/service on `jellyberry`.
 - [x] Verify remote loopback port opens on seedit4.me.
+- [x] Add Prometheus/Discord healthcheck for autossh tunnel failure.
 - [ ] Verify restricted-network connection flow.
 
 ## Acceptance criteria

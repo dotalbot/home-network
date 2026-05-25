@@ -153,6 +153,28 @@ groups:
           summary: "Alloy is down on {{ $labels.instance }}"
           description: "Alloy log shipping agent {{ $labels.instance }} has been unreachable for more than 5 minutes."
 
+      - alert: Seedit4meReverseTunnelDown
+        expr: home_network_seedit4me_tunnel_success{job="node_exporter",host="jellyberry"} == 0
+        for: 2m
+        labels:
+          severity: warning
+          category: remote-access
+          service: seedit4me-reverse-tunnel
+        annotations:
+          summary: "Seedit4.me reverse tunnel is down on {{ $labels.host }}"
+          description: "The autossh reverse tunnel healthcheck failed. Check home-network-seedit4me-reverse-tunnel.service and home-network-seedit4me-tunnel-healthcheck.service on jellyberry."
+
+      - alert: Seedit4meReverseTunnelHealthcheckStale
+        expr: time() - home_network_seedit4me_tunnel_last_run_timestamp_seconds{job="node_exporter",host="jellyberry"} > 600
+        for: 5m
+        labels:
+          severity: warning
+          category: remote-access
+          service: seedit4me-reverse-tunnel
+        annotations:
+          summary: "Seedit4.me reverse tunnel healthcheck is stale on {{ $labels.host }}"
+          description: "The seedit4me tunnel textfile metric has not refreshed for more than 10 minutes. Check home-network-seedit4me-tunnel-healthcheck.timer on jellyberry."
+
   - name: home-network-scheduled-operations
     rules:
       - alert: HomeNetworkScheduledOpsCheckFailed

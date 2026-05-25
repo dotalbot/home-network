@@ -1,0 +1,12 @@
+[Unit]
+Description=Run seedit4me reverse SSH tunnel healthcheck every minute
+Documentation=file:/home/jellybot/home-network/docs/operations/seedit4me-reverse-tunnel.md
+
+[Timer]
+OnBootSec=2m
+OnUnitActiveSec=1m
+AccuracySec=15s
+Unit=home-network-seedit4me-tunnel-healthcheck.service
+
+[Install]
+WantedBy=timers.target

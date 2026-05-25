@@ -82,7 +82,34 @@ ssh -p22022 jellybot@127.0.0.1
 
 ```bash
 systemctl status home-network-seedit4me-reverse-tunnel.service --no-pager
+systemctl status home-network-seedit4me-tunnel-healthcheck.timer --no-pager
 journalctl -u home-network-seedit4me-reverse-tunnel.service -n 80 --no-pager
+journalctl -u home-network-seedit4me-tunnel-healthcheck.service -n 80 --no-pager
+```
+
+The healthcheck timer writes Prometheus textfile metrics to:
+
+```text
+/var/lib/node_exporter/textfile_collector/home_network_seedit4me_tunnel.prom
+```
+
+Prometheus alerts route through the existing Alertmanager -> Discord path:
+
+- `Seedit4meReverseTunnelDown`
+- `Seedit4meReverseTunnelHealthcheckStale`
+
+Verify the textfile metrics locally:
+
+```bash
+sudo /home/jellybot/home-network/scripts/seedit4me-tunnel-healthcheck
+curl -fsS http://127.0.0.1:9100/metrics | grep home_network_seedit4me_tunnel
+```
+
+Verify the alert rules from Prometheus on `jellybase`:
+
+```bash
+curl -fsG --data-urlencode 'query=home_network_seedit4me_tunnel_success{host="jellyberry"}' http://127.0.0.1:9090/api/v1/query
+curl -fsS http://127.0.0.1:9090/api/v1/rules | grep Seedit4meReverseTunnel
 ```
 
 Verify the remote loopback port without printing the password:

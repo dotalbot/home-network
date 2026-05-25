@@ -104,7 +104,7 @@ The platform should make the home lab understandable, reproducible, observable, 
 
 ## V7 — Network Access, TLS, and Hardening
 
-- [x] Deploy and verify the loopback-only reverse SSH tunnel fallback from `jellyberry` to seedit4.me for cases where Tailscale is blocked; service is active/enabled and remote loopback `127.0.0.1:22022` returned `tunnel-open`.
+- [x] Deploy and verify the loopback-only reverse SSH tunnel fallback from `jellyberry` to seedit4.me for cases where Tailscale is blocked; service is active/enabled, remote loopback `127.0.0.1:22022` returned `tunnel-open`, and Prometheus alerts cover tunnel-down/stale-healthcheck states.
 - [ ] Pick a reverse proxy approach.
 - [ ] Define internal DNS and TLS source.
 - [ ] Add auth requirements for sensitive dashboards.
