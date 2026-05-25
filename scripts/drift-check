@@ -57,7 +57,13 @@ def includes_host(hosts, target):
 for name, svc in services.items():
     status = svc.get("status", "active")
 
-    if status not in ("active", "planned"):
+    # Drift checks compare live Docker containers against inventory. Planned
+    # services should not fail a host before rollout, and systemd-only services
+    # are verified by their own health checks rather than docker ps.
+    if status != "active":
+        continue
+
+    if svc.get("systemd_units") and not svc.get("containers"):
         continue
 
     if not includes_host(svc.get("hosts"), host):

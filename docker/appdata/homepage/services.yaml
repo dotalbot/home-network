@@ -24,6 +24,12 @@
       description: single-primary | jellybase
       icon: prometheus.png
       siteMonitor: http://192.168.1.2:9090
+  - Alertmanager:
+      href: http://192.168.1.2:9093
+      description: Prometheus alert grouping, dedupe, silences, and Discord wake-up
+        delivery bridge
+      icon: prometheus.png
+      siteMonitor: http://192.168.1.2:9093
   - Grafana:
       href: http://192.168.1.2:3001
       description: single-primary | jellybase
@@ -96,3 +102,9 @@
       description: shared PostgreSQL platform service for home-network applications;
         first target is Manyfold
       icon: postgres.png
+- Remote Access:
+  - Seedit4.me Reverse Tunnel:
+      href: ssh://seedit4me@nl13.seedit4.me:2088
+      description: fallback reverse SSH tunnel for jellyberry when Tailscale is blocked;
+        remote port is loopback-only on seedit4.me
+      icon: mdi-tunnel

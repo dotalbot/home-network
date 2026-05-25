@@ -444,3 +444,13 @@ drift:
     jellybase:
       - onecli-postgres-1
       - onecli
+    jellyhome:
+      # Existing out-of-band workloads observed during May 2026 recon. Keep
+      # these ignored until they are adopted into home-network or retired.
+      - borg-redis
+      - borg-web-ui
+      - dozzle-agent
+      - nanoclaw-v2-llama-with-sarah-1777924263965
+      - onecli
+      - onecli-postgres-1
+      - osrm_routing_engine-osrm-1
