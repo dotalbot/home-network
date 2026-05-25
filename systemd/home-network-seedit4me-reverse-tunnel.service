@@ -10,7 +10,9 @@ StartLimitBurst=6
 Type=simple
 User=jellybot
 WorkingDirectory=/home/jellybot
-ExecStart=/usr/bin/sshpass -f /opt/docker/.secrets/seedit4me/ssh_password /usr/bin/ssh -N -T -p 2088 \
+Environment=AUTOSSH_GATETIME=0
+Environment=AUTOSSH_LOGLEVEL=0
+ExecStart=/usr/bin/sshpass -f /opt/docker/.secrets/seedit4me/ssh_password /usr/bin/autossh -M 0 -N -T -p 2088 \
   -o BatchMode=no \
   -o PubkeyAuthentication=no \
   -o PreferredAuthentications=password,keyboard-interactive \

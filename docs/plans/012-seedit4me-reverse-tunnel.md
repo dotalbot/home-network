@@ -25,7 +25,7 @@ Create a persistent fallback access path into `jellyberry` for networks that blo
 ## Progress checklist
 
 - [x] Decide remote tunnel port: `22022`.
-- [x] Decide authentication path: password-based via host-local secret and `sshpass`.
+- [x] Decide authentication path: password-based via host-local secret, `sshpass`, and `autossh` supervision.
 - [x] Add source-managed systemd unit.
 - [x] Add install/verify script.
 - [x] Add operations runbook.

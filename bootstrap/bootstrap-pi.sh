@@ -14,6 +14,7 @@ sudo apt-get install -y \
   rsync \
   openssh-client \
   sshpass \
+  autossh \
   borgbackup \
   prometheus-node-exporter \
   smartmontools \

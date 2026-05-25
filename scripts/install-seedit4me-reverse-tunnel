@@ -40,7 +40,7 @@ fi
 
 echo "==> Installing required packages"
 "${SUDO[@]}" apt-get update
-"${SUDO[@]}" apt-get install -y openssh-client sshpass
+"${SUDO[@]}" apt-get install -y openssh-client sshpass autossh
 
 echo "==> Preparing secret directory"
 if ! getent group dockerops >/dev/null 2>&1; then
