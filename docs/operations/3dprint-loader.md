@@ -89,6 +89,9 @@ Then rebuild/recreate the selected services:
 ssh jellybot@jellyhome '
   set -euo pipefail
   cd /opt/docker
+  THREEDPRINT_LOADER_COMMIT_COUNT=$(git -C /home/jellybot/3dprint_loader rev-list --count HEAD) \
+  THREEDPRINT_LOADER_COMMIT_SHA=$(git -C /home/jellybot/3dprint_loader rev-parse HEAD) \
+  THREEDPRINT_LOADER_COMMIT_TIMESTAMP=$(git -C /home/jellybot/3dprint_loader log -1 --format=%cI) \
   docker compose \
     --env-file .env \
     -f docker-compose.yml \
@@ -116,7 +119,9 @@ If ownership has drifted, fix it with root/sudo using the `dockerops` group befo
 ```bash
 ssh jellybot@jellyhome 'docker ps --filter name=3dprint-loader'
 ssh jellybot@jellyhome 'curl -fsS http://192.168.1.1:8793/health'
+ssh jellybot@jellyhome 'curl -fsS http://192.168.1.1:8793/api/version'
 curl -fsS http://192.168.1.1:8793/health
+curl -fsS http://192.168.1.1:8793/api/version
 ```
 
 Expected health response:

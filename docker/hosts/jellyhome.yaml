@@ -109,6 +109,9 @@ services:
       CORS_ORIGINS: http://192.168.1.1:8793,http://jellyhome:8793
       STORAGE_DIR: /app/storage
       MAX_DOWNLOAD_BYTES: "250000000"
+      APP_COMMIT_COUNT: ${THREEDPRINT_LOADER_COMMIT_COUNT:-unknown}
+      APP_COMMIT_SHA: ${THREEDPRINT_LOADER_COMMIT_SHA:-unknown}
+      APP_COMMIT_TIMESTAMP: ${THREEDPRINT_LOADER_COMMIT_TIMESTAMP:-unknown}
       MAKERWORLD_STORAGE_STATE_PATH: /run/secrets/3dprint-loader/makerworld-storage-state.json
       MANYFOLD_BASE_URL: http://manyfold:3214
     volumes:
