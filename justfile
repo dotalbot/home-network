@@ -84,3 +84,6 @@ borgmatic-rollout-generate:
 
 node-exporter-rollout-generate:
     ./scripts/node-exporter-rollout-generate
+
+install-seedit4me-reverse-tunnel:
+    ./scripts/install-seedit4me-reverse-tunnel

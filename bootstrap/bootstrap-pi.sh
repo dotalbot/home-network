@@ -12,6 +12,8 @@ sudo apt-get install -y \
   tree \
   jq \
   rsync \
+  openssh-client \
+  sshpass \
   borgbackup \
   prometheus-node-exporter \
   smartmontools \

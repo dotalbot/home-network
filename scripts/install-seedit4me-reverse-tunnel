@@ -1,0 +1,137 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SERVICE_NAME="home-network-seedit4me-reverse-tunnel.service"
+REPO_DIR="${REPO_DIR:-/home/jellybot/home-network}"
+SECRET_DIR="${SECRET_DIR:-/opt/docker/.secrets/seedit4me}"
+SECRET_FILE="${SECRET_FILE:-${SECRET_DIR}/ssh_password}"
+SYSTEMD_SERVICE_SRC="${REPO_DIR}/systemd/${SERVICE_NAME}"
+SYSTEMD_SERVICE_DST="/etc/systemd/system/${SERVICE_NAME}"
+REMOTE_HOST="${REMOTE_HOST:-nl13.seedit4.me}"
+REMOTE_USER="${REMOTE_USER:-seedit4me}"
+REMOTE_SSH_PORT="${REMOTE_SSH_PORT:-2088}"
+REMOTE_TUNNEL_BIND="${REMOTE_TUNNEL_BIND:-127.0.0.1}"
+REMOTE_TUNNEL_PORT="${REMOTE_TUNNEL_PORT:-22022}"
+SERVICE_USER="${SERVICE_USER:-jellybot}"
+SERVICE_HOME="$(getent passwd "$SERVICE_USER" | cut -d: -f6)"
+KNOWN_HOSTS="${KNOWN_HOSTS:-${SERVICE_HOME}/.ssh/known_hosts}"
+KNOWN_HOST_PATTERN="[${REMOTE_HOST}]:${REMOTE_SSH_PORT}"
+
+SUDO=()
+if [[ "${EUID}" -ne 0 ]]; then
+  SUDO=(sudo)
+fi
+RUN_AS_SERVICE_USER=(sudo -u "$SERVICE_USER")
+
+require_file() {
+  local path="$1"
+  if [[ ! -f "$path" ]]; then
+    echo "missing required file: $path" >&2
+    exit 1
+  fi
+}
+
+require_file "$SYSTEMD_SERVICE_SRC"
+
+if [[ -z "$SERVICE_HOME" ]]; then
+  echo "service user $SERVICE_USER not found" >&2
+  exit 1
+fi
+
+echo "==> Installing required packages"
+"${SUDO[@]}" apt-get update
+"${SUDO[@]}" apt-get install -y openssh-client sshpass
+
+echo "==> Preparing secret directory"
+if ! getent group dockerops >/dev/null 2>&1; then
+  echo "dockerops group is required so $SERVICE_USER can read the tunnel secret" >&2
+  exit 1
+fi
+if ! id -nG "$SERVICE_USER" | tr ' ' '\n' | grep -qx dockerops; then
+  echo "$SERVICE_USER must be a member of dockerops to read $SECRET_FILE" >&2
+  exit 1
+fi
+"${SUDO[@]}" install -d -m 0770 -o root -g dockerops "$SECRET_DIR"
+
+if [[ ! -s "$SECRET_FILE" ]]; then
+  cat >&2 <<EOF
+
+Password secret is not present yet.
+Create it manually without printing the password, then rerun this installer:
+
+  sudo install -m 0640 -o root -g dockerops /dev/null "$SECRET_FILE"
+  sudo nano "$SECRET_FILE"
+  sudo chown root:dockerops "$SECRET_FILE"
+  sudo chmod 0640 "$SECRET_FILE"
+
+The file should contain only the seedit4me SSH password, with no extra notes.
+EOF
+  exit 2
+fi
+
+# Reject world/group-unsafe secret modes. Group-read is expected for dockerops.
+secret_mode="$(stat -c '%a' "$SECRET_FILE")"
+case "$secret_mode" in
+  400|440|600|640) ;;
+  *)
+    echo "unsafe secret mode $secret_mode on $SECRET_FILE; expected 0400/0440/0600/0640" >&2
+    exit 1
+    ;;
+esac
+
+if ! "${RUN_AS_SERVICE_USER[@]}" test -r "$SECRET_FILE"; then
+  echo "$SECRET_FILE is not readable by $SERVICE_USER; expected root:dockerops with mode 0640 and $SERVICE_USER in dockerops" >&2
+  exit 1
+fi
+
+echo "==> Verifying pinned SSH host key"
+"${SUDO[@]}" install -d -m 0700 -o "$SERVICE_USER" -g "$SERVICE_USER" "${SERVICE_HOME}/.ssh"
+"${SUDO[@]}" touch "$KNOWN_HOSTS"
+"${SUDO[@]}" chown "$SERVICE_USER:$SERVICE_USER" "$KNOWN_HOSTS"
+"${SUDO[@]}" chmod 0600 "$KNOWN_HOSTS"
+if ! "${RUN_AS_SERVICE_USER[@]}" ssh-keygen -F "$KNOWN_HOST_PATTERN" -f "$KNOWN_HOSTS" >/dev/null; then
+  cat >&2 <<EOF
+
+No pinned SSH host key was found for ${KNOWN_HOST_PATTERN} in ${KNOWN_HOSTS}.
+Do not send the password until the host key is pinned and verified.
+
+Current observed ED25519 fingerprint from this setup session was:
+  SHA256:f+lTqShffAxrW96d8Gospx/EWJpEd3k5WA+ieVb47vg
+
+If you verify that fingerprint out-of-band, pin the host key with:
+  ssh-keyscan -p ${REMOTE_SSH_PORT} ${REMOTE_HOST} >> ${KNOWN_HOSTS}
+  ssh-keygen -F '${KNOWN_HOST_PATTERN}' -f ${KNOWN_HOSTS}
+
+Then rerun this installer.
+EOF
+  exit 2
+fi
+
+echo "==> Installing systemd service"
+"${SUDO[@]}" install -m 0644 "$SYSTEMD_SERVICE_SRC" "$SYSTEMD_SERVICE_DST"
+"${SUDO[@]}" systemctl daemon-reload
+"${SUDO[@]}" systemctl enable --now "$SERVICE_NAME"
+
+echo "==> Waiting briefly for tunnel establishment"
+sleep 3
+"${SUDO[@]}" systemctl --no-pager --lines=20 status "$SERVICE_NAME" || true
+
+echo "==> Verifying remote loopback port from seedit4.me"
+sshpass -f "$SECRET_FILE" ssh -p "$REMOTE_SSH_PORT" \
+  -o BatchMode=no \
+  -o PubkeyAuthentication=no \
+  -o PreferredAuthentications=password,keyboard-interactive \
+  -o StrictHostKeyChecking=yes \
+  -o UserKnownHostsFile="$KNOWN_HOSTS" \
+  "${REMOTE_USER}@${REMOTE_HOST}" \
+  "timeout 5 bash -lc '</dev/tcp/${REMOTE_TUNNEL_BIND}/${REMOTE_TUNNEL_PORT}' && echo tunnel-open"
+
+cat <<EOF
+
+good
+Remote access path:
+  ssh -p ${REMOTE_SSH_PORT} ${REMOTE_USER}@${REMOTE_HOST}
+  ssh -p ${REMOTE_TUNNEL_PORT} jellybot@127.0.0.1
+
+The reverse tunnel binds only to ${REMOTE_TUNNEL_BIND}:${REMOTE_TUNNEL_PORT} on seedit4.me.
+EOF

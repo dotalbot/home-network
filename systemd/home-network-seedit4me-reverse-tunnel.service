@@ -1,0 +1,35 @@
+[Unit]
+Description=home-network reverse SSH tunnel to seedit4.me for jellyberry emergency access
+Documentation=file:/home/jellybot/home-network/docs/operations/seedit4me-reverse-tunnel.md
+Wants=network-online.target
+After=network-online.target
+StartLimitIntervalSec=300
+StartLimitBurst=6
+
+[Service]
+Type=simple
+User=jellybot
+WorkingDirectory=/home/jellybot
+ExecStart=/usr/bin/sshpass -f /opt/docker/.secrets/seedit4me/ssh_password /usr/bin/ssh -N -T -p 2088 \
+  -o BatchMode=no \
+  -o PubkeyAuthentication=no \
+  -o PreferredAuthentications=password,keyboard-interactive \
+  -o StrictHostKeyChecking=yes \
+  -o UserKnownHostsFile=/home/jellybot/.ssh/known_hosts \
+  -o ServerAliveInterval=30 \
+  -o ServerAliveCountMax=3 \
+  -o ExitOnForwardFailure=yes \
+  -R 127.0.0.1:22022:127.0.0.1:22 \
+  seedit4me@nl13.seedit4.me
+Restart=always
+RestartSec=15s
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+SystemCallArchitectures=native
+
+[Install]
+WantedBy=multi-user.target

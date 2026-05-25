@@ -390,6 +390,23 @@ services:
     backup: appdata-and-source-repo
     status: active
 
+  seedit4me-reverse-tunnel:
+    display_name: Seedit4.me Reverse Tunnel
+    icon: mdi-tunnel
+    category: Remote Access
+    mode: systemd-single-primary
+    hosts:
+      - jellyberry
+    systemd_units:
+      jellyberry:
+        - home-network-seedit4me-reverse-tunnel.service
+    urls:
+      remote_ssh: ssh://seedit4me@nl13.seedit4.me:2088
+      remote_loopback: ssh://127.0.0.1:22022
+    description: fallback reverse SSH tunnel for jellyberry when Tailscale is blocked; remote port is loopback-only on seedit4.me
+    backup: config-only
+    status: planned
+
   calibre-web-automated:
     display_name: Calibre Web Automated
     icon: calibre-web.png
