@@ -71,7 +71,7 @@ Runtime metric path on `jellybase`:
 
 The runner checks:
 
-- takes a non-blocking lock at `/run/lock/home-network-scheduled-ops-check.lock` so overlapping timer runs exit quietly;
+- takes a non-blocking lock; manual runs default to a per-user `/tmp/home-network-scheduled-ops-check-<uid>.lock`, while the systemd timer sets `LOCK_FILE=/run/home-network/scheduled-ops-check.lock` via `RuntimeDirectory=home-network` so overlapping timer runs exit quietly;
 - repo cleanliness through `git status --short --branch`;
 - service reachability through `scripts/status`;
 - Docker service drift through `scripts/drift-check`;

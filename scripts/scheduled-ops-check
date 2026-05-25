@@ -26,7 +26,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_PROMETHEUS_URL = "http://127.0.0.1:9090"
 DEFAULT_ALERTMANAGER_URL = "http://127.0.0.1:9093"
 DEFAULT_TEXTFILE = "/var/lib/node_exporter/textfile_collector/home_network_scheduled_ops.prom"
-DEFAULT_LOCK_FILE = "/run/lock/home-network-scheduled-ops-check.lock"
+DEFAULT_LOCK_FILE = f"/tmp/home-network-scheduled-ops-check-{os.getuid()}.lock"
 
 
 @dataclass
