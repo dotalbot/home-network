@@ -10,6 +10,7 @@ intended to be run manually with sudo on the matching host.
 from __future__ import annotations
 
 import os
+import ipaddress
 import re
 import shutil
 import sys
@@ -51,6 +52,15 @@ def validate_port(value: Any, field: str) -> int:
     if not isinstance(value, int) or value < 1 or value > 65535:
         fail(f"{field} must be a TCP port number, got {value!r}")
     return value
+
+
+def validate_ip(value: Any, field: str) -> str:
+    if not isinstance(value, str):
+        fail(f"{field} must be an IP address string, got {value!r}")
+    try:
+        return str(ipaddress.ip_address(value))
+    except ValueError:
+        fail(f"{field} must be a valid IP address, got {value!r}")
 
 
 def shell_single_quote(value: str) -> str:
@@ -349,6 +359,9 @@ def stages(host: str, cfg: dict[str, Any], scrape_targets: list[str]) -> dict[st
     scheme = cfg["scrape_scheme"]
     scrape_host = cfg["scrape_host"]
     pi_early = bool(cfg.get("pi_early_warning", False))
+    allowed_scrapers = cfg.get("allowed_scrapers") or []
+    allowed_host_array = " ".join(shell_single_quote(str(item["host"])) for item in allowed_scrapers)
+    allowed_ip_array = " ".join(shell_single_quote(str(item["ip"])) for item in allowed_scrapers)
     packages = "prometheus-node-exporter smartmontools nvme-cli util-linux lm-sensors"
     if pi_early:
         packages += " usbutils hdparm mmc-utils sysstat"
@@ -568,8 +581,72 @@ __SCRAPE_TARGETS__
 EOF
 echo
 echo "Current local endpoint: ${SCRAPE_SCHEME}://${SCRAPE_HOST}:${SCRAPE_PORT}/metrics"
-echo "Security note: TCP 9100 hardening is intentionally deferred until first visibility works."
+echo "Security note: run stage-07-configure-access-control.sh after verifying Prometheus can scrape this host."
 ''').replace("__SCRAPE_TARGETS__", target_lines),
+        "stage-07-configure-access-control.sh": base + f'''
+echo "Configure node_exporter TCP ${{SCRAPE_PORT}} access control for $EXPECTED_HOST"
+ALLOWED_SCRAPER_HOSTS=({allowed_host_array})
+ALLOWED_SCRAPER_IPS=({allowed_ip_array})
+
+echo "Approved Prometheus scraper sources:"
+for idx in "${{!ALLOWED_SCRAPER_HOSTS[@]}}"; do
+  echo "  - ${{ALLOWED_SCRAPER_HOSTS[$idx]}} (${{ALLOWED_SCRAPER_IPS[$idx]}})"
+done
+
+curl -fsS "http://127.0.0.1:${{SCRAPE_PORT}}/metrics" | grep -E '^(node_exporter_build_info|node_uname_info|node_filesystem_size_bytes)' >/dev/null
+
+print_recommended_rules() {{
+  echo "Recommended UFW policy for $EXPECTED_HOST, review before applying:"
+  for ip in "${{ALLOWED_SCRAPER_IPS[@]}}"; do
+    echo "sudo ufw allow from $ip to any port $SCRAPE_PORT proto tcp comment 'home-network Prometheus scrape'"
+  done
+  if [ "$EXPECTED_HOST" = "jellybase" ]; then
+    echo "# jellybase Prometheus runs in Docker; allow local Docker bridge subnets if the scrape target remains host.docker.internal:9100:"
+    ip -o -4 addr show | awk '$2 ~ /^(docker0|br-)/ {{print $4}}' | sort -u | while read -r cidr; do
+      [ -n "$cidr" ] && echo "sudo ufw allow from $cidr to any port $SCRAPE_PORT proto tcp comment 'home-network local Docker Prometheus scrape'"
+    done
+  fi
+  echo "sudo ufw deny $SCRAPE_PORT/tcp comment 'home-network deny non-scraper node_exporter'"
+}}
+
+if ! command -v ufw >/dev/null 2>&1; then
+  echo "not applied: ufw is not installed; use equivalent nftables/iptables rules: allow approved scraper IPs, then deny TCP $SCRAPE_PORT."
+  print_recommended_rules
+  exit 0
+fi
+
+status_line="$(ufw status | sed -n '1p')"
+echo "$status_line"
+if ! printf '%s\n' "$status_line" | grep -qi '^Status: active'; then
+  echo "not applied: UFW is installed but inactive. This stage does not enable or rewrite firewall policy automatically."
+  print_recommended_rules
+  exit 0
+fi
+
+insert_pos=1
+for ip in "${{ALLOWED_SCRAPER_IPS[@]}}"; do
+  ufw insert "$insert_pos" allow from "$ip" to any port "$SCRAPE_PORT" proto tcp comment 'home-network Prometheus scrape'
+  insert_pos=$((insert_pos + 1))
+done
+
+if [ "$EXPECTED_HOST" = "jellybase" ]; then
+  while read -r cidr; do
+    if [ -n "$cidr" ]; then
+      ufw insert "$insert_pos" allow from "$cidr" to any port "$SCRAPE_PORT" proto tcp comment 'home-network local Docker Prometheus scrape'
+      insert_pos=$((insert_pos + 1))
+    fi
+  done < <(ip -o -4 addr show | awk '$2 ~ /^(docker0|br-)/ {{print $4}}' | sort -u)
+fi
+
+ufw insert "$insert_pos" deny "$SCRAPE_PORT/tcp" comment 'home-network deny non-scraper node_exporter'
+
+if ufw status numbered | grep -Ei "${{SCRAPE_PORT}}(/tcp)?[[:space:]]+ALLOW IN[[:space:]]+Anywhere" >/dev/null; then
+  echo "warning: broad lower-priority ALLOW rule for TCP $SCRAPE_PORT is still present; the inserted deny should take precedence, but review 'sudo ufw status numbered' and delete stale broad rules during cleanup."
+fi
+
+ufw status numbered | grep -E "Status:|${{SCRAPE_PORT}}" || true
+echo "good: staged node_exporter access-control policy inserted for $EXPECTED_HOST; verify approved Prometheus scrape and a non-approved negative check before marking runtime hardening complete"
+''',
     }
 
 
@@ -591,6 +668,19 @@ def monitored_hosts(data: dict[str, Any]) -> dict[str, dict[str, Any]]:
     hosts = data.get("hosts") or {}
     if not isinstance(hosts, dict):
         fail("hosts must be a mapping")
+    allowed_scrapers_raw = defaults.get("allowed_scrapers") or []
+    if not isinstance(allowed_scrapers_raw, list) or not allowed_scrapers_raw:
+        fail("monitoring_defaults.node_exporter.allowed_scrapers must be a non-empty list")
+    allowed_scrapers: list[dict[str, str]] = []
+    for idx, item in enumerate(allowed_scrapers_raw):
+        if not isinstance(item, dict):
+            fail(f"monitoring_defaults.node_exporter.allowed_scrapers[{idx}] must be a mapping")
+        scraper_host = validate_host_name(str(item.get("host") or ""), f"monitoring_defaults.node_exporter.allowed_scrapers[{idx}].host")
+        scraper_cfg = hosts.get(scraper_host)
+        if not isinstance(scraper_cfg, dict):
+            fail(f"allowed scraper host {scraper_host} is not defined in hosts")
+        scraper_ip = validate_ip(scraper_cfg.get("lan_ip"), f"hosts.{scraper_host}.lan_ip")
+        allowed_scrapers.append({"host": scraper_host, "ip": scraper_ip})
     result: dict[str, dict[str, Any]] = {}
     for raw_host, raw_cfg in sorted(hosts.items()):
         host = validate_host_name(str(raw_host), "hosts key")
@@ -614,6 +704,10 @@ def monitored_hosts(data: dict[str, Any]) -> dict[str, dict[str, Any]]:
         if not (enabled and has_role):
             continue
         cfg["host"] = host
+        if raw_cfg.get("lan_ip") is None:
+            fail(f"hosts.{host}.lan_ip is required for node_exporter firewall allowlisting")
+        cfg["lan_ip"] = validate_ip(raw_cfg.get("lan_ip"), f"hosts.{host}.lan_ip")
+        cfg["allowed_scrapers"] = allowed_scrapers
         cfg["scrape_host"] = validate_host_name(str(cfg.get("scrape_host") or host), f"hosts.{host}.monitoring.node_exporter.scrape_host")
         cfg["scrape_port"] = validate_port(cfg.get("scrape_port"), f"hosts.{host}.monitoring.node_exporter.scrape_port")
         scheme = cfg.get("scrape_scheme")
@@ -652,6 +746,7 @@ sudo ./stage-03-install-disk-health-probe.sh
 sudo ./stage-04-enable-disk-health-timer.sh
 sudo ./stage-05-verify-local-metrics.sh
 sudo ./stage-06-prometheus-target-note.sh
+sudo ./stage-07-configure-access-control.sh
 ```
 
 Overwrite safety flags, only after reviewing existing files:
@@ -667,7 +762,7 @@ Expected local metrics endpoint:
 {cfg['scrape_scheme']}://{cfg['scrape_host']}:{cfg['scrape_port']}/metrics
 ```
 
-Security note: TCP 9100 access-control hardening is intentionally deferred until first visibility works.
+Security note: TCP 9100 access-control hardening is handled by optional stage 07. It applies UFW rules only when UFW is already active; otherwise it prints the exact recommended allow/deny policy and does not enable or rewrite the host firewall.
 """
 
 

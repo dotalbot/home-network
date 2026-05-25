@@ -15,6 +15,7 @@ if ! python3 -c "import yaml" >/dev/null 2>&1; then
 fi
 
 python3 - "$HOSTS_FILE" <<'PY'
+import ipaddress
 import sys
 import yaml
 
@@ -35,6 +36,15 @@ def fail(message: str) -> None:
     global bad
     print(message)
     bad = True
+
+def valid_ip(value: object) -> bool:
+    if not isinstance(value, str):
+        return False
+    try:
+        ipaddress.ip_address(value)
+        return True
+    except ValueError:
+        return False
 
 if not isinstance(hosts, dict) or not hosts:
     fail("missing hosts mapping")
@@ -64,6 +74,9 @@ else:
     for item in allowed_scrapers:
         if not isinstance(item, dict) or not isinstance(item.get("host"), str) or not item.get("host"):
             fail("monitoring_defaults.node_exporter.allowed_scrapers entries must include host")
+        scraper_cfg = hosts.get(item.get("host")) if isinstance(hosts, dict) else None
+        if not isinstance(scraper_cfg, dict) or not valid_ip(scraper_cfg.get("lan_ip")):
+            fail(f"allowed scraper {item.get('host')} must have hosts.<host>.lan_ip for firewall allowlisting")
 
 expected_first_pass = {"jellyhome", "jellybase", "jellyberry"}
 found_first_pass = set()
@@ -89,6 +102,8 @@ for host, cfg in sorted(hosts.items()):
         scrape_host = monitoring.get("scrape_host")
         if not isinstance(scrape_host, str) or not scrape_host:
             fail(f"hosts.{host} node_exporter scrape_host is required")
+        if not valid_ip(cfg.get("lan_ip")):
+            fail(f"hosts.{host}.lan_ip is required for node_exporter firewall allowlisting")
         if "pi" in roles and monitoring.get("pi_early_warning") is not True:
             fail(f"hosts.{host} is a pi node-exporter-client but pi_early_warning is not true")
     elif enabled:

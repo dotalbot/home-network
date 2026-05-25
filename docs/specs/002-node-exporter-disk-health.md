@@ -442,7 +442,8 @@ Implementation detail:
 
 - On `jellyhome` and `jellyberry`, allow TCP `9100` only from the `jellybase` LAN IP, and optionally from the `jellybase` Tailscale IP if Prometheus is explicitly configured to scrape over Tailnet.
 - On `jellybase`, allow local scraping from `127.0.0.1`; if Prometheus runs in Docker bridge mode and scrapes the host via bridge/gateway, allow only the required Docker bridge subnet or use a host-network/explicit host-gateway pattern.
-- If UFW is active, generated rollout should use UFW rules. If UFW is not active, generated rollout should either configure nftables/iptables only after explicit approval or print the exact recommended rule without mutating firewall state.
+- Generated `stage-07-configure-access-control.sh` should use inventory `monitoring_defaults.node_exporter.allowed_scrapers` and host `lan_ip` values.
+- If UFW is active, generated rollout should use UFW rules. If UFW is not active, generated rollout should print the exact recommended UFW commands plus equivalent nftables/iptables policy guidance without mutating firewall state or enabling UFW automatically.
 
 Example UFW intent, not blindly copy/paste for every host:
 
@@ -488,6 +489,6 @@ Later hardening acceptance criteria:
 1. Should `jellybackup` be added to the node_exporter/disk-health monitoring rollout now?
    - Recommendation: yes soon, because it is the backup target.
 2. Should TCP `9100` hardening be implemented as a new stage in this generator or a separate hardening generator?
-   - Recommendation: separate or clearly optional staged hardening so first-pass visibility remains easy to reason about.
+   - Decision: optional `stage-07-configure-access-control.sh` in the generator, after first-pass visibility checks.
 3. Which Grafana dashboards and Prometheus alert rules should be source-managed first?
    - Recommendation: backup freshness/failure, node_exporter scrape down, disk pressure, disk-health failure/unknown/stale, and Pi early-warning conditions.

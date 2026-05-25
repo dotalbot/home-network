@@ -2,7 +2,7 @@
 
 > **For Hermes:** Use subagent-driven-development skill to implement this plan task-by-task after user review/approval.
 
-**Goal:** Add generic stage-based node_exporter setup and disk health telemetry for `jellyhome`, `jellybase`, and `jellyberry`, with future-host support from inventory. First-pass rollout is implemented and visible in Prometheus; hardening and dashboard/alert provisioning remain follow-up work.
+**Goal:** Add generic stage-based node_exporter setup and disk health telemetry for `jellyhome`, `jellybase`, and `jellyberry`, with future-host support from inventory. First-pass rollout is implemented and visible in Prometheus; the access-control stage is generated, while live hardening application/negative verification and future dashboard/alert improvements remain follow-up work.
 
 **Architecture:** Keep monitoring rollout separate from Borgmatic repository setup. Generate per-host staged scripts from inventory. Install node_exporter and disk-health tooling on the host OS, write sanitized disk-health metrics via node_exporter textfile collector, and let Prometheus scrape each host.
 
@@ -23,7 +23,7 @@ In scope:
 Out of scope for this review draft:
 
 - Running additional node_exporter setup beyond the first-pass host rollout already completed.
-- Adding node_exporter access-control hardening rules.
+- Applying node_exporter access-control hardening rules on live hosts; this plan now defines the generated stage, but runtime application remains operator-controlled.
 - Adding Grafana dashboards.
 - Adding alertmanager routes.
 
@@ -210,6 +210,8 @@ git diff --check
 
 **Objective:** After initial metrics are working, restrict TCP `9100` so only approved scraper hosts can access node_exporter.
 
+**Staged implementation status:** The rollout generator now emits `stage-07-configure-access-control.sh` for each node_exporter host. The stage uses inventory `allowed_scrapers` plus each scraper host `lan_ip`, applies UFW allow/deny rules only when UFW is already active, and otherwise prints exact recommended UFW policy without enabling or rewriting firewall state.
+
 **Default policy:**
 
 ```text
@@ -219,10 +221,10 @@ deny TCP 9100 from everything else
 
 **Implementation notes:**
 
-- Add a later generated stage such as `stage-07-configure-access-control.sh`, or a separate hardening generator if we want to keep firewall work isolated.
+- Use generated `stage-07-configure-access-control.sh`; keep it optional and after first visibility so scraper access is not broken during bootstrap.
 - Use inventory-driven allowed scraper metadata, with `jellybase` as the default Prometheus scraper.
 - Prefer UFW when active.
-- If UFW is inactive, do not silently rewrite firewall policy; print the exact recommended nftables/iptables rules and require explicit approval for mutation.
+- If UFW is inactive, do not silently rewrite firewall policy; print the exact recommended UFW intent plus equivalent nftables/iptables policy guidance and require explicit approval for mutation.
 - On `jellybase`, account for Prometheus running locally/in Docker by allowing `127.0.0.1` and the selected Docker/host-gateway path only if needed.
 
 **Verification:**
@@ -250,6 +252,6 @@ Please choose/confirm:
 1. Add `jellybackup` to node_exporter/disk-health monitoring now that the first three hosts work?
    - Recommendation: yes soon, because it is the backup target.
 2. How should TCP `9100` be hardened on each host?
-   - Recommendation: staged allowlist with `jellybase`/Prometheus as the approved scraper path, using UFW only where active and printing nftables/iptables guidance otherwise.
+   - Decision: staged allowlist with `jellybase`/Prometheus as the approved scraper path, using UFW only where active and printing reviewed UFW guidance otherwise.
 3. Which Prometheus alert rules and Grafana dashboards should be source-managed first?
    - Recommendation: backup success/staleness, disk pressure, disk-health failure/unknown/stale, and host scrape down.

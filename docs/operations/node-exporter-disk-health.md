@@ -84,7 +84,7 @@ The repo remains the source of truth. Runtime config/scripts on hosts should be 
 
 ## Remaining work
 
-1. Add staged node_exporter access-control hardening so TCP `9100` is only reachable from the approved Prometheus scraper path.
+1. Run and verify generated `stage-07-configure-access-control.sh` on live hosts so TCP `9100` is only reachable from the approved Prometheus scraper path.
 2. Deploy and verify source-managed Prometheus config/rules on `jellybase`, then wire alert delivery through the chosen Discord/Hermes or Alertmanager path.
 3. Deploy and verify the source-managed `Host Observability` Grafana dashboard on `jellybase`.
 4. Decide whether to add `jellybackup` to the node_exporter/disk-health rollout now that the first three hosts work.

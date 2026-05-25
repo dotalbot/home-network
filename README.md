@@ -276,7 +276,7 @@ jellyberry:9100  node_exporter
 
 Prometheus scrapes these under job `node_exporter`. In the current Docker scrape path, `jellybase` may appear as `host.docker.internal:9100` while the metric `host` label remains `jellybase`.
 
-Visible metric families include standard node_exporter host metrics, sanitized Borgmatic textfile metrics, and `home_network_disk_health_*` disk-health metrics. Grafana is reachable, but source-managed dashboard/provisioning files remain follow-up work. TCP `9100` access-control hardening is also still a staged follow-up; keep endpoints LAN/Tailnet-only.
+Visible metric families include standard node_exporter host metrics, sanitized Borgmatic textfile metrics, and `home_network_disk_health_*` disk-health metrics. Grafana is reachable, and source-managed dashboard/provisioning exists for the current observability pass. TCP `9100` access-control now has a generated stage-07 hardening path, but live host application and negative verification remain follow-up work; keep endpoints LAN/Tailnet-only.
 
 Operational docs:
 
