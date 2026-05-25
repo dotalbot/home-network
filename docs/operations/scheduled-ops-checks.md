@@ -72,7 +72,7 @@ Runtime metric path on `jellybase`:
 The runner checks:
 
 - takes a non-blocking lock; manual runs default to a per-user `/tmp/home-network-scheduled-ops-check-<uid>.lock`, while the systemd timer sets `LOCK_FILE=/run/home-network/scheduled-ops-check.lock` via `RuntimeDirectory=home-network` so overlapping timer runs exit quietly;
-- repo cleanliness through `git status --short --branch`;
+- repo cleanliness through `git -c safe.directory=<repo> status --short --branch` so the root-run systemd service can inspect the operator-owned checkout without changing global Git config;
 - service reachability through `scripts/status`;
 - Docker service drift through `scripts/drift-check`;
 - backup policy metadata through `scripts/backup-policy-check`;

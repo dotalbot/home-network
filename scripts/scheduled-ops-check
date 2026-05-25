@@ -179,6 +179,7 @@ def write_atomic(path: Path, content: str) -> None:
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as handle:
             handle.write(content)
+        os.chmod(tmp_name, 0o644)
         os.replace(tmp_name, path)
     finally:
         if os.path.exists(tmp_name):
@@ -214,7 +215,7 @@ def main() -> int:
 
     if not args.no_command_checks:
         results.extend([
-            run_command("repo_status", ["git", "status", "--short", "--branch"], timeout=20),
+            run_command("repo_status", ["git", "-c", f"safe.directory={REPO_ROOT}", "status", "--short", "--branch"], timeout=20),
             run_command("service_status", [str(REPO_ROOT / "scripts" / "status")], timeout=45),
             run_command("docker_drift", [str(REPO_ROOT / "scripts" / "drift-check")], timeout=45),
             run_command("backup_policy", [str(REPO_ROOT / "scripts" / "backup-policy-check")], timeout=45),
