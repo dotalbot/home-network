@@ -1,0 +1,39 @@
+{
+  "version": "1",
+  "bank": {
+    "reflect_mission": "Maintain durable operational memory for Hermes usage, profile behavior, tool conventions, memory policy, and stable integration details. This bank should help Hermes recall how it is expected to behave and what long-lived environment facts matter for safe operation.",
+    "retain_mission": "Keep stable Hermes-related facts: profile conventions, tool expectations, dashboard locations, durable integration endpoints, recurring coordination patterns, and validated operating constraints. Ignore temporary sessions, one-off outputs, and short-lived task artifacts.",
+    "retain_extraction_mode": "concise",
+    "enable_observations": true,
+    "observations_mission": "Consolidate durable operational patterns about Hermes configuration, tool use, user communication preferences, and stable environment conventions. Do not capture transient run state.",
+    "recall_budget_function": "fixed",
+    "recall_budget_fixed_low": 100,
+    "recall_budget_fixed_mid": 300,
+    "recall_budget_fixed_high": 1000
+  },
+  "directives": [
+    {
+      "name": "prefer-stable-operational-facts",
+      "content": "Retain stable operational facts such as dashboard URLs, host roles, durable profile conventions, and long-lived integration details. Reject ephemeral output and task-by-task chatter.",
+      "priority": 100,
+      "is_active": true,
+      "tags": ["hermes"]
+    },
+    {
+      "name": "preserve-user-preference-boundaries",
+      "content": "Keep user preferences and cross-session conventions when they are durable. Do not turn temporary instructions or transient status updates into long-term facts.",
+      "priority": 90,
+      "is_active": true,
+      "tags": ["hermes"]
+    }
+  ],
+  "mental_models": [
+    {
+      "id": "hermes-operations-model",
+      "name": "Hermes operations model",
+      "source_query": "Summarize the durable operating model for Hermes: profile behavior, dashboard/runtime locations, tool-use expectations, and stable user-facing conventions.",
+      "tags": ["hermes"],
+      "max_tokens": 1600
+    }
+  ]
+}

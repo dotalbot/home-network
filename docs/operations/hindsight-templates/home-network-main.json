@@ -1,0 +1,46 @@
+{
+  "version": "1",
+  "bank": {
+    "reflect_mission": "Maintain durable infrastructure memory for the home-network environment: host roles, deployment model, source-of-truth conventions, service placement, backup and restore expectations, and recurring operational constraints.",
+    "retain_mission": "Keep stable infrastructure facts such as host identities, source-vs-runtime deployment rules, service ownership, ports, backup/restore paths, and durable operational guardrails. Ignore temporary incidents, short-lived failures, and routine run noise unless they establish a lasting constraint.",
+    "retain_extraction_mode": "concise",
+    "enable_observations": true,
+    "observations_mission": "Synthesize durable infrastructure patterns: host responsibilities, deployment flow, backup/restore design, service dependencies, and stable networking or storage constraints.",
+    "recall_budget_function": "fixed",
+    "recall_budget_fixed_low": 120,
+    "recall_budget_fixed_mid": 350,
+    "recall_budget_fixed_high": 1100
+  },
+  "directives": [
+    {
+      "name": "source-of-truth-first",
+      "content": "Prefer source-of-truth facts from the home-network repository and only treat runtime paths as deployed state. Preserve rebuild and restore clarity between source config and host-local state.",
+      "priority": 100,
+      "is_active": true,
+      "tags": ["home-network"]
+    },
+    {
+      "name": "restorability-over-noise",
+      "content": "Prioritize facts that affect rebuildability, restorability, service placement, secrets handling, ports, persistent data locations, and operator guardrails.",
+      "priority": 95,
+      "is_active": true,
+      "tags": ["home-network"]
+    }
+  ],
+  "mental_models": [
+    {
+      "id": "home-network-topology",
+      "name": "Home-network topology and deployment model",
+      "source_query": "Summarize the durable host topology, deployment flow, source-of-truth repository conventions, runtime locations, and backup/restore boundaries for the home-network environment.",
+      "tags": ["home-network"],
+      "max_tokens": 1800
+    },
+    {
+      "id": "home-network-service-ops",
+      "name": "Home-network service operations",
+      "source_query": "Summarize stable operational facts about service placement, ports, monitoring, homepage exposure, secrets handling, and restore-critical data paths in the home-network environment.",
+      "tags": ["home-network"],
+      "max_tokens": 1800
+    }
+  ]
+}

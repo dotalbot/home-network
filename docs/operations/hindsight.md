@@ -29,14 +29,16 @@ Deployment notes:
 
 Create `/opt/docker/.secrets/hindsight/hindsight.env` on jellyhome. Do not commit it.
 
-Current first-pass provider choice uses the existing OpenRouter key as an OpenAI-compatible Hindsight provider:
+Current working provider choice uses the existing OpenRouter key as an OpenAI-compatible Hindsight provider:
 
 ```env
 HINDSIGHT_API_LLM_PROVIDER=openrouter
-HINDSIGHT_API_LLM_MODEL=qwen/qwen3.5-9b
+HINDSIGHT_API_LLM_MODEL=openai/gpt-4o-mini
 HINDSIGHT_API_LLM_API_KEY=<secret>
 HINDSIGHT_API_LLM_BASE_URL=https://openrouter.ai/api/v1
 ```
+
+Reason for the change: the initial `qwen/qwen3.5-9b` choice could answer a direct structured-output probe, but Hindsight retain stalled in `llm.openrouter.retain_extract_facts+structured`. Switching to `openai/gpt-4o-mini` on the same OpenRouter account allowed the end-to-end retain/recall smoke test to complete successfully.
 
 If the provider changes later, update only the host-local secret file and redeploy the service.
 
@@ -51,9 +53,38 @@ Use project banks first and a global bank sparingly:
 | `jellyweb-main` | Django/PostGIS/map/POI/NSPL work |
 | `home-network-main` | Docker, Tailscale, Borg, Homepage, monitoring |
 | `hermes-main` | Hermes operational behaviour, plugins, memory choices |
-| `opencode-main` | OpenCode-specific patterns, agents, model profiles |
 
 Avoid one giant bank. It will become memory soup. Nobody wants soup in the server rack.
+
+## Bank templates
+
+Hindsight supports bank template import/export, but in `0.6.2` the template manifest is for bank setup, not for preloading memories.
+
+Verified template manifest scope from `/v1/bank-template-schema`:
+
+- `bank` — bank configuration such as missions, extraction mode, budgets, entity-label controls, strategies, and observation settings
+- `mental_models` — reusable mental models for the bank
+- `directives` — reusable directives for the bank
+
+Template manifests do not include retained memories, so a template is best used as a prebuilt bank profile rather than a seed knowledge dump.
+
+Recommended starter templates for this environment:
+
+- `global-dominic` — sparse global defaults and stable user/environment conventions only
+- `hermes-main` — Hermes memory policy, recall budget, and extraction guidance
+- `home-network-main` — infra-focused missions/directives for Docker, backups, restoreability, and host naming
+- per-project templates such as `logk-main` and `portfolio-intel-main`
+
+Template files live under `docs/operations/hindsight-templates/` in the `home-network` repo.
+
+Suggested template content:
+
+- `reflect_mission` describing what the bank is for
+- `retain_mission` describing what should be kept vs ignored
+- optional `mental_models` for domain concepts
+- optional `directives` for recall/reflect behavior
+
+Do not treat templates as a substitute for retain/import pipelines; they shape the bank, they do not populate historical facts.
 
 ## Hermes integration note
 
@@ -130,6 +161,16 @@ curl -fsS http://192.168.1.1:9999 >/dev/null
 ```
 
 Use the API and UI checks plus container logs. First startup can take time while embedded pg0 and model assets initialize.
+
+Functional verification status as of 2026-05-26:
+
+- Bank create/update works.
+- Bank template schema endpoint works.
+- Template import works.
+- Prebuilt template manifests were added under `docs/operations/hindsight-templates/`.
+- End-to-end retain+recall now works after switching the OpenRouter-backed model from `qwen/qwen3.5-9b` to `openai/gpt-4o-mini`.
+- Verified smoke-test flow: create temporary bank, import `hermes-main` template, retain one item, recall it by unique token, then delete the bank.
+- Direct probe diagnosis: `qwen/qwen3.5-9b` can answer a simple structured-output request, but in Hindsight retain it stalled in `llm.openrouter.retain_extract_facts+structured`; `openai/gpt-4o-mini` completed quickly on the same OpenRouter account.
 
 ## Backup and restore
 

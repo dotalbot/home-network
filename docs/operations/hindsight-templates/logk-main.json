@@ -1,0 +1,32 @@
+{
+  "version": "1",
+  "bank": {
+    "reflect_mission": "Maintain durable product and architecture memory for LogK: canonical concepts, Golden Spine, content lifecycle, repo conventions, and long-lived design decisions.",
+    "retain_mission": "Keep stable LogK facts such as product architecture, domain concepts, system boundaries, workflow conventions, and lasting implementation decisions. Ignore temporary debugging details and short-lived execution state unless they establish a durable pattern.",
+    "retain_extraction_mode": "concise",
+    "enable_observations": true,
+    "observations_mission": "Consolidate durable product and architecture patterns for LogK, especially core concepts, lifecycle rules, architecture boundaries, and recurring workflow expectations.",
+    "recall_budget_function": "fixed",
+    "recall_budget_fixed_low": 120,
+    "recall_budget_fixed_mid": 350,
+    "recall_budget_fixed_high": 1100
+  },
+  "directives": [
+    {
+      "name": "preserve-canonical-logk-concepts",
+      "content": "Prefer stable domain concepts, canonical architecture terms, and long-lived workflow rules. Avoid cluttering the bank with ephemeral run details.",
+      "priority": 100,
+      "is_active": true,
+      "tags": ["logk"]
+    }
+  ],
+  "mental_models": [
+    {
+      "id": "logk-architecture-and-lifecycle",
+      "name": "LogK architecture and lifecycle",
+      "source_query": "Summarize the durable architecture, Golden Spine, content lifecycle, and recurring development conventions for LogK.",
+      "tags": ["logk"],
+      "max_tokens": 1800
+    }
+  ]
+}

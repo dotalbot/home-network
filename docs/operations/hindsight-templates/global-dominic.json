@@ -1,0 +1,39 @@
+{
+  "version": "1",
+  "bank": {
+    "reflect_mission": "Maintain sparse global memory for stable user and environment facts that are useful across projects. Prefer durable preferences, machine names, identity mappings, and recurring operational conventions. Avoid transient task state and project-specific detail that belongs in narrower banks.",
+    "retain_mission": "Keep only stable cross-project facts such as user preferences, host identities, recurring workflow conventions, and durable environment facts. Ignore temporary tasks, session status, commits, and routine one-off troubleshooting details.",
+    "retain_extraction_mode": "concise",
+    "enable_observations": true,
+    "observations_mission": "Synthesize only durable cross-project observations about user preferences, environment conventions, and recurring operational patterns. Do not promote temporary work state into observations.",
+    "recall_budget_function": "fixed",
+    "recall_budget_fixed_low": 100,
+    "recall_budget_fixed_mid": 300,
+    "recall_budget_fixed_high": 1000
+  },
+  "directives": [
+    {
+      "name": "durable-facts-only",
+      "content": "Prioritize durable facts that will still be useful later. Exclude temporary task progress, ephemeral statuses, and details likely to go stale quickly.",
+      "priority": 100,
+      "is_active": true,
+      "tags": ["global"]
+    },
+    {
+      "name": "project-bank-boundary",
+      "content": "If a fact clearly belongs to a specific project or service, prefer that project's bank over the global bank unless the fact is genuinely cross-project.",
+      "priority": 90,
+      "is_active": true,
+      "tags": ["global"]
+    }
+  ],
+  "mental_models": [
+    {
+      "id": "global-stable-preferences",
+      "name": "Global stable preferences and conventions",
+      "source_query": "Summarize durable user preferences, identity mappings, machine names, and recurring workflow conventions that are useful across projects.",
+      "tags": ["global"],
+      "max_tokens": 1200
+    }
+  ]
+}

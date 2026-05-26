@@ -1,0 +1,32 @@
+{
+  "version": "1",
+  "bank": {
+    "reflect_mission": "Maintain durable operational and product memory for portfolio-intel and Mission Control: dashboard structure, data flow, tracked repos, refresh patterns, and stable cockpit conventions.",
+    "retain_mission": "Keep stable portfolio-intel facts such as dashboard architecture, data sources, refresh workflows, tracked repository conventions, route purposes, and long-lived deployment assumptions. Ignore transient dashboard output and routine refresh noise.",
+    "retain_extraction_mode": "concise",
+    "enable_observations": true,
+    "observations_mission": "Consolidate durable patterns about Mission Control structure, data ingestion, route responsibilities, tracked-repo conventions, and operational cockpit behavior.",
+    "recall_budget_function": "fixed",
+    "recall_budget_fixed_low": 120,
+    "recall_budget_fixed_mid": 350,
+    "recall_budget_fixed_high": 1100
+  },
+  "directives": [
+    {
+      "name": "preserve-dashboard-architecture",
+      "content": "Retain stable dashboard architecture, data-flow, and repo-tracking conventions. Avoid transient refresh results and temporary portfolio state.",
+      "priority": 100,
+      "is_active": true,
+      "tags": ["portfolio-intel"]
+    }
+  ],
+  "mental_models": [
+    {
+      "id": "portfolio-intel-cockpit-model",
+      "name": "Portfolio-intel cockpit model",
+      "source_query": "Summarize the durable route structure, data flow, tracked repository model, refresh behavior, and deployment conventions for portfolio-intel and Mission Control.",
+      "tags": ["portfolio-intel"],
+      "max_tokens": 1800
+    }
+  ]
+}

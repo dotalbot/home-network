@@ -1,6 +1,6 @@
 # 013 — Central Hindsight Memory Service
 
-Status: deployed; retain/recall smoke test pending explicit approval
+Status: deployed; template pack created; retain/recall smoke test verified after switching the OpenRouter-backed model from qwen/qwen3.5-9b to openai/gpt-4o-mini
 
 ## Goal
 
@@ -30,6 +30,7 @@ Non-goals for this first pass:
 - UI port: `9999`.
 - Bind addresses: jellyhome LAN `192.168.1.1` and Tailnet `100.90.175.59` only.
 - First-pass LLM provider: OpenRouter via host-local secret file.
+- Working model after smoke-test diagnosis: `openai/gpt-4o-mini` via OpenRouter.
 - Memory bank strategy: repo/project banks first, global bank second.
 
 ## Checklist
@@ -44,7 +45,7 @@ Non-goals for this first pass:
 - [x] Deploy Hindsight container.
 - [x] Verify API on port 18888.
 - [x] Verify UI on port 9999.
-- [ ] Run a retain/recall smoke test.
+- [x] Run a retain/recall smoke test.
 - [ ] Decide whether to test one Hermes profile or one OpenCode repo.
 
 ## Current verified state
@@ -53,6 +54,11 @@ Non-goals for this first pass:
 - API is exposed on host port `18888` because port `8888` is already occupied on jellyhome by a separate APK-serving HTTP server.
 - UI is exposed on host port `9999`.
 - Startup completed successfully after correcting the image tag (`0.6.2` not `v0.6.2`) and fixing appdata ownership for the embedded pg0 data directory.
+- Bank template schema was inspected live; templates cover bank config, directives, and mental models, not retained memories.
+- Starter template manifests now exist for `global-dominic`, `hermes-main`, `home-network-main`, `logk-main`, and `portfolio-intel-main` under `docs/operations/hindsight-templates/`.
+- The initial OpenRouter model `qwen/qwen3.5-9b` stalled during Hindsight retain in `llm.openrouter.retain_extract_facts+structured`.
+- Switching the Hindsight model to `openai/gpt-4o-mini` via the same OpenRouter account fixed the smoke test.
+- Verified smoke-test path: create bank, import `hermes-main` template, retain one item, recall it by unique token, then delete the bank.
 
 ## Verification commands
 
