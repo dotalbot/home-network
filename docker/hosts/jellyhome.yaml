@@ -147,6 +147,28 @@ services:
     security_opt:
       - no-new-privileges:true
 
+
+  hindsight:
+    image: ghcr.io/vectorize-io/hindsight:0.6.2
+    container_name: hindsight
+    restart: unless-stopped
+    env_file:
+      - /opt/docker/.secrets/hindsight/hindsight.env
+    environment:
+      HINDSIGHT_API_HOST: 0.0.0.0
+      HINDSIGHT_API_PORT: "8888"
+      HINDSIGHT_CP_PORT: "9999"
+      HINDSIGHT_API_WORKER_ID: hindsight-jellyhome
+    ports:
+      - "${HINDSIGHT_LAN_BIND_IP:-192.168.1.1}:18888:8888"
+      - "${HINDSIGHT_LAN_BIND_IP:-192.168.1.1}:9999:9999"
+      - "${HINDSIGHT_TAILSCALE_BIND_IP:-100.90.175.59}:18888:8888"
+      - "${HINDSIGHT_TAILSCALE_BIND_IP:-100.90.175.59}:9999:9999"
+    volumes:
+      - /opt/docker/appdata/hindsight/data:/home/hindsight/.pg0
+    security_opt:
+      - no-new-privileges:true
+
   alloy:
     image: grafana/alloy:latest
     container_name: alloy

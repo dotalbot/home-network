@@ -390,6 +390,39 @@ services:
     backup: appdata-and-source-repo
     status: active
 
+
+  hindsight:
+    display_name: Hindsight
+    icon: mdi-brain
+    category: Tools
+    mode: single-primary
+    hosts:
+      - jellyhome
+    containers:
+      jellyhome:
+        - hindsight
+    urls:
+      primary: http://192.168.1.1:9999
+      api: http://192.168.1.1:18888
+      tailscale_ui: http://100.90.175.59:9999
+      tailscale_api: http://100.90.175.59:18888
+    description: central Hindsight memory service for Hermes/OpenCode experiments; API on 18888, UI on 9999, bound to jellyhome LAN and Tailnet addresses only
+    appdata:
+      data: /opt/docker/appdata/hindsight/data
+      secrets: /opt/docker/.secrets/hindsight/hindsight.env
+    integrations:
+      hermes_api_url: http://jellyhome:18888
+      opencode_plugin: "@vectorize-io/opencode-hindsight"
+      recommended_banks:
+        - global-dominic
+        - logk-main
+        - jellyweb-main
+        - home-network-main
+        - hermes-main
+        - opencode-main
+    backup: appdata
+    status: active
+
   seedit4me-reverse-tunnel:
     display_name: Seedit4.me Reverse Tunnel
     icon: mdi-tunnel

@@ -116,6 +116,7 @@ The platform should make the home lab understandable, reproducible, observable, 
 - [ ] Improve `just` targets for routine operations and safe deploys.
 - [ ] Keep dangerous actions explicit and non-default.
 - [ ] Document Hermes automation boundaries: what may run automatically vs only on request.
+- [ ] Trial central Hindsight on `jellyhome` for one Hermes profile or one OpenCode repo before replacing existing memory providers.
 - [ ] Ensure generated state is atomic and not accidentally committed.
 - [ ] Document that `/opt/docker/bin` helpers are recreated from Git via `scripts/sync-docker-config`, while secrets, timers, firewall rules, and data need restore/reapply steps.
 - [ ] Run a full rebuild drill on a low-risk host or disposable VM/Pi.
