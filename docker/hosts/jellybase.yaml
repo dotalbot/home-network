@@ -127,6 +127,27 @@ services:
       - /opt/docker/appdata/loki/config/loki.yml:/etc/loki/loki.yml:ro
       - /opt/docker/appdata/loki/data:/loki
 
+  mqtt-exporter:
+    image: kpetrem/mqtt-exporter:latest
+    container_name: mqtt-exporter
+    restart: unless-stopped
+    ports:
+      - "9000:9000"
+    environment:
+      TZ: ${TZ}
+      MQTT_ADDRESS: 192.168.1.1
+      MQTT_PORT: "1883"
+      MQTT_TOPIC: home/sensors/jellyoffice/json
+      MQTT_USERNAME: mqtt-exporter
+      MQTT_PASSWORD_FILE: /run/secrets/mqtt_exporter_password
+      MQTT_CLIENT_ID: jellybase-mqtt-exporter
+      KEEP_FULL_TOPIC: "True"
+      EXPOSE_LAST_SEEN: "True"
+      MQTT_METRICS_EXPIRE_SECONDS: "300"
+      LOG_LEVEL: INFO
+    secrets:
+      - mqtt_exporter_password
+
   central-postgres:
     image: postgres:17-alpine
     container_name: central-postgres
@@ -256,3 +277,5 @@ secrets:
     file: /opt/docker/.secrets/postgres_superuser_password
   alertmanager_discord_webhook_url:
     file: /opt/docker/.secrets/alertmanager/discord_webhook_url
+  mqtt_exporter_password:
+    file: /opt/docker/.secrets/mqtt-exporter/password

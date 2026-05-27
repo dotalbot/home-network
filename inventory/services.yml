@@ -280,6 +280,26 @@ services:
     backup: appdata
     status: active
 
+  mqtt-exporter:
+    display_name: MQTT Exporter
+    icon: mdi-chart-line
+    category: Monitoring
+    mode: single-primary
+    hosts:
+      - jellybase
+    containers:
+      jellybase:
+        - mqtt-exporter
+    urls:
+      primary: http://192.168.1.2:9000/metrics
+    description: Bridges retained jellyoffice MQTT JSON telemetry into Prometheus metrics on jellybase
+    backup: config-only
+    status: active
+    notes:
+      - Uses dedicated Mosquitto user mqtt-exporter with read-only ACL for home/sensors/jellyoffice/#.
+      - Secret lives at /opt/docker/.secrets/mqtt-exporter/password on jellybase.
+      - Subscribes to home/sensors/jellyoffice/json; individual scalar topics remain for HA/operator visibility.
+
   alloy:
     display_name: Alloy
     icon: grafana.png

@@ -57,3 +57,11 @@ scrape_configs:
           - jellyberry:12345
         labels:
           monitored_host: jellyberry
+
+  - job_name: mqtt_exporter
+    static_configs:
+      - targets:
+          - mqtt-exporter:9000
+        labels:
+          monitored_host: jellyoffice
+          mqtt_source: jellyoffice
