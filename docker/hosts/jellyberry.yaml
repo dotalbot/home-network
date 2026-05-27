@@ -85,6 +85,8 @@ services:
       HOSTNAME: jellyberry
       LOKI_PUSH_URL: http://jellybase:3100/loki/api/v1/push
       TZ: ${TZ}
+    extra_hosts:
+      - "jellybase=100.125.86.118"
     ports:
       - "12345:12345"
     volumes:
