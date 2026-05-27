@@ -262,14 +262,19 @@ And `nginx.conf` with the reverse proxy routes above.
 
 ### Migration steps
 
-1. Build the modular dashboard locally in the home-network repo
-2. Test on jellyberry port 8788 with Prometheus API calls (validate data flows)
-3. Add network-map to jellybase Compose overlay with nginx proxy config
-4. Deploy to jellybase, verify at http://jellybase:8788
-5. Remove network-map from jellyberry overlay
-6. Update inventory/services.yml to reflect the move
-7. Regenerate Homepage config
-8. Update any DNS/Tailscale/bookmark references
+1. ✅ Build the modular dashboard locally in the home-network repo (done — on branch `feat/network-map-live-dashboard`)
+2. ✅ Test on jellyberry port 8788 with degraded health data (no Prometheus proxy — shows "0 nodes" gracefully) (done)
+3. ✅ Add network-map to jellybase Compose overlay with nginx proxy config (done — `docker/hosts/jellybase.yaml` updated)
+4. ✅ Remove network-map from jellyberry overlay (done — `docker/hosts/jellyberry.yaml` updated)
+5. ✅ Update inventory/services.yml to reflect the move (done)
+6. 🔲 Sync site files to jellybase's `/opt/docker/appdata/network-map/site/`
+7. 🔲 Build the nginx-proxy Docker image on jellybase (`docker build -t network-map:latest /home/jellyfish/repo/home-network/docker/network-map/`)
+8. 🔲 Deploy to jellybase: `cd /opt/docker && docker compose up -d network-map`
+9. 🔲 Verify at http://jellybase:8788 — topology loads, health data shows for 3 nodes
+10. 🔲 Verify Prometheus proxy: `curl http://jellybase:8788/api/prometheus/query?query=up` returns JSON
+11. 🔲 Stop network-map on jellyberry: `docker stop network-map && docker rm network-map`
+12. 🔲 Regenerate Homepage config and verify network-map URL points to jellybase
+13. 🔲 Merge branch to main and push
 
 ## Implementation phases
 
