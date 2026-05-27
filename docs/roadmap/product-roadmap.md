@@ -84,6 +84,15 @@ The platform should make the home lab understandable, reproducible, observable, 
 - [ ] Phase 4: iframe drill-down links (Grafana kiosk, Dozzle, Portainer, Alertmanager).
 - [ ] Phase 5: Enhanced service matrix with health indicators, container status, backup class, and direct URLs.
 
+## V4.6 — Jellyoffice Environmental Sensor Node
+
+- [ ] Bootstrap Pi Zero 2 W (jellyoffice) with Pimoroni Enviro+ Air Quality board: OS, packages, Tailscale, I2C/SPI.
+- [ ] Deploy Python enviro-publisher service: BME280/LTR-559/MICS6814/noise → MQTT to Mosquitto on jellyhome.
+- [ ] Home Assistant MQTT auto-discovery: jellyoffice appears as a device with ~8 sensor entities.
+- [ ] MQTT→Prometheus bridge: mqtt-exporter on jellybase, scrapable by Prometheus.
+- [ ] Temperature compensation for BME280 (software offset + GPIO extender cable recommendation).
+- [ ] Health metrics via MQTT (uptime, CPU temp, disk, memory, Wi-Fi RSSI) — no node_exporter on 512MB device.
+
 ## V5 — Logs and Grafana Observability
 
 - [x] Deploy self-hosted Loki beside Prometheus/Grafana on `jellybase`.
