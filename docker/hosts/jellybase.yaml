@@ -202,6 +202,9 @@ services:
       - "8788:80"
     volumes:
       - /opt/docker/appdata/network-map/site:/usr/share/nginx/html:ro
+    depends_on:
+      - prometheus
+      - alertmanager
 
   alloy:
     image: grafana/alloy:latest
