@@ -1,0 +1,197 @@
+#!/usr/bin/env bash
+# Bootstrap script for Raspberry Pi Zero 2 W sensor nodes (jellyoffice)
+# Pimoroni Enviro+ Air Quality board
+#
+# Usage: sudo ./scripts/bootstrap-pi-zero-sensor [--user USERNAME] [--dry-run]
+#
+# Idempotent: safe to re-run. Installs missing packages, creates user,
+# enables I2C/SPI, sets up directories. Does NOT install Docker or Borg.
+#
+# Based on: docs/specs/006-jellyoffice-env-sensor-node.md
+
+set -euo pipefail
+
+OPERATOR_USER="${SUDO_USER:-jellybot}"
+DRY_RUN=0
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --user)
+      OPERATOR_USER="${2:?--user requires a value}"
+      shift 2
+      ;;
+    --dry-run)
+      DRY_RUN=1
+      shift
+      ;;
+    -h|--help)
+      echo "Usage: sudo ./scripts/bootstrap-pi-zero-sensor [--user USERNAME] [--dry-run]"
+      echo ""
+      echo "Bootstrap a Pi Zero 2 W for environmental sensor duty."
+      echo "  --user NAME    Operator user to create (default: jellybot)"
+      echo "  --dry-run      Print actions without changing the host"
+      exit 0
+      ;;
+    *)
+      echo "Unknown argument: $1" >&2
+      exit 2
+      ;;
+  esac
+done
+
+run() {
+  if [ "$DRY_RUN" -eq 1 ]; then
+    echo "[DRY RUN] $*"
+  else
+    echo "+ $*"
+    "$@"
+  fi
+}
+
+echo "=== Jellyoffice Pi Zero Sensor Bootstrap ==="
+echo "Operator user: $OPERATOR_USER"
+echo "Hostname: $(hostname)"
+echo "Arch: $(uname -m)"
+echo ""
+
+# ── 1. System basics ──────────────────────────────────────────────
+echo "--- Updating OS and installing packages ---"
+run apt update
+run apt full-upgrade -y
+
+# Essential packages (no Docker, no Borg, no node_exporter)
+PACKAGES=(
+  git
+  python3
+  python3-pip
+  python3-venv
+  python3-dev
+  python3-smbus
+  i2c-tools
+  libgpiod2
+  jq
+  curl
+  vim
+  tmux
+  rsync
+  ca-certificates
+  rng-tools
+  locales
+  avahi-daemon
+)
+run apt install -y "${PACKAGES[@]}"
+
+# ── 2. Locale and timezone ────────────────────────────────────────
+echo "--- Setting locale and timezone ---"
+run locale-gen en_GB.UTF-8
+run update-locale LANG=en_GB.UTF-8
+run timedatectl set-timezone Europe/London
+
+# ── 3. Enable I2C and SPI ────────────────────────────────────────
+echo "--- Enabling I2C and SPI ---"
+if [ ! -f /boot/config.txt ] && [ ! -f /boot/firmware/config.txt ]; then
+  echo "WARNING: Cannot find /boot/config.txt or /boot/firmware/config.txt"
+  echo "I2C/SPI may need manual enablement via raspi-config"
+else
+  CONFIG_FILE="/boot/config.txt"
+  [ -f /boot/firmware/config.txt ] && CONFIG_FILE="/boot/firmware/config.txt"
+
+  # I2C
+  if ! grep -q "^dtparam=i2c_arm=on" "$CONFIG_FILE" 2>/dev/null; then
+    run sed -i '$ a\dtparam=i2c_arm=on' "$CONFIG_FILE"
+  fi
+  if ! grep -q "^dtparam=i2c_arm_baudrate=" "$CONFIG_FILE" 2>/dev/null; then
+    run sed -i '$ a\dtparam=i2c_arm_baudrate=100000' "$CONFIG_FILE"
+  fi
+
+  # SPI
+  if ! grep -q "^dtparam=spi=on" "$CONFIG_FILE" 2>/dev/null; then
+    run sed -i '$ a\dtparam=spi=on' "$CONFIG_FILE"
+  fi
+
+  # Load kernel modules now
+  run modprobe i2c_dev 2>/dev/null || true
+  run modprobe i2c_bcm2835 2>/dev/null || true
+  run modprobe spi_bcm2835 2>/dev/null || true
+
+  echo "I2C and SPI enabled in $CONFIG_FILE. A reboot will apply fully."
+fi
+
+# ── 4. Operator user ─────────────────────────────────────────────
+echo "--- Creating operator user: $OPERATOR_USER ---"
+if ! id "$OPERATOR_USER" &>/dev/null; then
+  run adduser --gecos "" --disabled-password "$OPERATOR_USER"
+fi
+
+# dockerops group for consistency with other hosts
+run groupadd dockerops 2>/dev/null || true
+run usermod -aG dockerops "$OPERATOR_USER"
+run usermod -aG i2c "$OPERATOR_USER"
+run usermod -aG spi "$OPERATOR_USER"
+run usermod -aG gpio "$OPERATOR_USER"
+
+# ── 5. Directory structure ────────────────────────────────────────
+echo "--- Creating directory structure ---"
+run mkdir -p /opt/docker/{appdata,hosts,.secrets}
+run mkdir -p /opt/jellyoffice
+
+run chown -R root:dockerops /opt/docker
+run chmod -R g+rwX /opt/docker
+run find /opt/docker -type d -exec chmod g+s {} \; 2>/dev/null || true
+run chmod 770 /opt/docker/.secrets
+
+# jellyoffice app dir owned by operator
+run chown -R "$OPERATOR_USER:$OPERATOR_USER" /opt/jellyoffice
+
+# ── 6. SSH authorized keys ────────────────────────────────────────
+echo "--- Setting up SSH ---"
+run mkdir -p "/home/$OPERATOR_USER/.ssh"
+run chmod 700 "/home/$OPERATOR_USER/.ssh"
+
+# Check if there's an existing authorized_keys from another host
+if [ -f "/home/$OPERATOR_USER/.ssh/authorized_keys" ]; then
+  echo "  SSH authorized_keys already exists, preserving"
+else
+  run touch "/home/$OPERATOR_USER/.ssh/authorized_keys"
+  run chmod 600 "/home/$OPERATOR_USER/.ssh/authorized_keys"
+fi
+run chown -R "$OPERATOR_USER:$OPERATOR_USER" "/home/$OPERATOR_USER/.ssh"
+
+# ── 7. Tailscale ─────────────────────────────────────────────────
+echo "--- Installing Tailscale ---"
+if command -v tailscaled &>/dev/null; then
+  echo "  Tailscale already installed"
+else
+  run curl -fsSL https://tailscale.com/install.sh | sh
+  echo ""
+  echo "  *** Run: sudo tailscale up"
+  echo "  *** Then record the Tailscale IP for inventory/hosts.yml"
+fi
+
+# ── 8. Env file ──────────────────────────────────────────────────
+echo "--- Creating /opt/docker/.env ---"
+if [ ! -f /opt/docker/.env ]; then
+  run tee /opt/docker/.env >/dev/null <<'EOF'
+TZ=Europe/London
+EOF
+  run chown root:dockerops /opt/docker/.env
+  run chmod 660 /opt/docker/.env
+fi
+
+# ── 9. Install Pimoroni enviroplus Python library ─────────────────
+echo "--- Installing Pimoroni enviroplus library ---"
+run sudo -u "$OPERATOR_USER" python3 -m venv /opt/jellyoffice/.venv
+run sudo -u "$OPERATOR_USER" /opt/jellyoffice/.venv/bin/pip install --upgrade pip setuptools wheel
+run sudo -u "$OPERATOR_USER" /opt/jellyoffice/.venv/bin/pip install enviroplus paho-mqtt smbus2
+
+echo ""
+echo "=== Bootstrap complete ==="
+echo ""
+echo "Next steps:"
+echo "  1. Reboot to apply I2C/SPI kernel modules:  sudo reboot"
+echo "  2. After reboot, verify I2C:                sudo i2cdetect -y 1"
+echo "  3. Authenticate Tailscale:                   sudo tailscale up"
+echo "  4. Copy the enviro_publisher.py and config"
+echo "  5. Enable and start the service:             sudo systemctl enable --now enviro-publisher"
+echo ""
+echo "Run 'sudo i2cdetect -y 1' now (before reboot) to check if I2C is already loaded."

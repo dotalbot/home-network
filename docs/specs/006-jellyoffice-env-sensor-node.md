@@ -6,7 +6,7 @@ Created: 2026-05-27
 
 ## Goal
 
-Bootstrap a Raspberry Pi Zero 2 W with a Pimoroni Enviro+ Air Quality board as a lightweight environmental sensor node (`jellyoffice`) that ships data via MQTT to the existing Mosquitto broker on jellyhome. The device integrates with Home Assistant via MQTT auto-discovery and feeds metrics into Prometheus via an MQTT-exporter bridge on jellybase.
+Bootstrap a Raspberry Pi Zero 2 W with a Pimoroni Enviro board as a lightweight environmental sensor node (`jellyoffice`) that ships data via MQTT to the existing Mosquitto broker on jellyhome. The device integrates with Home Assistant via MQTT auto-discovery and feeds metrics into Prometheus via an MQTT-exporter bridge on jellybase. No Docker runs on this device.
 
 ## Context
 
@@ -19,18 +19,23 @@ Bootstrap a Raspberry Pi Zero 2 W with a Pimoroni Enviro+ Air Quality board as a
 | RAM | 512MB |
 | OS | Raspberry Pi OS Lite 32-bit (armhf) |
 | Network | WiFi only (no Ethernet) |
-| Sensor hat | [Pimoroni Enviro+ Air Quality](https://shop.pimoroni.com/products/enviro?variant=31155658489939) (PIM458) |
+| Sensor hat | [Pimoroni Enviro](https://shop.pimoroni.com/products/enviro?variant=31155658489939) (PIM486, £30) |
 
-### Pimoroni Enviro+ sensors
+### Pimoroni Enviro sensors (NOT Enviro+)
 
 | Sensor | Measures | Notes |
 |--------|----------|-------|
 | BME280 | Temperature, pressure, humidity | Pi heat affects readings — use GPIO extender cable (£5-6) to isolate |
 | LTR-559 | Light (lux), proximity | |
-| MICS6814 | Oxidising gas (NO₂), reducing gas (CO), NH₃ | Qualitative only — resistance values, not calibrated ppm |
-| ADS1015/ADS1115 | ADC for gas sensor | Auto-detected by Pimoroni library |
+| ADS1015/ADS1115 | ADC for noise microphone | Auto-detected by Pimoroni library |
 | MEMS microphone (SPH0645LM4H) | Noise level (amplitude) | Not decibel-calibrated |
-| PMS5003 (optional, user may add later) | PM1.0, PM2.5, PM10 particulate matter | Connected via connector; requires background thread for continuous reading |
+
+**Not present on Enviro (vs Enviro+):**
+- No MICS6814 gas sensor (oxidising, reducing, NH₃)
+- No PMS5003 particulate matter connector
+- No air quality sensing capability beyond the above
+
+I2C verification on jellyoffice shows `0x23` (ADS1015) and `0x76` (BME280) which matches Enviro hardware.
 
 ### Key constraints
 
@@ -46,7 +51,7 @@ Bootstrap a Raspberry Pi Zero 2 W with a Pimoroni Enviro+ Air Quality board as a
 ```yaml
 # inventory/hosts.yml
 jellyoffice:
-  description: Raspberry Pi Zero 2 W environmental sensor node with Pimoroni Enviro+
+  description: Raspberry Pi Zero 2 W environmental sensor node with Pimoroni Enviro
   lan_ip: TBD
   roles:
     - pi
@@ -135,12 +140,7 @@ home/sensors/jellyoffice/humidity             # % (float)
 home/sensors/jellyoffice/pressure             # hPa (float)
 home/sensors/jellyoffice/lux                  # lux (float)
 home/sensors/jellyoffice/noise                # amplitude (float, qualitative)
-home/sensors/jellyoffice/gas/oxidising        # Ω resistance (float, qualitative NO₂)
-home/sensors/jellyoffice/gas/reducing         # Ω resistance (float, qualitative CO)
-home/sensors/jellyoffice/gas/nh3             # Ω resistance (float, qualitative NH₃)
-home/sensors/jellyoffice/particulate/pm1      # μg/m³ (if PMS5003 connected)
-home/sensors/jellyoffice/particulate/pm2_5   # μg/m³ (if PMS5003 connected)
-home/sensors/jellyoffice/particulate/pm10    # μg/m³ (if PMS5003 connected)
+home/sensors/jellyoffice/proximity            # raw proximity (float)
 home/sensors/jellyoffice/health              # JSON: uptime, cpu_temp, disk_used_pct, mem_avail_mb
 ```
 
@@ -183,14 +183,14 @@ Discovery payload example (per sensor):
     "identifiers": ["jellyoffice"],
     "name": "Jellyoffice Enviro+",
     "manufacturer": "Pimoroni",
-    "model": "Enviro+ Air Quality",
+    "model": "Enviro",
     "sw_version": "1.0.0"
   },
   "expire_after": 300
 }
 ```
 
-This is sent for each sensor dimension (temperature, humidity, pressure, lux, noise, oxidising, reducing, nh3). If PMS5003 is connected, PM metrics are also published with discovery.
+This is sent for each sensor dimension (temperature, humidity, pressure, lux, noise, proximity).
 
 Before first run, the user needs to:
 1. Enable the Mosquitto broker integration in Home Assistant (or add the HA MQTT integration if not already configured)
@@ -249,9 +249,11 @@ Add to the existing Prometheus config on jellybase:
 ```text
 # requirements.txt
 paho-mqtt>=2.0
-enviroplus>=0.0.7
+enviroplus>=1.0.2
 smbus2
 ```
+
+Note: The `enviroplus` Python library works for both Enviro and Enviro+. On the base Enviro board (no gas sensor, no PMS5003 connector), gas readings will return zero/unavailable and the PMS5003 class will not be available. The publisher script checks for sensor availability and only publishes topics for sensors that exist.
 
 ### Key design decisions
 
@@ -262,7 +264,7 @@ smbus2
   - Systemd service with proper restart/retry
   - Temperature compensation offset (configurable, defaults to -3°C for Pi heat)
 - **Temperature compensation**: Apply a configurable offset (default -3°C) to BME280 readings to partially compensate for Pi CPU heat. Document that a GPIO extender cable is the proper hardware fix.
-- **PMS5003 optional**: The script detects whether a PMS5003 is connected and only publishes PM topics if present.
+- **PMS5003**: Not applicable — Enviro does not have a PMS5003 connector. This is an Enviro+ feature only.
 - **Interval**: Default 60 seconds. Can be overridden in config.
 - **Retain**: Publish sensor values with `retain=True` so HA always has the last reading.
 - **Last will**: Set MQTT last-will message on `home/sensors/jellyoffice/availability` → `offline` to detect device disconnection.
@@ -339,7 +341,7 @@ WantedBy=multi-user.target
 
 ```yaml
 jellyoffice-env-sensor:
-  display_name: Jellyoffice Enviro+
+  display_name: Jellyoffice Enviro
   icon: mdi-thermometer
   category: IoT
   mode: native-systemd
@@ -352,7 +354,7 @@ jellyoffice-env-sensor:
     mqtt_topics: mqtt://jellyhome:1883/home/sensors/jellyoffice/#
   description: >
     Environmental sensor publisher (temperature, humidity, pressure,
-    light, noise, gas, particulate) on Pi Zero 2 W | Pimoroni Enviro+ Air Quality |
+    light, noise, proximity) on Pi Zero 2 W | Pimoroni Enviro |
     ships data via MQTT to Mosquitto on jellyhome | Home Assistant auto-discovery
   source:
     type: git
@@ -470,7 +472,7 @@ Alternatively, this can be tracked via the mqtt topic structure rather than a fo
 6. Optionally: Add HA dashboard cards for the new sensors
 
 **Acceptance**:
-- HA shows "Jellyoffice Enviro+" as a device with ~8 sensor entities
+- HA shows "Jellyoffice Enviro+" as a device with ~6 sensor entities
 - Temperature, humidity, pressure readings display correctly
 - Sensor values update every 60 seconds
 - `expire_after: 300` marks sensors as unavailable after 5 minutes without data
@@ -518,17 +520,9 @@ The BME280 temperature sensor on the Enviro+ board sits directly above the Raspb
 2. **Software temperature offset**: Apply a configurable offset to BME280 readings. The publisher defaults to `-3°C` but this can be tuned per installation. Document that this is approximate.
 3. **CPU temperature subtraction**: Read Pi CPU temperature and estimate a correction. Simplest formula: `real_temp ≈ BME280_temp - k * (CPU_temp - ambient)`. This requires calibration and is fragile.
 
-The publisher will implement option 2 by default and document option 1 as the recommended hardware fix.
+## Temperature compensation (continued)
 
-## PMS5003 particulate sensor (optional, future)
-
-If the user adds a PMS5003 particulate matter sensor:
-
-- Connected via the onboard M8 connector
-- The `enviro_publisher.py` detects PMS5003 automatically
-- A background thread reads PMS continuously to prevent buffer delay (known bug in Pimoroni examples)
-- PM1.0, PM2.5, and PM10 metrics are published to MQTT and discovery payloads are sent to HA
-- No code changes needed — just plug in the sensor
+- The publisher will implement a configurable offset (default -3°C) and document the GPIO extender cable as the recommended hardware fix.
 
 ## Rollback
 
@@ -545,19 +539,18 @@ If the user adds a PMS5003 particulate matter sensor:
 | BME280 temperature offset from Pi heat | High | Medium | Software offset default -3°C; recommend GPIO extender cable |
 | WiFi disconnection | Medium | Medium | Systemd restarts on failure; MQTT last-will marks device offline |
 | 32-bit OS compatibility issues | Low | Medium | Pimoroni library supports armhf; test on actual hardware first |
-| PMS5003 buffer delay bug | Medium | High (if PMS5003 used) | Background thread reads continuously; verify delay does not accumulate |
-| Gas sensor qualitative only | Expected | Low | Document in HA entity descriptions; show as trends, not absolute values |
 | 512MB RAM pressure under load | Low | High | No Docker, no monitoring stack; total estimated usage ~45-50MB |
 | Mosquitto auth not configured | Expected | Low | LAN-only access; consider adding auth if Mosquitto is exposed beyond LAN |
 
 ## Open questions (resolved)
 
-1. ~~Sensor board?~~ → Pimoroni Enviro+ Air Quality (PIM458)
+1. ~~Sensor board?~~ → Pimoroni Enviro (PIM486, £30) — NOT Enviro+; BME280 + LTR-559 + ADS1015 + MEMS mic only
 2. ~~32-bit vs 64-bit?~~ → 32-bit (armhf) as specified by user
 3. ~~Hostname?~~ → `jellyoffice`
 4. ~~MQTT→Prometheus bridge?~~ → Use existing `mqtt-exporter` (kpetremann/mqtt-exporter) on jellybase
 5. ~~Home Assistant integration?~~ → Auto-discovery via MQTT config payloads
 6. ~~Node monitoring?~~ → Health metrics via MQTT (not node_exporter); bridged to Prometheus via mqtt-exporter
+7. ~~I2C confirmed?~~ → Yes: 0x23 (ADS1015) and 0x76 (BME280) detected on bus 1
 
 ## Files to create or modify
 
