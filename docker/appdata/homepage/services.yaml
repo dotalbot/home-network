@@ -1,116 +1,104 @@
 - Core:
   - Homepage:
       href: http://192.168.1.1
-      description: active-active | jellyhome, jellybase
+      description: "active-active | jellyhome, jellybase"
       icon: homepage.png
       siteMonitor: http://192.168.1.1
   - Dozzle:
       href: http://192.168.1.1:8080
-      description: 'central-ui-plus-agents | ui: jellyhome, agents: jellybase, jellyberry'
+      description: "container log viewer | ui: jellyhome, agents: jellybase, jellyberry"
       icon: dozzle.png
       siteMonitor: http://192.168.1.1:8080
   - Portainer:
       href: https://192.168.1.1:9443
-      description: 'central-ui-plus-agents | server: jellyhome, agents: jellybase'
+      description: "container management | server: jellyhome, agents: jellybase"
       icon: portainer.png
   - Network Map:
       href: http://192.168.1.159:8788
-      description: interactive inventory | LAN and Tailscale discovery
+      description: "interactive inventory | LAN and Tailscale discovery"
       icon: mdi-lan
       siteMonitor: http://192.168.1.159:8788
 - Monitoring:
   - Prometheus:
       href: http://192.168.1.2:9090
-      description: single-primary | jellybase
+      description: "metrics collection | jellybase"
       icon: prometheus.png
-      siteMonitor: http://192.168.1.2:9090
+      siteMonitor: http://192.168.1.2:9090/-/healthy
   - Alertmanager:
       href: http://192.168.1.2:9093
-      description: Prometheus alert grouping, dedupe, silences, and Discord wake-up
-        delivery bridge
-      icon: prometheus.png
-      siteMonitor: http://192.168.1.2:9093
+      description: "alert grouping, silences, Discord delivery bridge | jellybase"
+      icon: alertmanager.png
+      siteMonitor: http://192.168.1.2:9093/-/healthy
   - Grafana:
       href: http://192.168.1.2:3001
-      description: single-primary | jellybase
+      description: "dashboards and visualisation | jellybase"
       icon: grafana.png
-      siteMonitor: http://192.168.1.2:3001
+      siteMonitor: http://192.168.1.2:3001/api/health
   - Loki:
       href: http://192.168.1.2:3100
-      description: log history layer for Grafana; receives Borgmatic, host journal,
-        and Docker container logs
-      icon: grafana.png
-      siteMonitor: http://192.168.1.2:3100
+      description: "log aggregation for Borgmatic, journal, and container logs"
+      icon: loki.png
+      siteMonitor: http://192.168.1.2:3100/ready
   - Alloy:
-      href: http://127.0.0.1:12345/metrics
-      description: per-host Loki log shipper for selected systemd journal and Docker
-        container logs
-      icon: grafana.png
-      siteMonitor: http://127.0.0.1:12345/metrics
+      href: http://100.90.175.59:12345
+      description: "per-host log shipper | metrics on jellyhome Tailscale"
+      icon: alloy.png
+      siteMonitor: http://100.90.175.59:12345/-/healthy
 - IoT:
   - Home Assistant:
       href: http://192.168.1.2:8123
-      description: smart home controller | jellybase host-network container
+      description: "smart home controller | jellybase"
       icon: home-assistant.png
       siteMonitor: http://192.168.1.2:8123
   - Mosquitto MQTT:
-      href: mqtt://192.168.1.1:1883
-      description: MQTT broker | jellyhome
-      icon: eclipse-mosquitto.png
+      href: http://192.168.1.1:9001
+      description: "MQTT broker with websocket UI | jellyhome"
+      icon: mdi-lan-connect
 - Projects:
   - Portfolio Mission Control:
       href: http://192.168.1.159:8787
-      description: portfolio dashboard | home-network managed on jellyberry
+      description: "portfolio dashboard | home-network managed on jellyberry"
       icon: mdi-view-dashboard-outline
       siteMonitor: http://192.168.1.159:8787
-  - Jellyfood:
-      href: http://192.168.1.2:8793
-      description: mobile-first food diary web app | static Expo export served by
-        nginx
-      icon: mdi-food-apple-outline
-      siteMonitor: http://192.168.1.2:8793
   - 3D Print Loader:
       href: http://192.168.1.1:8793
-      description: Cross-repo 3D model source resolver and previewer for MakerWorld,
-        Printables, Thingiverse, and future Manyfold import; developed on jellyberry,
-        runtime on jellyhome via home-network.
+      description: "3D model source resolver and previewer | jellyhome"
       icon: mdi-cube-scan
       siteMonitor: http://192.168.1.1:8793
+  - Jellyfood:
+      href: http://192.168.1.2:8793
+      description: "mobile-first food diary | static Expo on jellybase"
+      icon: mdi-food-apple-outline
+      siteMonitor: http://192.168.1.2:8793
 - Study:
   - SC-401 Study Hub:
       href: http://192.168.1.159:8791
-      description: certification study hub | home-network managed on jellyberry
+      description: "certification study hub | home-network managed on jellyberry"
       icon: mdi-school-outline
       siteMonitor: http://192.168.1.159:8791
 - Tools:
   - Image Pastebin:
       href: http://192.168.1.159:8792
-      description: unauthenticated LAN upload helper | home-network managed on jellyberry
+      description: "unauthenticated LAN upload helper | jellyberry"
       icon: mdi-image-plus-outline
       siteMonitor: http://192.168.1.159:8792
   - Hindsight:
       href: http://192.168.1.1:9999
-      description: central Hindsight memory service for Hermes/OpenCode experiments;
-        API on 18888, UI on 9999, bound to jellyhome LAN and Tailnet addresses only
+      description: "central memory service | API on 18888, UI on 9999"
       icon: mdi-brain
       siteMonitor: http://192.168.1.1:9999
 - Media:
   - Manyfold:
       href: http://192.168.1.1:3214
-      description: 3D model library manager on jellyhome using central PostgreSQL
-        on jellybase via FILE__DATABASE_URL; library mount is read-write because Manyfold
-        validates local libraries as writable
+      description: "3D model library manager | jellyhome with PostgreSQL on jellybase"
       icon: mdi-printer-3d
-      siteMonitor: http://192.168.1.1:3214
 - Data:
   - Central PostgreSQL:
-      href: postgresql://192.168.1.2:5432
-      description: shared PostgreSQL platform service for home-network applications;
-        first target is Manyfold
+      href: http://192.168.1.2:5432
+      description: "shared PostgreSQL platform service | jellybase"
       icon: postgres.png
 - Remote Access:
-  - Seedit4.me Reverse Tunnel:
-      href: ssh://seedit4me@nl13.seedit4.me:2088
-      description: fallback reverse SSH tunnel for jellyberry when Tailscale is blocked;
-        remote port is loopback-only on seedit4.me
+  - Seedit4.me Tunnel:
+      href: https://nl13.seedit4.me:2088
+      description: "fallback reverse SSH tunnel for jellyberry"
       icon: mdi-tunnel
