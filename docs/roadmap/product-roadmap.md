@@ -89,7 +89,7 @@ The platform should make the home lab understandable, reproducible, observable, 
 - [x] Bootstrap Pi Zero 2 W (jellyoffice) with Pimoroni Enviro (not Enviro+): OS packages, Tailscale SSH, I2C/SPI verified.
 - [x] Deploy Python enviro-publisher service: BME280/LTR-559/proximity + host health → MQTT to Mosquitto on jellyhome. Noise deferred: ADS1015 detected but channel reads return I/O errors.
 - [x] Home Assistant MQTT auto-discovery: retained discovery topics under `homeassistant/sensor/jellyoffice/#` verified.
-- [ ] MQTT→Prometheus bridge: mqtt-exporter on jellybase, scrapable by Prometheus.
+- [x] MQTT→Prometheus bridge: mqtt-exporter on jellybase, scraped by Prometheus with `mqtt_temperature`, `mqtt_humidity`, `mqtt_pressure`, `mqtt_lux`, `mqtt_proximity`, and host-health metrics verified.
 - [x] Temperature compensation for BME280 (software offset + GPIO extender cable recommendation).
 - [x] Health metrics via MQTT (uptime, CPU temp, disk, memory, Wi-Fi RSSI) — no node_exporter on 512MB device.
 

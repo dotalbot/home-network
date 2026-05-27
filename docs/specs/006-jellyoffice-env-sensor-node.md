@@ -501,21 +501,29 @@ Alternatively, this can be tracked via the mqtt topic structure rather than a fo
 - Sensor values update every 60 seconds
 - Sensors use MQTT availability topic `home/sensors/jellyoffice/status`; alerting/exporter timeout rules remain Phase 4 work
 
-### Phase 4: Prometheus bridge (mqtt-exporter)
+### Phase 4: Prometheus bridge (mqtt-exporter) ✅
+
+**Status**: Complete and verified live on jellybase.
 
 **Objective**: Bridge MQTT sensor data into Prometheus for long-term storage and alerting.
 
 **Tasks**:
-1. Add `mqtt-exporter` to `docker/hosts/jellybase.yaml`
-2. Add `mqtt-exporter` to `inventory/services.yml`
-3. Add Prometheus scrape config for `mqtt-exporter:9000`
-4. Run `just sync-docker-config && just up mqtt-exporter` on jellybase
-5. Verify: `curl http://jellybase:9000/metrics | grep jellyoffice`
+1. Add `mqtt-exporter` to `docker/hosts/jellybase.yaml` ✅
+2. Add `mqtt-exporter` to `inventory/services.yml` ✅
+3. Add Prometheus scrape config for `mqtt-exporter:9000` ✅
+4. Run `just sync-docker-config` and recreate `mqtt-exporter` / Prometheus on jellybase ✅
+5. Verify Prometheus queries for `mqtt_temperature`, `mqtt_humidity`, `mqtt_pressure`, `mqtt_lux`, `mqtt_proximity`, and `mqtt_cpu_temperature` ✅
 
 **Acceptance**:
-- `mqtt-exporter` container running on jellybase
-- Prometheus scraping metrics from mqtt-exporter
-- Grafana can query jellyoffice environmental metrics
+- `mqtt-exporter` container running on jellybase ✅
+- Prometheus scraping metrics from mqtt-exporter: `up{job="mqtt_exporter"} == 1` ✅
+- Prometheus returns jellyoffice environmental metrics with labels `monitored_host="jellyoffice"` and `mqtt_source="jellyoffice"` ✅
+
+**Operational notes**:
+- `mqtt-exporter` uses a dedicated Mosquitto user with read-only ACL for `home/sensors/jellyoffice/#`.
+- Docker secret: `/opt/docker/.secrets/mqtt-exporter/password` on jellybase.
+- Mosquitto credential changes require a full `docker restart mqtt-mosquitto`; SIGHUP was not enough during rollout.
+- After rotating the secret file, recreate `mqtt-exporter` rather than only restarting it so `/run/secrets/mqtt_exporter_password` reflects the new file content.
 
 ### Phase 5: Homepage and Network Map integration
 
