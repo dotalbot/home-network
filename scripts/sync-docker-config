@@ -55,8 +55,13 @@ set_managed_perms() {
 
   # Non-root dockerops operators can update group-writable files in /opt/docker,
   # but cannot chgrp/chmod root-owned files. Treat matching group ownership as OK.
+  # Skip files where chgrp fails (root-owned runtime data like alertmanager silences/nflog).
   if [ "$(stat -c %G "$target")" != "$DOCKER_GROUP" ]; then
-    chgrp -R "$DOCKER_GROUP" "$target"
+    chgrp -R "$DOCKER_GROUP" "$target" 2>/dev/null || true
+  else
+    # Already dockerops-owned at top level, but some nested files may be root-owned.
+    # Best-effort: try recursive chgrp, silently skip individual permission failures.
+    chgrp -R "$DOCKER_GROUP" "$target" 2>/dev/null || true
   fi
 }
 
