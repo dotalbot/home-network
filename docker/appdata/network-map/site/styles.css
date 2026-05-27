@@ -259,7 +259,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .health-badge-inline.health-amber { background: var(--yellow); }
 .health-badge-inline.health-red { background: var(--red); }
 .health-badge-inline.health-grey { background: var(--muted); }
-.health-detail {
+.health-detail, .backup-detail {
   margin-top: 14px;
   padding-top: 12px;
   border-top: 1px solid var(--line);
@@ -271,14 +271,14 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   align-items: center;
   gap: 6px;
 }
-.health-detail dl {
+.health-detail dl, .backup-detail dl {
   display: grid;
   grid-template-columns: 92px 1fr;
   gap: 6px 10px;
   margin: 0;
 }
-.health-detail dt { color: var(--muted); }
-.health-detail dd { margin: 0; }
+.health-detail dt, .backup-detail dt { color: var(--muted); }
+.health-detail dd, .backup-detail dd { margin: 0; }
 .health-status-dot {
   display: inline-block;
   width: 8px;
@@ -291,6 +291,43 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .health-status-dot.health-amber { background: var(--yellow); box-shadow: 0 0 4px rgba(245,158,11,.45); }
 .health-status-dot.health-red { background: var(--red); box-shadow: 0 0 4px rgba(239,68,68,.45); }
 .health-status-dot.health-grey { background: var(--muted); }
+.backup-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 12px;
+}
+.backup-card {
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: rgba(0,0,0,.14);
+}
+.backup-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.backup-status-pill {
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: .72rem;
+  font-weight: 700;
+  border: 1px solid var(--line);
+}
+.backup-status-pill.backup-green { color: #bbf7d0; border-color: rgba(34,197,94,.45); background: rgba(34,197,94,.10); }
+.backup-status-pill.backup-amber { color: #fde68a; border-color: rgba(245,158,11,.45); background: rgba(245,158,11,.10); }
+.backup-status-pill.backup-red { color: #fecaca; border-color: rgba(239,68,68,.45); background: rgba(239,68,68,.10); }
+.backup-status-pill.backup-grey { color: var(--muted); }
+.backup-card dl {
+  display: grid;
+  grid-template-columns: 72px 1fr;
+  gap: 6px 10px;
+  margin: 0;
+}
+.backup-card dt { color: var(--muted); }
+.backup-card dd { margin: 0; word-break: break-word; }
 .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
 .card { padding: 16px; cursor: pointer; transition: transform .12s ease, border-color .12s ease; }
 .card:hover { transform: translateY(-2px); border-color: var(--accent); }

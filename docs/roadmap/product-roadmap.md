@@ -79,7 +79,7 @@ The platform should make the home lab understandable, reproducible, observable, 
 - [x] Move Network Map deployment from jellyberry to jellybase alongside Prometheus/Grafana.
 - [x] Add nginx reverse proxy config for /api/prometheus/query, /api/prometheus/query_range, and /api/alerts routes (using Docker DNS names).
 - [x] Phase 1: Live node health on topology (CPU, memory, disk, temperature, online status from Prometheus). Deployed and verified — 3 nodes reporting health data.
-- [ ] Phase 2: Backup status per host (borgmatic_* metrics: timestamp, success, size).
+- [x] Phase 2: Backup status per host from deployed `borgmatic_last_run_*`, `borgmatic_repository_reachable`, and `borgmatic_last_archive_info` Prometheus metrics.
 - [ ] Phase 3: Alert feed sidebar from Alertmanager v2 API, grouped by host, with node highlighting.
 - [ ] Phase 4: iframe drill-down links (Grafana kiosk, Dozzle, Portainer, Alertmanager).
 - [ ] Phase 5: Enhanced service matrix with health indicators, container status, backup class, and direct URLs.

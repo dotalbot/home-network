@@ -57,6 +57,70 @@ export async function fetchAlertmanagerAlerts() {
  * Returns an object keyed by normalized hostname with health metrics,
  * plus a timestamp field for refresh tracking.
  */
+function metricValue(results, metricKey = 'host') {
+  const data = {};
+  for (const item of results || []) {
+    const key = item.metric?.[metricKey] || item.metric?.monitored_host || normalizeInstance(item.metric?.instance);
+    if (!key) continue;
+    const value = parseFloat(item.value?.[1]);
+    if (Number.isFinite(value)) data[key] = value;
+  }
+  return data;
+}
+
+function metricLabelValue(results, labelName, metricKey = 'host') {
+  const data = {};
+  for (const item of results || []) {
+    const key = item.metric?.[metricKey] || item.metric?.monitored_host || normalizeInstance(item.metric?.instance);
+    if (!key) continue;
+    const value = item.metric?.[labelName];
+    if (value !== undefined) data[key] = value;
+  }
+  return data;
+}
+
+/**
+ * Fetch borgmatic backup status metrics from Prometheus.
+ */
+export async function fetchBackupData() {
+  const [successResults, exitResults, timestampResults, durationResults, repoResults, archiveResults, ageResults] = await Promise.all([
+    fetchPrometheusQuery('borgmatic_last_run_success'),
+    fetchPrometheusQuery('borgmatic_last_run_exit_code'),
+    fetchPrometheusQuery('borgmatic_last_run_timestamp_seconds'),
+    fetchPrometheusQuery('borgmatic_last_run_duration_seconds'),
+    fetchPrometheusQuery('borgmatic_repository_reachable'),
+    fetchPrometheusQuery('borgmatic_last_archive_info'),
+    fetchPrometheusQuery('time() - borgmatic_last_run_timestamp_seconds'),
+  ]);
+
+  const success = metricValue(successResults);
+  const exitCode = metricValue(exitResults);
+  const timestamp = metricValue(timestampResults);
+  const duration = metricValue(durationResults);
+  const reachable = metricValue(repoResults);
+  const archiveName = metricLabelValue(archiveResults, 'archive_name');
+  const age = metricValue(ageResults);
+  const hosts = new Set([
+    ...Object.keys(success), ...Object.keys(exitCode), ...Object.keys(timestamp),
+    ...Object.keys(duration), ...Object.keys(reachable), ...Object.keys(archiveName),
+    ...Object.keys(age),
+  ]);
+
+  const backups = {timestamp: Date.now()};
+  for (const host of hosts) {
+    backups[host] = {
+      success: success[host],
+      exitCode: exitCode[host],
+      timestamp: timestamp[host],
+      durationSeconds: duration[host],
+      repositoryReachable: reachable[host],
+      archiveName: archiveName[host],
+      ageSeconds: age[host],
+    };
+  }
+  return backups;
+}
+
 export async function fetchHealthData() {
   const [
     upResults,

@@ -74,17 +74,20 @@ node_filesystem_size_bytes{job="node_exporter",mountpoint="/",fstype!~"tmpfs|sys
 # Temperature sensors
 node_hwmon_temp_celsius{job="node_exporter"}
 
-# Borgmatic: last backup timestamp
-borgmatic_last_backup_timestamp_seconds{job="node_exporter"}
+# Borgmatic: last run timestamp
+borgmatic_last_run_timestamp_seconds{job="node_exporter"}
 
-# Borgmatic: last backup duration
-borgmatic_last_backup_duration_seconds{job="node_exporter"}
+# Borgmatic: last run duration
+borgmatic_last_run_duration_seconds{job="node_exporter"}
 
-# Borgmatic: total size bytes
-borgmatic_total_size_bytes_last{job="node_exporter"}
+# Borgmatic: latest archive metadata
+borgmatic_last_archive_info{job="node_exporter"}
 
 # Borgmatic: backup success (1=success, 0=fail)
-borgmatic_backup_success{job="node_exporter"}
+borgmatic_last_run_success{job="node_exporter"}
+
+# Borgmatic: repository reachability
+borgmatic_repository_reachable{job="node_exporter"}
 ```
 
 ### Alertmanager query
@@ -152,10 +155,11 @@ On hover/click, show a popover with:
 ### Backup status panel
 
 For each monitored host, show:
-- Last backup timestamp (humanized: "2h ago", "3d ago")
-- Success/fail indicator (green checkmark / red cross)
-- Archive size (humanized: "4.2 GB")
-- Click-through to detail panel with borgmatic_* metric breakdown
+- Last run timestamp (humanized: "2h ago", "3d ago")
+- Success/fail indicator from `borgmatic_last_run_success` and `borgmatic_last_run_exit_code`
+- Repository reachability from `borgmatic_repository_reachable`
+- Latest archive name from `borgmatic_last_archive_info`
+- Click-through/detail panel with borgmatic_* metric breakdown
 
 ### Alert feed sidebar
 

@@ -18,11 +18,13 @@ import {
   renderOperationsBoard,
   bindTopologyInteractions,
 } from './modules/topology.js';
-import { fetchHealthData } from './modules/api.js';
+import { fetchHealthData, fetchBackupData } from './modules/api.js';
 import { attachHealthToNodes, findHealthForItem, renderHealthDetail } from './modules/node-health.js';
+import { renderBackupDetail, renderBackupStatusPanel } from './modules/backup-status.js';
 
 let selected = null;
 let currentHealthData = null;
+let currentBackupData = null;
 let healthRefreshTimer = null;
 
 // ---- Data loading ----
@@ -112,6 +114,17 @@ function renderMap(items) {
       </div>
       ${renderOperationsBoard(items, management, topServices)}
     </section>
+
+    <section class="option-card" aria-labelledby="backup-title">
+      <div class="option-heading">
+        <div>
+          <p class="eyebrow small">Phase 2</p>
+          <h3 id="backup-title">Backup status</h3>
+        </div>
+        <p class="muted">Borgmatic status from Prometheus textfile metrics: last run, success, repository reachability, and latest archive.</p>
+      </div>
+      <div id="backupStatus">${renderBackupStatusPanel(currentBackupData)}</div>
+    </section>
   `;
 
   bindDeviceClicks();
@@ -144,6 +157,7 @@ function renderDetail() {
   $('detail').className = 'detail';
   const services = selected.services || [];
   const hostHealth = findHealthForItem(currentHealthData, selected);
+  const backup = findBackupForItem(selected);
   $('detail').innerHTML = `
     <h3>${escapeHtml(selected.display_name)}</h3>
     <dl>
@@ -158,7 +172,25 @@ function renderDetail() {
     </dl>
     ${services.length ? `<h4>Services</h4><ul class="services">${services.map(s => `<li>${escapeHtml(s.name || 'service')} · ${escapeHtml(String(s.protocol || 'tcp'))} · :${escapeHtml(String(s.port || ''))}</li>`).join('')}</ul>` : ''}
     ${hostHealth ? renderHealthDetail(hostHealth) : ''}
+    ${backup ? renderBackupDetail(backup) : ''}
   `;
+}
+
+function normalizeInventoryName(value) {
+  return String(value || '')
+    .replace(/\.lan$|\.local$|\.cheetah-iwato\.ts\.net$/i, '')
+    .toLowerCase();
+}
+
+function findBackupForItem(item) {
+  if (!currentBackupData || !item) return null;
+  const candidates = [
+    item.name,
+    item.hostname,
+    item.display_name,
+    item.ip,
+  ].map(normalizeInventoryName).filter(Boolean);
+  return candidates.map(key => currentBackupData[key]).find(Boolean) || null;
 }
 
 function renderCards(items) {
@@ -211,16 +243,23 @@ function updateHealthTimestamp() {
 
 async function refreshHealthData() {
   try {
-    currentHealthData = await fetchHealthData();
+    [currentHealthData, currentBackupData] = await Promise.all([
+      fetchHealthData(),
+      fetchBackupData(),
+    ]);
   } catch (err) {
-    console.warn('[app] Health data fetch failed:', err);
+    console.warn('[app] Health/backup data fetch failed:', err);
     currentHealthData = null;
+    currentBackupData = null;
   }
   updateHealthTimestamp();
   // Re-attach health badges if topology is already rendered
   if (currentHealthData) {
     attachHealthToNodes(currentHealthData, allItems());
   }
+  const backupEl = document.getElementById('backupStatus');
+  if (backupEl) backupEl.innerHTML = renderBackupStatusPanel(currentBackupData);
+  renderDetail();
 }
 
 function startHealthRefresh() {
@@ -249,12 +288,13 @@ document.addEventListener('visibilitychange', () => {
 // Listen for custom event from topology module when a device popup is shown
 document.addEventListener('topologynodepopup', (event) => {
   const {item} = event.detail;
-  if (!item || !currentHealthData) return;
+  if (!item || (!currentHealthData && !currentBackupData)) return;
   const hostHealth = findHealthForItem(currentHealthData, item);
-  if (!hostHealth) return;
+  const backup = findBackupForItem(item);
+  if (!hostHealth && !backup) return;
   const detailEl = document.getElementById('healthDetail');
   if (detailEl) {
-    detailEl.innerHTML = renderHealthDetail(hostHealth);
+    detailEl.innerHTML = `${hostHealth ? renderHealthDetail(hostHealth) : ''}${backup ? renderBackupDetail(backup) : ''}`;
   }
 });
 
