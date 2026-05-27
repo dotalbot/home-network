@@ -49,6 +49,22 @@ devices:
     confidence: high
     notes: mDNS advertises Home Assistant service on the LAN.
 
+  - ip: 192.168.1.71
+    hostname: jellyoffice.lan
+    role: environmental_sensor_node
+    category: iot
+    mac: b8:27:eb:a9:25:c1
+    open_ports: [22]
+    services:
+      - port: 22
+        name: SSH / Tailscale SSH management
+        protocol: ssh
+      - port: 1883
+        name: Enviro publisher via Mosquitto on jellyhome
+        protocol: mqtt
+    confidence: high
+    notes: Pi Zero 2 W + Pimoroni Enviro; publishes temperature, humidity, pressure, light, proximity, and host health via MQTT.
+
   - ip: 192.168.1.73
     hostname: Meross_Smart_Switch.lan
     role: smart_switch
@@ -312,6 +328,13 @@ tailnet_peers:
     hostname: jellybackup.cheetah-iwato.ts.net
     name: jellybackup
     open_ports: [22]
+  - ip: 100.120.3.77
+    hostname: jellyoffice.cheetah-iwato.ts.net
+    name: jellyoffice
+    role: environmental_sensor_node
+    category: iot
+    open_ports: [22]
+    notes: Pi Zero 2 W Enviro sensor node; no Docker/node_exporter, health via MQTT.
   - ip: 100.125.86.118
     hostname: jellybase.cheetah-iwato.ts.net
     name: jellybase

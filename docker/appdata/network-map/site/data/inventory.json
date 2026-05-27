@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-23T07:43:55.199254+00:00",
+  "generated_at": "2026-05-27T22:47:54.972729+00:00",
   "lan_devices": [
     {
       "category": "server",
@@ -69,6 +69,34 @@
           "name": "Home Assistant",
           "port": 8123,
           "protocol": "http"
+        }
+      ],
+      "source": "lan"
+    },
+    {
+      "category": "iot",
+      "confidence": "high",
+      "display_name": "jellyoffice.lan",
+      "has_management": true,
+      "hostname": "jellyoffice.lan",
+      "ip": "192.168.1.71",
+      "mac": "b8:27:eb:a9:25:c1",
+      "notes": "Pi Zero 2 W + Pimoroni Enviro; publishes temperature, humidity, pressure, light, proximity, and host health via MQTT.",
+      "open_ports": [
+        22
+      ],
+      "role": "environmental_sensor_node",
+      "service_count": 2,
+      "services": [
+        {
+          "name": "SSH / Tailscale SSH management",
+          "port": 22,
+          "protocol": "ssh"
+        },
+        {
+          "name": "Enviro publisher via Mosquitto on jellyhome",
+          "port": 1883,
+          "protocol": "mqtt"
         }
       ],
       "source": "lan"
@@ -480,17 +508,17 @@
   "summary": {
     "categories": {
       "client": 3,
-      "iot": 9,
+      "iot": 10,
       "network": 2,
       "server": 4,
       "server_or_client": 1,
       "unknown": 5
     },
-    "lan_devices": 24,
-    "management_surfaces": 16,
+    "lan_devices": 25,
+    "management_surfaces": 18,
     "open_port_counts": {
       "1883": 2,
-      "22": 9,
+      "22": 11,
       "3000": 4,
       "443": 3,
       "445": 1,
@@ -501,8 +529,8 @@
       "8123": 2,
       "9443": 2
     },
-    "tailnet_peers": 9,
-    "total_items": 33
+    "tailnet_peers": 10,
+    "total_items": 35
   },
   "tailnet_peers": [
     {
@@ -574,6 +602,21 @@
       "open_ports": [
         22
       ],
+      "service_count": 0,
+      "source": "tailscale"
+    },
+    {
+      "category": "iot",
+      "display_name": "jellyoffice.cheetah-iwato.ts.net",
+      "has_management": true,
+      "hostname": "jellyoffice.cheetah-iwato.ts.net",
+      "ip": "100.120.3.77",
+      "name": "jellyoffice",
+      "notes": "Pi Zero 2 W Enviro sensor node; no Docker/node_exporter, health via MQTT.",
+      "open_ports": [
+        22
+      ],
+      "role": "environmental_sensor_node",
       "service_count": 0,
       "source": "tailscale"
     },

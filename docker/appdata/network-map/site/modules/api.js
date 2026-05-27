@@ -66,6 +66,17 @@ export async function fetchHealthData() {
     diskAvailResults,
     diskTotalResults,
     tempResults,
+    mqttUpResults,
+    mqttTemperatureResults,
+    mqttHumidityResults,
+    mqttPressureResults,
+    mqttLuxResults,
+    mqttProximityResults,
+    mqttCpuTemperatureResults,
+    mqttDiskUsedResults,
+    mqttMemoryAvailableResults,
+    mqttWifiRssiResults,
+    mqttUptimeResults,
   ] = await Promise.all([
     fetchPrometheusQuery('up{job="node_exporter"}'),
     fetchPrometheusQuery('node_load5{job="node_exporter"}'),
@@ -74,6 +85,17 @@ export async function fetchHealthData() {
     fetchPrometheusQuery('node_filesystem_avail_bytes{job="node_exporter",mountpoint="/",fstype!~"tmpfs|sysfs|devtmpfs"}'),
     fetchPrometheusQuery('node_filesystem_size_bytes{job="node_exporter",mountpoint="/",fstype!~"tmpfs|sysfs|devtmpfs"}'),
     fetchPrometheusQuery('node_hwmon_temp_celsius{job="node_exporter"}'),
+    fetchPrometheusQuery('up{job="mqtt_exporter",monitored_host="jellyoffice"}'),
+    fetchPrometheusQuery('mqtt_temperature{job="mqtt_exporter",monitored_host="jellyoffice"}'),
+    fetchPrometheusQuery('mqtt_humidity{job="mqtt_exporter",monitored_host="jellyoffice"}'),
+    fetchPrometheusQuery('mqtt_pressure{job="mqtt_exporter",monitored_host="jellyoffice"}'),
+    fetchPrometheusQuery('mqtt_lux{job="mqtt_exporter",monitored_host="jellyoffice"}'),
+    fetchPrometheusQuery('mqtt_proximity{job="mqtt_exporter",monitored_host="jellyoffice"}'),
+    fetchPrometheusQuery('mqtt_cpu_temperature{job="mqtt_exporter",monitored_host="jellyoffice"}'),
+    fetchPrometheusQuery('mqtt_disk_used{job="mqtt_exporter",monitored_host="jellyoffice"}'),
+    fetchPrometheusQuery('mqtt_memory_available{job="mqtt_exporter",monitored_host="jellyoffice"}'),
+    fetchPrometheusQuery('mqtt_wifi_rssi{job="mqtt_exporter",monitored_host="jellyoffice"}'),
+    fetchPrometheusQuery('mqtt_uptime{job="mqtt_exporter",monitored_host="jellyoffice"}'),
   ]);
 
   const health = {};
@@ -132,6 +154,37 @@ export async function fetchHealthData() {
   // Mark any host seen in up but without online key
   for (const host of Object.keys(health)) {
     if (health[host].online === undefined) health[host].online = false;
+  }
+
+  // MQTT-only constrained sensor nodes, currently jellyoffice.
+  // These nodes intentionally do not run node_exporter; mqtt-exporter bridges
+  // the publisher's JSON payload into Prometheus scalar metrics.
+  function mqttValue(results) {
+    const first = results?.[0];
+    const value = parseFloat(first?.value?.[1]);
+    return Number.isFinite(value) ? value : undefined;
+  }
+
+  if (mqttUpResults.length || mqttTemperatureResults.length || mqttCpuTemperatureResults.length) {
+    const sensorHost = mqttUpResults[0]?.metric?.monitored_host
+      || mqttTemperatureResults[0]?.metric?.monitored_host
+      || 'jellyoffice';
+    const mqttUp = mqttValue(mqttUpResults);
+    health[sensorHost] = {
+      ...(health[sensorHost] || {}),
+      online: mqttUp === undefined ? true : mqttUp === 1,
+      source: 'mqtt',
+      sensorTemp: mqttValue(mqttTemperatureResults),
+      humidity: mqttValue(mqttHumidityResults),
+      pressure: mqttValue(mqttPressureResults),
+      lux: mqttValue(mqttLuxResults),
+      proximity: mqttValue(mqttProximityResults),
+      temp: mqttValue(mqttCpuTemperatureResults),
+      diskUsedPct: mqttValue(mqttDiskUsedResults),
+      memAvail: mqttValue(mqttMemoryAvailableResults),
+      wifiRssi: mqttValue(mqttWifiRssiResults),
+      uptimeSeconds: mqttValue(mqttUptimeResults),
+    };
   }
 
   health.timestamp = Date.now();

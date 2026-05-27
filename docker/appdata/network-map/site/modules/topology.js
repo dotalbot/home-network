@@ -67,10 +67,13 @@ export function renderExpandedTopology(nodes, lanCount, tailnetCount) {
 
 export function buildTopologyNodes(lan, tailnet) {
   const lanSorted = [...lan].sort((a, b) => categoryRank(a) - categoryRank(b) || byName(a, b));
-  return [
+  const positioned = [
     ...positionLaneGroup(lanSorted, {columns: [95, 250, 405, 795, 950, 1105], top: 330, rowGap: 82, type: 'lan'}),
     ...positionLaneGroup(tailnet, {columns: [190, 395, 600, 805, 1010], top: 830, rowGap: 74, type: 'tailnet'}),
   ];
+  topologyNodes = positioned;
+  ensureTopologyPositions(positioned);
+  return positioned;
 }
 
 export function ensureTopologyPositions(nodes) {

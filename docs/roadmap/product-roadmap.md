@@ -92,6 +92,7 @@ The platform should make the home lab understandable, reproducible, observable, 
 - [x] MQTT→Prometheus bridge: mqtt-exporter on jellybase, scraped by Prometheus with `mqtt_temperature`, `mqtt_humidity`, `mqtt_pressure`, `mqtt_lux`, `mqtt_proximity`, and host-health metrics verified.
 - [x] Temperature compensation for BME280 (software offset + GPIO extender cable recommendation).
 - [x] Health metrics via MQTT (uptime, CPU temp, disk, memory, Wi-Fi RSSI) — no node_exporter on 512MB device.
+- [x] Homepage and Network Map integration: `Jellyoffice Enviro` appears in Homepage IoT and Network Map as LAN `192.168.1.71` / Tailnet `100.120.3.77`, with MQTT/Prometheus health enrichment.
 
 ## V5 — Logs and Grafana Observability
 

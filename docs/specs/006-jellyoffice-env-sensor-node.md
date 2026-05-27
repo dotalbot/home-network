@@ -525,20 +525,23 @@ Alternatively, this can be tracked via the mqtt topic structure rather than a fo
 - Mosquitto credential changes require a full `docker restart mqtt-mosquitto`; SIGHUP was not enough during rollout.
 - After rotating the secret file, recreate `mqtt-exporter` rather than only restarting it so `/run/secrets/mqtt_exporter_password` reflects the new file content.
 
-### Phase 5: Homepage and Network Map integration
+### Phase 5: Homepage and Network Map integration ✅
+
+**Status**: Complete in source and ready for runtime sync/deploy.
 
 **Objective**: Make jellyoffice visible in the homelab dashboards.
 
 **Tasks**:
-1. Add jellyoffice to Homepage config (via `scripts/homepage-render`)
-2. Add jellyoffice to Network Map topology as a sensor/IoT node
-3. Update `inventory/hosts.yml` with final LAN and Tailscale IPs
-4. Optionally: Add Grafana dashboard panel for environmental data
+1. Add jellyoffice to Homepage config via `scripts/homepage-render` ✅
+2. Add jellyoffice to Network Map topology as a sensor/IoT node ✅
+3. Update `inventory/hosts.yml` with final LAN and Tailscale IPs: `192.168.1.71`, `100.120.3.77` ✅
+4. Add Network Map MQTT health enrichment from Prometheus `mqtt_*` metrics ✅
 
 **Acceptance**:
-- Homepage shows jellyoffice with Enviro sensor link
-- Network Map shows jellyoffice as a sensor node
-- All documentation updated
+- Homepage shows `Jellyoffice Enviro` in the IoT section with a Prometheus metric link ✅
+- Network Map shows jellyoffice as LAN node `192.168.1.71` and Tailnet peer `100.120.3.77` ✅
+- Network Map health popover uses MQTT/Prometheus metrics for jellyoffice because node_exporter is intentionally absent ✅
+- All documentation updated ✅
 
 ## Temperature compensation
 

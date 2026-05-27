@@ -16,6 +16,12 @@ function healthColor(hostHealth) {
   if (hostHealth.online === false) return 'red';
   if (hostHealth.online === undefined) return 'grey';
 
+  // Check MQTT-reported disk usage warning for constrained sensor nodes
+  if (hostHealth.diskUsedPct !== undefined) {
+    if (hostHealth.diskUsedPct > 90) return 'red';
+    if (hostHealth.diskUsedPct > 80) return 'amber';
+  }
+
   // Check disk usage warning
   if (hostHealth.diskTotal > 0) {
     const diskPct = (hostHealth.diskAvail ?? 0) / hostHealth.diskTotal;
@@ -50,6 +56,21 @@ function formatPct(ratio) {
   return `${(ratio * 100).toFixed(1)}%`;
 }
 
+function formatOptional(value, suffix = '', digits = 1) {
+  if (value === undefined || value === null || isNaN(value)) return 'n/a';
+  return `${Number(value).toFixed(digits)}${suffix}`;
+}
+
+function formatUptime(seconds) {
+  if (seconds === undefined || seconds === null || isNaN(seconds)) return 'n/a';
+  const days = Math.floor(seconds / 86400);
+  const hours = Math.floor((seconds % 86400) / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  if (days > 0) return `${days}d ${hours}h`;
+  if (hours > 0) return `${hours}h ${minutes}m`;
+  return `${minutes}m`;
+}
+
 /**
  * Render health badge HTML strings for topology nodes.
  * Returns an empty string if no health data available.
@@ -72,13 +93,15 @@ export function attachHealthToNodes(healthData, inventoryItems) {
 
   // Build a map from IP → hostname for matching inventory items to health data
   const ipToHostname = {};
+  const ipToDisplayName = {};
   const hostnameToIp = {};
   for (const item of inventoryItems) {
-    // Match on hostname (stripping .lan/.local), display_name, or IP
-    const displayName = (item.display_name || '').replace(/\.lan$|\.local$/i, '').toLowerCase();
-    const hostname = (item.hostname || '').replace(/\.lan$|\.local$/i, '').toLowerCase();
+    // Match on hostname (stripping .lan/.local/.ts.net), display_name, or IP
+    const displayName = (item.display_name || '').replace(/\.lan$|\.local$|\.cheetah-iwato\.ts\.net$/i, '').toLowerCase();
+    const hostname = (item.hostname || '').replace(/\.lan$|\.local$|\.cheetah-iwato\.ts\.net$/i, '').toLowerCase();
     const ip = item.ip;
     ipToHostname[ip] = hostname || displayName;
+    ipToDisplayName[ip] = displayName;
     hostnameToIp[hostname || displayName] = ip;
     hostnameToIp[ip] = ip;
   }
@@ -90,6 +113,7 @@ export function attachHealthToNodes(healthData, inventoryItems) {
 
     // Try to match via hostname derived from inventory, then IP
     const hostname = ipToHostname[ip];
+    const displayName = ipToDisplayName[ip];
     let hostHealth = null;
 
     // Try hostname match first, then direct key lookup
@@ -148,15 +172,22 @@ export function renderHealthDetail(hostHealth) {
       <h4 class="health-title">Node health <span class="health-badge-inline health-${color}">${statusLabel}</span></h4>
       <dl>
         <dt>Status</dt>
-        <dd><span class="health-status-dot health-${color}"></span> ${escapeHtml(statusLabel)}</dd>
+        <dd><span class="health-status-dot health-${color}"></span> ${escapeHtml(statusLabel)}${hostHealth.source === 'mqtt' ? ' · MQTT telemetry' : ''}</dd>
         <dt>CPU load (5m)</dt>
         <dd>${hostHealth.load5 !== undefined ? escapeHtml(hostHealth.load5.toFixed(2)) : 'n/a'}</dd>
         <dt>Memory</dt>
-        <dd>${usedMemPct !== null ? `${formatPct(usedMemPct)} used (${formatBytes(hostHealth.memTotal)} total)` : 'n/a'}</dd>
+        <dd>${usedMemPct !== null ? `${formatPct(usedMemPct)} used (${formatBytes(hostHealth.memTotal)} total)` : (hostHealth.memAvail !== undefined ? `${formatOptional(hostHealth.memAvail, ' MiB', 0)} available` : 'n/a')}</dd>
         <dt>Disk /</dt>
-        <dd>${usedDiskPct !== null ? `${formatPct(usedDiskPct)} used (${formatBytes(hostHealth.diskTotal)} total)` : 'n/a'}</dd>
-        <dt>Temperature</dt>
+        <dd>${usedDiskPct !== null ? `${formatPct(usedDiskPct)} used (${formatBytes(hostHealth.diskTotal)} total)` : (hostHealth.diskUsedPct !== undefined ? `${formatOptional(hostHealth.diskUsedPct, '%', 1)} used` : 'n/a')}</dd>
+        <dt>CPU temperature</dt>
         <dd>${hostHealth.temp !== undefined ? `${hostHealth.temp.toFixed(1)} °C` : 'n/a'}</dd>
+        ${hostHealth.sensorTemp !== undefined ? `<dt>Enviro temperature</dt><dd>${formatOptional(hostHealth.sensorTemp, ' °C', 1)}</dd>` : ''}
+        ${hostHealth.humidity !== undefined ? `<dt>Humidity</dt><dd>${formatOptional(hostHealth.humidity, '%', 1)}</dd>` : ''}
+        ${hostHealth.pressure !== undefined ? `<dt>Pressure</dt><dd>${formatOptional(hostHealth.pressure, ' hPa', 1)}</dd>` : ''}
+        ${hostHealth.lux !== undefined ? `<dt>Light</dt><dd>${formatOptional(hostHealth.lux, ' lx', 1)}</dd>` : ''}
+        ${hostHealth.proximity !== undefined ? `<dt>Proximity</dt><dd>${formatOptional(hostHealth.proximity, '', 0)}</dd>` : ''}
+        ${hostHealth.wifiRssi !== undefined ? `<dt>Wi-Fi RSSI</dt><dd>${formatOptional(hostHealth.wifiRssi, ' dBm', 0)}</dd>` : ''}
+        ${hostHealth.uptimeSeconds !== undefined ? `<dt>Uptime</dt><dd>${escapeHtml(formatUptime(hostHealth.uptimeSeconds))}</dd>` : ''}
       </dl>
     </div>
   `;
@@ -172,8 +203,8 @@ export function renderHealthDetail(hostHealth) {
 export function findHealthForItem(healthData, item) {
   if (!healthData) return null;
 
-  const displayName = (item.display_name || '').replace(/\.lan$|\.local$/i, '').toLowerCase();
-  const hostname = (item.hostname || '').replace(/\.lan$|\.local$/i, '').toLowerCase();
+  const displayName = (item.display_name || '').replace(/\.lan$|\.local$|\.cheetah-iwato\.ts\.net$/i, '').toLowerCase();
+  const hostname = (item.hostname || '').replace(/\.lan$|\.local$|\.cheetah-iwato\.ts\.net$/i, '').toLowerCase();
   const ip = item.ip;
 
   // Direct hostname match
