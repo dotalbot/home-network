@@ -500,6 +500,31 @@ services:
     backup: config-and-persistence
     status: active
 
+  jellyoffice-enviro:
+    display_name: Jellyoffice Enviro
+    icon: mdi-thermometer-water
+    category: IoT
+    mode: single-primary
+    hosts:
+      - jellyoffice
+    systemd_units:
+      jellyoffice:
+        - enviro-publisher.service
+    urls:
+      primary: mqtt://192.168.1.1:1883/home/sensors/jellyoffice
+      home_assistant_discovery: mqtt://192.168.1.1:1883/homeassistant/sensor/jellyoffice
+    description: >
+      Native Python/systemd publisher on Raspberry Pi Zero 2 W with Pimoroni Enviro.
+      Publishes temperature, humidity, pressure, lux, proximity, and lightweight host
+      health metrics via MQTT to Mosquitto on jellyhome. Strictly non-Docker.
+    backup: none
+    status: active
+    notes:
+      - Runtime state is /opt/jellyoffice on jellyoffice; no /opt/docker.
+      - MQTT credentials are host-local in /opt/jellyoffice/config.json and not stored in Git.
+      - Home Assistant discovery topics are retained under homeassistant/sensor/jellyoffice/#.
+      - ADS1015 is detected at 0x23, but noise channel reads currently return I/O errors; noise is not published yet.
+
 drift:
   ignored_containers:
     jellybase:

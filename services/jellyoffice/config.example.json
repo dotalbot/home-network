@@ -1,0 +1,20 @@
+{
+  "mqtt": {
+    "host": "192.168.1.1",
+    "port": 1883,
+    "username": "jellyoffice",
+    "password": "REDACTED: store only in /opt/jellyoffice/config.json on jellyoffice",
+    "client_id": "jellyoffice-enviro"
+  },
+  "device": {
+    "name": "Jellyoffice Enviro",
+    "identifier": "jellyoffice_enviro",
+    "manufacturer": "Pimoroni",
+    "model": "Enviro",
+    "host": "jellyoffice"
+  },
+  "topic_prefix": "home/sensors/jellyoffice",
+  "discovery_prefix": "homeassistant",
+  "interval_seconds": 60,
+  "temperature_offset_c": -3.0
+}

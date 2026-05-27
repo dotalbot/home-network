@@ -1,0 +1,8 @@
+paho-mqtt>=2.1
+smbus2>=0.6
+pimoroni-bme280>=1.0
+ltr559>=1.0
+ads1015>=1.0
+gpiod>=2.4
+gpiodevice>=0.0.5
+i2cdevice>=1.0

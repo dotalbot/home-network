@@ -1,0 +1,22 @@
+[Unit]
+Description=Jellyoffice Enviro MQTT publisher
+Wants=network-online.target
+After=network-online.target tailscaled.service
+
+[Service]
+Type=simple
+User=jellyfish
+Group=jellyfish
+WorkingDirectory=/opt/jellyoffice
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/opt/jellyoffice/.venv/bin/python /opt/jellyoffice/enviro_publisher.py
+Restart=always
+RestartSec=10
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/jellyoffice
+
+[Install]
+WantedBy=multi-user.target

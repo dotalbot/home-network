@@ -1,8 +1,9 @@
 # Spec 006: Jellyoffice — Pi Zero 2 W Environmental Sensor Node
 
-Status: planned  
+Status: partially deployed (Phases 0-3 live)  
 Number: 006  
 Created: 2026-05-27  
+Updated: 2026-05-27  
 
 ## Goal
 
@@ -42,9 +43,8 @@ I2C verification on jellyoffice shows `0x23` (ADS1015) and `0x76` (BME280) which
 - **512MB RAM**: No Docker, no node_exporter, no Alloy, no Borg. Every service must be native and minimal.
 - **32-bit armhf OS**: Limits available packages; Pimoroni library supports this architecture.
 - **WiFi only**: Less reliable than Ethernet; needs reconnection logic and watchdog.
-- **Known BME280 heat issue**: Temperature readings are inflated by Pi CPU heat. Mitigation: GPIO extender cable to physically separate the Enviro+ from the Pi.
-- **Gas sensor is qualitative**: MICS6814 gives resistance values, not calibrated ppm. Useful for trends, not absolute readings.
-- **PMS5003 buffering bug**: If reading interval is slower than sensor sample rate, a progressive delay develops. Pimoroni's `mqtt-all.py` example reads PMS in a background thread to avoid this.
+- **Known BME280 heat issue**: Temperature readings are inflated by Pi CPU heat. Mitigation: GPIO extender cable to physically separate the Enviro from the Pi, plus software offset.
+- **ADS1015/noise status**: ADS1015 is detected at `0x23`, but live channel reads currently return I/O errors. Noise is deferred until the channel/read path is verified.
 
 ## Host: jellyoffice
 
@@ -53,6 +53,7 @@ I2C verification on jellyoffice shows `0x23` (ADS1015) and `0x76` (BME280) which
 jellyoffice:
   description: Raspberry Pi Zero 2 W environmental sensor node with Pimoroni Enviro
   lan_ip: TBD
+  tailscale_ip: 100.120.3.77
   roles:
     - pi
     - iot-sensor
@@ -74,8 +75,8 @@ jellyoffice:
   notes:
     - 512MB RAM, no Docker; runs sensor Python script natively via systemd
     - 32-bit Pi OS Lite (armhf)
-    - Enviro+ has known BME280 temperature offset from Pi heat; use GPIO extender cable
-    - PMS5003 particulate sensor optional; MQTT publisher supports it if connected
+    - Enviro has known BME280 temperature offset from Pi heat; use GPIO extender cable
+    - ADS1015 detected at 0x23, but noise channel reads currently return I/O errors; noise publishing deferred
 ```
 
 ## Architecture
@@ -84,7 +85,7 @@ jellyoffice:
 ┌─────────────────┐         MQTT          ┌──────────────────┐
 │   jellyoffice   │──────────────────────│  jellyhome        │
 │  Pi Zero 2 W    │  home/sensors/       │  Mosquitto:1883  │
-│  Enviro+ board  │  jellyoffice/#       │                  │
+│  Enviro board   │  jellyoffice/#       │                  │
 │                 │                      │  Home Assistant  │
 │  systemd:       │                      │  (auto-discovery)│
 │  enviro-        │                      └──────────────────┘
@@ -139,7 +140,7 @@ home/sensors/jellyoffice/temperature          # °C (float)
 home/sensors/jellyoffice/humidity             # % (float)
 home/sensors/jellyoffice/pressure             # hPa (float)
 home/sensors/jellyoffice/lux                  # lux (float)
-home/sensors/jellyoffice/noise                # amplitude (float, qualitative)
+# noise is deferred: ADS1015 is detected at 0x23, but channel reads currently return I/O errors
 home/sensors/jellyoffice/proximity            # raw proximity (float)
 home/sensors/jellyoffice/health              # JSON: uptime, cpu_temp, disk_used_pct, mem_avail_mb
 ```
@@ -181,7 +182,7 @@ Discovery payload example (per sensor):
   "device_class": "temperature",
   "device": {
     "identifiers": ["jellyoffice"],
-    "name": "Jellyoffice Enviro+",
+    "name": "Jellyoffice Enviro",
     "manufacturer": "Pimoroni",
     "model": "Enviro",
     "sw_version": "1.0.0"
@@ -190,7 +191,7 @@ Discovery payload example (per sensor):
 }
 ```
 
-This is sent for each sensor dimension (temperature, humidity, pressure, lux, noise, proximity).
+This is sent for each sensor dimension (temperature, humidity, pressure, lux, proximity) plus lightweight host-health values (CPU temperature, disk used, memory available, Wi-Fi RSSI, uptime).
 
 Before first run, the user needs to:
 1. Enable the Mosquitto broker integration in Home Assistant (or add the HA MQTT integration if not already configured)
@@ -249,15 +250,24 @@ Add to the existing Prometheus config on jellybase:
 ```text
 # requirements.txt
 paho-mqtt>=2.0
-enviroplus>=1.0.2
 smbus2
+pimoroni-bme280
+ltr559
+ads1015
+gpiod
+gpiodevice
+i2cdevice
 ```
 
-Note: The `enviroplus` Python library works for both Enviro and Enviro+. On the base Enviro board (no gas sensor, no PMS5003 connector), gas readings will return zero/unavailable and the PMS5003 class will not be available. The publisher script checks for sensor availability and only publishes topics for sensors that exist.
+Note: Do **not** install the full `enviroplus` meta-package on jellyoffice. On Raspberry Pi OS 13 / Python 3.13 / armv6 it pulls display/audio dependencies and attempts to build `numpy` from source via `st7735`, which is too heavy for the Pi Zero 2 W. Use the lightweight sensor-specific libraries above instead. Live testing on jellyoffice confirmed:
+
+- BME280 readings via `pimoroni-bme280`
+- LTR559 lux/proximity readings via `ltr559`
+- ADS1015 object detection via `ads1015`
 
 ### Key design decisions
 
-- **Pimoroni's `mqtt-all.py` as reference**: The official example at `github.com/pimoroni/enviroplus-python/blob/master/examples/mqtt-all.py` has battle-tested MQTT publishing, PMS5003 background thread handling, and reconnection logic. We'll use it as a reference/starting point but adapt for:
+- **Pimoroni examples as reference**: Use Pimoroni's Enviro examples only as references for sensor usage and MQTT reconnect logic. The deployed jellyoffice publisher uses lightweight sensor-specific libraries, not the full Pimoroni meta-package/example stack.
   - Home Assistant MQTT auto-discovery payloads
   - Health metrics alongside environmental data
   - Config-driven topic prefix and broker address
@@ -265,6 +275,7 @@ Note: The `enviroplus` Python library works for both Enviro and Enviro+. On the 
   - Temperature compensation offset (configurable, defaults to -3°C for Pi heat)
 - **Temperature compensation**: Apply a configurable offset (default -3°C) to BME280 readings to partially compensate for Pi CPU heat. Document that a GPIO extender cable is the proper hardware fix.
 - **PMS5003**: Not applicable — Enviro does not have a PMS5003 connector. This is an Enviro+ feature only.
+- **Noise**: Deferred. ADS1015 is detected at `0x23`, but live channel reads currently return I/O errors.
 - **Interval**: Default 60 seconds. Can be overridden in config.
 - **Retain**: Publish sensor values with `retain=True` so HA always has the last reading.
 - **Last will**: Set MQTT last-will message on `home/sensors/jellyoffice/availability` → `offline` to detect device disconnection.
@@ -317,7 +328,7 @@ Skip (not needed on this host):
 
 ```ini
 [Unit]
-Description=Enviro+ MQTT Sensor Publisher (jellyoffice)
+Description=Jellyoffice Enviro MQTT publisher
 After=network-online.target
 Wants=network-online.target
 
@@ -358,7 +369,7 @@ jellyoffice-env-sensor:
     mqtt_topics: mqtt://jellyhome:1883/home/sensors/jellyoffice/#
   description: >
     Environmental sensor publisher (temperature, humidity, pressure,
-    light, noise, proximity) on Pi Zero 2 W | Pimoroni Enviro |
+    light, proximity, host health) on Pi Zero 2 W | Pimoroni Enviro |
     ships data via MQTT to Mosquitto on jellyhome | Home Assistant auto-discovery
   source:
     type: git
@@ -399,34 +410,38 @@ Alternatively, this can be tracked via the mqtt topic structure rather than a fo
 
 ## Implementation phases
 
-### Phase 0: OS flash and hardware prep (manual, on-device)
+### Phase 0: OS flash and hardware prep (manual, on-device) ✅
 
-**Objective**: Get Pi Zero 2 W booted with I2C/SPI working and Enviro+ detected.
+**Status**: Complete and verified on jellyoffice.
+
+**Objective**: Get Pi Zero 2 W booted with I2C/SPI working and Enviro detected.
 
 **Tasks**:
-1. Flash Raspberry Pi OS Lite 32-bit (Bookworm armhf) to microSD
+1. Flash Raspberry Pi OS Lite 32-bit (Trixie armhf) to microSD
 2. Enable SSH, configure WiFi (wpa_supplicant or NetworkManager)
 3. Boot the Pi, SSH in as `pi`
 4. Change default password: `passwd`
 5. Set hostname: `sudo hostnamectl set-hostname jellyoffice`
 6. Update OS: `sudo apt update && sudo apt full-upgrade -y`
 7. Enable I2C and SPI: `sudo raspi-config` → Interface Options
-8. Verify sensor board: `sudo i2cdetect -y 1` → should show BME280 at 0x76/0x77 and LTR-559 at 0x53
+8. Verify sensor board: `sudo i2cdetect -y 1` → verified `0x23` ADS1015 and `0x76` BME280
 9. Install GPIO extender cable to mitigate BME280 heat offset (recommended)
 
 **Acceptance**:
 - Pi boots, connects to WiFi, SSH accessible
-- `i2cdetect` shows Enviro+ sensors
+- `i2cdetect` shows Enviro sensors: `0x23` ADS1015 and `0x76` BME280
 - Hostname is `jellyoffice`
 
-### Phase 1: Bootstrap and Tailscale (scripted)
+### Phase 1: Bootstrap and Tailscale (scripted) ✅
+
+**Status**: Complete and verified. Tailscale IP: `100.120.3.77`.
 
 **Objective**: Run the bootstrap script to set up the operator user, packages, and network.
 
 **Tasks**:
 1. Create `scripts/bootstrap-pi-zero-sensor` based on existing `bootstrap-jellybot-operator`
 2. Transfer script to jellyoffice via `scp` or `curl` from git
-3. Run: `sudo ./scripts/bootstrap-pi-zero-sensor --user jellybot`
+3. Run: `sudo ./scripts/bootstrap-pi-zero-sensor --user jellyfish`
 4. Install Tailscale: `curl -fsSL https://tailscale.com/install.sh | sh && sudo tailscale up`
 5. Record the Tailscale IP in inventory/hosts.yml
 6. Verify: `tailscale status`, SSH via Tailscale
@@ -438,15 +453,17 @@ Alternatively, this can be tracked via the mqtt topic structure rather than a fo
 - Tailscale connected and SSH works
 - I2C and SPI kernel modules loaded
 
-### Phase 2: Sensor publisher service
+### Phase 2: Sensor publisher service ✅
 
-**Objective**: Deploy the Python sensor publisher that reads Enviro+ data and publishes to MQTT.
+**Status**: Complete and verified. `enviro-publisher.service` is active; MQTT retained values verified.
+
+**Objective**: Deploy the Python sensor publisher that reads Enviro data and publishes to MQTT.
 
 **Tasks**:
-1. Create `scripts/jellyoffice/enviro_publisher.py` — adapted from Pimoroni's `mqtt-all.py`
-2. Create `scripts/jellyoffice/requirements.txt`
-3. Create `scripts/jellyoffice/config.json` (MQTT broker, topic prefix, interval)
-4. Create `scripts/jellyoffice/enviro-publisher.service` (systemd unit)
+1. Create `services/jellyoffice/enviro_publisher.py`
+2. Create `services/jellyoffice/requirements.txt`
+3. Create `services/jellyoffice/config.example.json`; runtime secret config lives only at `/opt/jellyoffice/config.json`
+4. Create `services/jellyoffice/enviro-publisher.service` (systemd unit)
 5. Transfer to jellyoffice: `/opt/jellyoffice/`
 6. Create venv: `python3 -m venv /opt/jellyoffice/.venv`
 7. Install deps: `/opt/jellyoffice/.venv/bin/pip install -r requirements.txt`
@@ -456,10 +473,12 @@ Alternatively, this can be tracked via the mqtt topic structure rather than a fo
 **Acceptance**:
 - `systemctl status enviro-publisher` shows active/running
 - MQTT topics `home/sensors/jellyoffice/temperature`, etc. appear in Mosquitto on jellyhome
-- Script reconnects automatically after MQTT broker disconnect
-- Script reconnects automatically after WiFi dropout
+- Script reconnects automatically after MQTT broker disconnect (handled by systemd restart and MQTT client reconnect path)
+- Script reconnects automatically after WiFi dropout (systemd restart/backoff; future hardening can add explicit loop reconnect)
 
-### Phase 3: Home Assistant auto-discovery
+### Phase 3: Home Assistant auto-discovery ✅
+
+**Status**: MQTT discovery payloads are retained and verified. Home Assistant UI confirmation remains an operator check because HA access is not fully configured for Hermes yet.
 
 **Objective**: Configure Home Assistant to auto-discover jellyoffice sensors from MQTT.
 
@@ -470,17 +489,17 @@ Alternatively, this can be tracked via the mqtt topic structure rather than a fo
 
 **Tasks**:
 1. Ensure Mosquitto broker is configured in Home Assistant (Settings → Devices & Services → MQTT)
-2. If no auth: HA connects to `jellyhome:1883` without credentials (LAN-only Mosquitto)
+2. Configure Home Assistant's MQTT integration with Mosquitto credentials that can read `homeassistant/#` and `home/sensors/#`
 3. The `enviro_publisher.py` sends discovery payloads on startup to `homeassistant/sensor/jellyoffice/<sensor>/config`
 4. Wait for HA to process discovery messages (typically <30 seconds)
-5. Verify: HA → Settings → Devices & Services → MQTT → "Jellyoffice Enviro+" device appears with all sensor entities
+5. Verify: HA → Settings → Devices & Services → MQTT → "Jellyoffice Enviro" device appears with sensor and health entities
 6. Optionally: Add HA dashboard cards for the new sensors
 
 **Acceptance**:
-- HA shows "Jellyoffice Enviro+" as a device with ~6 sensor entities
+- HA shows "Jellyoffice Enviro" as a device with sensor and health entities
 - Temperature, humidity, pressure readings display correctly
 - Sensor values update every 60 seconds
-- `expire_after: 300` marks sensors as unavailable after 5 minutes without data
+- Sensors use MQTT availability topic `home/sensors/jellyoffice/status`; alerting/exporter timeout rules remain Phase 4 work
 
 ### Phase 4: Prometheus bridge (mqtt-exporter)
 
@@ -509,7 +528,7 @@ Alternatively, this can be tracked via the mqtt topic structure rather than a fo
 4. Optionally: Add Grafana dashboard panel for environmental data
 
 **Acceptance**:
-- Homepage shows jellyoffice with Enviro+ sensor link
+- Homepage shows jellyoffice with Enviro sensor link
 - Network Map shows jellyoffice as a sensor node
 - All documentation updated
 
@@ -517,11 +536,11 @@ Alternatively, this can be tracked via the mqtt topic structure rather than a fo
 
 ### The problem
 
-The BME280 temperature sensor on the Enviro+ board sits directly above the Raspberry Pi CPU. The Pi Zero 2 W generates noticeable heat, causing temperature readings 3-7°C too high. This also affects relative humidity and pressure (which are temperature-dependent).
+The BME280 temperature sensor on the Enviro board sits directly above the Raspberry Pi CPU. The Pi Zero 2 W generates noticeable heat, causing temperature readings 3-7°C too high. This also affects relative humidity and pressure (which are temperature-dependent).
 
 ### Mitigations (in order of effectiveness)
 
-1. **GPIO extender cable** (recommended): A 40-pin ribbon cable moves the Enviro+ board away from the Pi, dramatically reducing heat transfer. ~£5-6 from Pimoroni.
+1. **GPIO extender cable** (recommended): A 40-pin ribbon cable moves the Enviro board away from the Pi, dramatically reducing heat transfer. ~£5-6 from Pimoroni.
 2. **Software temperature offset**: Apply a configurable offset to BME280 readings. The publisher defaults to `-3°C` but this can be tuned per installation. Document that this is approximate.
 3. **CPU temperature subtraction**: Read Pi CPU temperature and estimate a correction. Simplest formula: `real_temp ≈ BME280_temp - k * (CPU_temp - ambient)`. This requires calibration and is fragile.
 

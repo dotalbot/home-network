@@ -159,11 +159,22 @@ else
   echo "  *** Then record the Tailscale IP for inventory/hosts.yml"
 fi
 
-# ── 9. Install Pimoroni enviroplus Python library ─────────────────
-echo "--- Installing Pimoroni enviroplus library ---"
+# ── 9. Install lightweight Pimoroni sensor libraries ───────────────
+echo "--- Installing lightweight Pimoroni sensor libraries ---"
 run sudo -u "$OPERATOR_USER" python3 -m venv /opt/jellyoffice/.venv
 run sudo -u "$OPERATOR_USER" /opt/jellyoffice/.venv/bin/pip install --upgrade pip setuptools wheel
-run sudo -u "$OPERATOR_USER" /opt/jellyoffice/.venv/bin/pip install enviroplus paho-mqtt smbus2
+# Do not install the enviroplus meta-package on Pi Zero / armv6: it pulls display/audio
+# dependencies and may build numpy from source on Python 3.13. Install only what the
+# Enviro publisher needs.
+run sudo -u "$OPERATOR_USER" /opt/jellyoffice/.venv/bin/pip install \
+  paho-mqtt \
+  smbus2 \
+  pimoroni-bme280 \
+  ltr559 \
+  ads1015 \
+  gpiod \
+  gpiodevice \
+  i2cdevice
 
 echo ""
 echo "=== Bootstrap complete ==="
