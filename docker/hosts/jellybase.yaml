@@ -170,6 +170,28 @@ services:
     ports:
       - "8793:80"
 
+  jellyfood-api:
+    build:
+      context: /home/jellylady/repo/jellyfood
+      dockerfile: packages/api/Dockerfile
+    image: jellyfood-api:latest
+    container_name: jellyfood-api
+    restart: unless-stopped
+    ports:
+      - "8794:3000"
+    environment:
+      - NODE_ENV=production
+      - DATABASE_PATH=/data/foods.db
+      - PORT=3000
+    volumes:
+      - /opt/docker/appdata/jellyfood-api:/data
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:3000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
   homeassistant:
     image: ghcr.io/home-assistant/home-assistant:stable
     container_name: homeassistant

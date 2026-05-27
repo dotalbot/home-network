@@ -167,10 +167,12 @@ services:
     containers:
       jellybase:
         - jellyfood-web
+        - jellyfood-api
     urls:
       primary: http://192.168.1.2:8793
       local: http://127.0.0.1:8793
-    description: mobile-first food diary web app | static Expo export served by nginx
+      api: http://192.168.1.2:8794
+    description: mobile-first food diary web app | static Expo export served by nginx + REST API
     source:
       type: git
       local_path: /home/jellylady/repo/jellyfood
@@ -179,6 +181,30 @@ services:
       dockerfile: Dockerfile
       restore_note: Requires the Jellyfood source repository at the recorded build context; app diary data is browser/device-local and is not stored on the server.
     backup: source-repo
+    status: active
+
+  jellyfood-api:
+    display_name: Jellyfood API
+    icon: mdi-food-apple-outline
+    category: Projects
+    mode: single-primary-home-network-compose
+    hosts:
+      - jellybase
+    containers:
+      jellybase:
+        - jellyfood-api
+    urls:
+      primary: http://192.168.1.2:8794
+      local: http://127.0.0.1:8794
+    description: REST API backend for Jellyfood | Node.js + better-sqlite3
+    source:
+      type: git
+      local_path: /home/jellylady/repo/jellyfood
+      remote: git@github.com:dotalbot/jellyfood.git
+      build_context: /home/jellylady/repo/jellyfood
+      dockerfile: packages/api/Dockerfile
+      restore_note: Requires the Jellyfood source repository; API data stored in SQLite at /data/foods.db mapped to /opt/docker/appdata/jellyfood-api.
+    backup: sqlite-data
     status: active
 
   netdata:
