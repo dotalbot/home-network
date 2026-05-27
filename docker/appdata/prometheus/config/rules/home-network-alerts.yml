@@ -30,8 +30,8 @@ groups:
           severity: warning
           category: host
         annotations:
-          summary: "node_exporter is down for {{ $labels.monitored_host | default $labels.instance }}"
-          description: "Prometheus cannot scrape node_exporter on {{ $labels.monitored_host | default $labels.instance }}. Host performance, disk-health, and sensor telemetry may be missing."
+          summary: "node_exporter is down for {{ $labels.monitored_host }}"
+          description: "Prometheus cannot scrape node_exporter on {{ $labels.monitored_host }}. Host performance, disk-health, and sensor telemetry may be missing."
 
       - alert: FilesystemSpaceLow
         expr: |
@@ -150,8 +150,8 @@ groups:
           severity: warning
           service: alloy
         annotations:
-          summary: "Alloy is down on {{ $labels.monitored_host | default $labels.instance }}"
-          description: "Alloy log shipping agent {{ $labels.monitored_host | default $labels.instance }} has been unreachable for more than 5 minutes."
+          summary: "Alloy is down on {{ $labels.monitored_host }}"
+          description: "Alloy log shipping agent {{ $labels.monitored_host }} has been unreachable for more than 5 minutes."
 
       - alert: Seedit4meReverseTunnelDown
         expr: home_network_seedit4me_tunnel_success{job="node_exporter",host="jellyberry"} == 0
@@ -210,8 +210,8 @@ groups:
           category: log-pipeline
           service: alloy
         annotations:
-          summary: "Alloy cannot reach Loki from {{ $labels.monitored_host | default $labels.instance }}"
-          description: "Alloy on {{ $labels.monitored_host | default $labels.instance }} is failing to push logs to Loki. This usually means the Loki push URL or network path is wrong, so host/container logs are being lost."
+          summary: "Alloy cannot reach Loki from {{ $labels.monitored_host }}"
+          description: "Alloy on {{ $labels.monitored_host }} is failing to push logs to Loki. This usually means the Loki push URL or network path is wrong, so host/container logs are being lost."
 
       - alert: AlloyDroppingLogEntries
         expr: |
@@ -224,8 +224,8 @@ groups:
           category: log-pipeline
           service: alloy
         annotations:
-          summary: "Alloy is dropping log entries on {{ $labels.monitored_host | default $labels.instance }}"
-          description: "Alloy on {{ $labels.monitored_host | default $labels.instance }} is dropping log entries with reason {{ $labels.reason }}. Check Loki capacity, rate limits, and the host's Alloy metrics."
+          summary: "Alloy is dropping log entries on {{ $labels.monitored_host }}"
+          description: "Alloy on {{ $labels.monitored_host }} is dropping log entries with reason {{ $labels.reason }}. Check Loki capacity, rate limits, and the host's Alloy metrics."
 
       - alert: LokiDiscardingLogSamples
         expr: |
@@ -238,7 +238,7 @@ groups:
           category: log-pipeline
           service: loki
         annotations:
-          summary: "Loki is discarding log samples on {{ $labels.monitored_host | default $labels.instance }}"
+          summary: "Loki is discarding log samples on {{ $labels.monitored_host }}"
           description: "Loki is actively discarding log samples with reason {{ $labels.reason }}. Investigate retention limits, ingestion rate limits, or stale/backfilled log pushes before more log history is lost."
 
       - alert: HostSystemdFailedUnits
