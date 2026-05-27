@@ -290,21 +290,25 @@ Skip (not needed on this host):
 
 ### What the script configures
 
-1. Creates `jellybot` user with `dockerops` group (consistent with other hosts, even though Docker isn't installed)
-2. Sets hostname to `jellyoffice`
-3. Enables I2C and SPI via `raspi-config` nonint
-4. Copies SSH authorized keys (from another host's `jellybot`)
-5. Installs Tailscale and authenticates
-6. Creates `/opt/docker` structure (for consistency)
-7. Sets timezone to `Europe/London`
-8. Sets locale to `en_GB.UTF-8`
-9. Creates the Python venv at `/opt/jellyoffice/.venv`
-10. Creates systemd unit for `enviro-publisher`
-11. Enables and starts the publisher
+1. Creates or updates the chosen operator user (for example `jellyfish`)
+2. Adds the operator user only to sensor/access groups: `i2c`, `spi`, `gpio`
+3. Sets hostname to `jellyoffice`
+4. Enables I2C and SPI via `raspi-config` nonint
+5. Copies SSH authorized keys if provided later
+6. Installs Tailscale and authenticates
+7. Creates `/opt/jellyoffice` for the native Python service
+8. Sets timezone to `Europe/London`
+9. Sets locale to `en_GB.UTF-8`
+10. Creates the Python venv at `/opt/jellyoffice/.venv`
+11. Creates systemd unit for `enviro-publisher`
+12. Enables and starts the publisher
 
 ### What the script does NOT do
 
 - Does not install Docker
+- Does not create `/opt/docker`
+- Does not create `dockerops`
+- Does not add the operator user to Docker-related groups
 - Does not install Borg/Borgmatic
 - Does not configure backups
 - Does not auto-start Mosquitto (runs on jellyhome, not this device)
@@ -428,8 +432,9 @@ Alternatively, this can be tracked via the mqtt topic structure rather than a fo
 6. Verify: `tailscale status`, SSH via Tailscale
 
 **Acceptance**:
-- `jellybot` user exists with `dockerops` group
-- `/opt/docker` directory structure exists
+- Operator user exists and is in `i2c`, `spi`, and `gpio` groups
+- `/opt/jellyoffice` exists and is owned by the operator user
+- No Docker/Docker directories/groups are created on jellyoffice
 - Tailscale connected and SSH works
 - I2C and SPI kernel modules loaded
 
@@ -551,6 +556,20 @@ The BME280 temperature sensor on the Enviro+ board sits directly above the Raspb
 5. ~~Home Assistant integration?~~ → Auto-discovery via MQTT config payloads
 6. ~~Node monitoring?~~ → Health metrics via MQTT (not node_exporter); bridged to Prometheus via mqtt-exporter
 7. ~~I2C confirmed?~~ → Yes: 0x23 (ADS1015) and 0x76 (BME280) detected on bus 1
+
+## Host-local filesystem policy
+
+`jellyoffice` intentionally does not use the `/opt/docker` runtime layout. Its host-local state is:
+
+```text
+/opt/jellyoffice/
+├── .venv/
+├── enviro_publisher.py
+├── config.json
+└── logs only via journald/systemd
+```
+
+This keeps the Pi Zero clearly separate from Docker hosts (`jellyhome`, `jellybase`, `jellyberry`) and avoids accidentally treating it as a container runtime target.
 
 ## Files to create or modify
 

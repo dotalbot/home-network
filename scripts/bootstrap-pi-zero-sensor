@@ -5,7 +5,7 @@
 # Usage: sudo ./scripts/bootstrap-pi-zero-sensor [--user USERNAME] [--dry-run]
 #
 # Idempotent: safe to re-run. Installs missing packages, creates user,
-# enables I2C/SPI, sets up directories. Does NOT install Docker or Borg.
+# enables I2C/SPI, sets up /opt/jellyoffice. Does NOT install or prepare Docker/Borg.
 #
 # Based on: docs/specs/006-jellyoffice-env-sensor-node.md
 
@@ -123,25 +123,16 @@ if ! id "$OPERATOR_USER" &>/dev/null; then
   run adduser --gecos "" --disabled-password "$OPERATOR_USER"
 fi
 
-# dockerops group for consistency with other hosts
-run groupadd dockerops 2>/dev/null || true
-run usermod -aG dockerops "$OPERATOR_USER"
+# Sensor hardware groups only. Do not create dockerops and do not add Docker privileges.
 run usermod -aG i2c "$OPERATOR_USER"
 run usermod -aG spi "$OPERATOR_USER"
 run usermod -aG gpio "$OPERATOR_USER"
 
 # ── 5. Directory structure ────────────────────────────────────────
-echo "--- Creating directory structure ---"
-run mkdir -p /opt/docker/{appdata,hosts,.secrets}
+echo "--- Creating jellyoffice app directory ---"
 run mkdir -p /opt/jellyoffice
-
-run chown -R root:dockerops /opt/docker
-run chmod -R g+rwX /opt/docker
-run find /opt/docker -type d -exec chmod g+s {} \; 2>/dev/null || true
-run chmod 770 /opt/docker/.secrets
-
-# jellyoffice app dir owned by operator
 run chown -R "$OPERATOR_USER:$OPERATOR_USER" /opt/jellyoffice
+run chmod 750 /opt/jellyoffice
 
 # ── 6. SSH authorized keys ────────────────────────────────────────
 echo "--- Setting up SSH ---"
@@ -166,16 +157,6 @@ else
   echo ""
   echo "  *** Run: sudo tailscale up"
   echo "  *** Then record the Tailscale IP for inventory/hosts.yml"
-fi
-
-# ── 8. Env file ──────────────────────────────────────────────────
-echo "--- Creating /opt/docker/.env ---"
-if [ ! -f /opt/docker/.env ]; then
-  run tee /opt/docker/.env >/dev/null <<'EOF'
-TZ=Europe/London
-EOF
-  run chown root:dockerops /opt/docker/.env
-  run chmod 660 /opt/docker/.env
 fi
 
 # ── 9. Install Pimoroni enviroplus Python library ─────────────────
