@@ -75,10 +75,10 @@ The platform should make the home lab understandable, reproducible, observable, 
 
 ## V4.5 — Network Map Live Dashboard
 
-- [ ] Refactor Network Map monolithic app.js into ES modules (topology, node-health, backup-status, alerts, service-matrix, drilldown, filters, api).
-- [ ] Move Network Map deployment from jellyberry to jellybase alongside Prometheus/Grafana.
-- [ ] Add nginx reverse proxy config for /api/prometheus/ and /api/alerts/ routes to avoid CORS.
-- [ ] Phase 1: Live node health on topology (CPU, memory, disk, temperature, online status from Prometheus).
+- [x] Refactor Network Map monolithic app.js into ES modules (topology, node-health, backup-status, alerts, service-matrix, drilldown, filters, api).
+- [x] Move Network Map deployment from jellyberry to jellybase alongside Prometheus/Grafana.
+- [x] Add nginx reverse proxy config for /api/prometheus/query, /api/prometheus/query_range, and /api/alerts routes (using Docker DNS names).
+- [x] Phase 1: Live node health on topology (CPU, memory, disk, temperature, online status from Prometheus). Deployed and verified — 3 nodes reporting health data.
 - [ ] Phase 2: Backup status per host (borgmatic_* metrics: timestamp, success, size).
 - [ ] Phase 3: Alert feed sidebar from Alertmanager v2 API, grouped by host, with node highlighting.
 - [ ] Phase 4: iframe drill-down links (Grafana kiosk, Dozzle, Portainer, Alertmanager).

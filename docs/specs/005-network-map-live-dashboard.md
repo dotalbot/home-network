@@ -1,8 +1,9 @@
 # Network Map Live Dashboard Spec
 
-Status: planned  
+Status: deployed (Phase 1 live)  
 Number: 005  
 Created: 2026-05-27  
+Updated: 2026-05-27  
 
 ## Goal
 
@@ -188,9 +189,13 @@ When the dashboard runs on jellybase, both it and Prometheus/Alertmanager are on
 
 ### nginx proxy configuration
 
+The deployed nginx.conf uses Docker DNS service names (not localhost) since the containers are on the same Docker network:
+
 ```nginx
 server {
-    listen 8788;
+    listen 80;
+    server_name _;
+
     root /usr/share/nginx/html;
     index index.html;
 
@@ -200,15 +205,32 @@ server {
     }
 
     # API proxy to Prometheus
-    location /api/prometheus/ {
-        proxy_pass http://localhost:9090/api/v1/;
+    location /api/prometheus/query {
+        set $args $query_string;
+        proxy_pass http://prometheus:9090/api/v1/query;
         proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_connect_timeout 5s;
+        proxy_read_timeout 10s;
+    }
+
+    # API proxy to Prometheus query_range (for future sparklines)
+    location /api/prometheus/query_range {
+        set $args $query_string;
+        proxy_pass http://prometheus:9090/api/v1/query_range;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_connect_timeout 5s;
+        proxy_read_timeout 10s;
     }
 
     # API proxy to Alertmanager
-    location /api/alerts/ {
-        proxy_pass http://localhost:9093/api/v2/alerts;
+    location /api/alerts {
+        proxy_pass http://alertmanager:9093/api/v2/alerts;
         proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_connect_timeout 5s;
+        proxy_read_timeout 10s;
     }
 
     # Data files
@@ -233,22 +255,24 @@ network-map:
     - /opt/docker/appdata/network-map/site:/usr/share/nginx/html:ro
 ```
 
-### Target state (jellybase)
-
-Add network-map service to `docker/hosts/jellybase.yaml`:
+### Target state (jellybase) — DEPLOYED
 
 ```yaml
 # jellybase overlay — network-map service
 network-map:
   build:
-    context: /home/jellybot/home-network/docker/network-map
+    context: /home/jellyfish/repo/home-network/docker/network-map
     dockerfile: Dockerfile
+  image: network-map:latest
   container_name: network-map
   restart: unless-stopped
   ports:
     - "8788:80"
   volumes:
     - /opt/docker/appdata/network-map/site:/usr/share/nginx/html:ro
+  depends_on:
+    - prometheus
+    - alertmanager
 ```
 
 With a custom `Dockerfile` that includes nginx CORS proxy config:
@@ -262,42 +286,48 @@ And `nginx.conf` with the reverse proxy routes above.
 
 ### Migration steps
 
-1. ✅ Build the modular dashboard locally in the home-network repo (done — on branch `feat/network-map-live-dashboard`)
-2. ✅ Test on jellyberry port 8788 with degraded health data (no Prometheus proxy — shows "0 nodes" gracefully) (done)
-3. ✅ Add network-map to jellybase Compose overlay with nginx proxy config (done — `docker/hosts/jellybase.yaml` updated)
-4. ✅ Remove network-map from jellyberry overlay (done — `docker/hosts/jellyberry.yaml` updated)
-5. ✅ Update inventory/services.yml to reflect the move (done)
-6. 🔲 Sync site files to jellybase's `/opt/docker/appdata/network-map/site/`
-7. 🔲 Build the nginx-proxy Docker image on jellybase (`docker build -t network-map:latest /home/jellyfish/repo/home-network/docker/network-map/`)
-8. 🔲 Deploy to jellybase: `cd /opt/docker && docker compose up -d network-map`
-9. 🔲 Verify at http://jellybase:8788 — topology loads, health data shows for 3 nodes
-10. 🔲 Verify Prometheus proxy: `curl http://jellybase:8788/api/prometheus/query?query=up` returns JSON
-11. 🔲 Stop network-map on jellyberry: `docker stop network-map && docker rm network-map`
-12. 🔲 Regenerate Homepage config and verify network-map URL points to jellybase
-13. 🔲 Merge branch to main and push
+1. ✅ Build the modular dashboard locally in the home-network repo (on branch `feat/network-map-live-dashboard`, merged to main)
+2. ✅ Test on jellyberry port 8788 with degraded health data (no Prometheus proxy — shows "0 nodes" gracefully)
+3. ✅ Add network-map to jellybase Compose overlay with nginx proxy config (`docker/hosts/jellybase.yaml` updated)
+4. ✅ Remove network-map from jellyberry overlay (`docker/hosts/jellyberry.yaml` updated)
+5. ✅ Update inventory/services.yml to reflect the move
+6. ✅ Sync site files to jellybase's `/opt/docker/appdata/network-map/site/`
+7. ✅ Build the nginx-proxy Docker image on jellybase
+8. ✅ Deploy to jellybase: `just up network-map`
+9. ✅ Verify at http://jellybase:8788 — topology loads, health data shows for 3 nodes
+10. ✅ Verify Prometheus proxy: `curl http://jellybase:8788/api/prometheus/query?query=up` returns JSON
+11. ✅ Verify Alertmanager proxy: `curl http://jellybase:8788/api/alerts` returns JSON
+12. ✅ Stop network-map on jellyberry (container removed)
+13. ✅ Merge branch to main and push
+14. ✅ Add `depends_on: [prometheus, alertmanager]` to jellybase compose overlay
+15. ✅ Fix nginx proxy to use Docker DNS names (`prometheus:9090`, `alertmanager:9093`) instead of `localhost`
+16. ✅ Fix `sync-docker-config` script: `chgrp -R` on root-owned alertmanager data now uses `2>/dev/null || true`
+17. ✅ Add `jellyfood-api` service to jellybase compose overlay and inventory/services.yml
 
 ## Implementation phases
 
-### Phase 1: Live node health on topology
+### Phase 1: Live node health on topology ✅
 
-**Objective**: Each topology node shows CPU, memory, disk, temperature, and online status.
+**Status**: Deployed and live on jellybase:8788
 
-**Tasks**:
-1. Refactor app.js into ES modules: extract topology rendering, data loading, and filters
-2. Create `modules/api.js` with Prometheus query helpers
-3. Create `modules/node-health.js` with health badge rendering and popover logic
-4. Create nginx proxy config for `/api/prometheus/` route
-5. Build custom Dockerfile with nginx.conf
-6. Add health query calls to the 60s refresh loop
-7. Wire health data to topology node colors and popovers
-8. Test on jellyberry first (no move yet), validate data flows
-9. Update inventory/services.yml and deployment config
+**Completed tasks**:
+1. ✅ Refactored app.js into ES modules: extracted topology rendering, data loading, filters, api, and utils
+2. ✅ Created `modules/api.js` with Prometheus query helpers (fetchJson, queryPrometheus)
+3. ✅ Created `modules/node-health.js` with health badge rendering and popover logic
+4. ✅ Created nginx proxy config for `/api/prometheus/query`, `/api/prometheus/query_range`, and `/api/alerts` routes
+5. ✅ Built custom Dockerfile with nginx.conf (using Docker DNS names: `prometheus:9090`, `alertmanager:9093`)
+6. ✅ Added health query calls to the 60s refresh loop
+7. ✅ Wired health data to topology node colors and popovers
+8. ✅ Tested on jellyberry first (no Prometheus proxy — showed "0 nodes" gracefully)
+9. ✅ Migrated deployment from jellyberry to jellybase alongside Prometheus/Alertmanager
+10. ✅ Stopped old network-map container on jellyberry
 
-**Acceptance**:
-- Topology nodes show green/amber/red/grey health rings
-- Hover shows CPU, memory, disk, temp for each scraped host
-- Auto-refresh every 60s, pauses when tab hidden
-- jellybackup shows "no data" (not scraped)
+**Current behaviour**:
+- Dashboard at http://jellybase:8788 (or http://100.125.86.118:8788 via Tailscale)
+- Shows "Health data: 3 nodes" (jellybase, jellyhome, jellyberry)
+- Prometheus queries proxied through nginx at `/api/prometheus/query`
+- Alertmanager queries proxied through nginx at `/api/alerts`
+- Uses Docker service DNS for inter-container communication
 
 ### Phase 2: Backup status per host
 
