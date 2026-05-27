@@ -279,7 +279,7 @@ A new bootstrap script for Pi Zero / IoT sensor nodes. Creates the `jellybot` op
 Essential:
   git, python3, python3-pip, python3-venv, python3-dev
   jq, yq, vim, tmux, curl, rsync, ca-certificates
-  i2c-tools, python3-smbus, libgpiod2
+  i2c-tools, python3-smbus, libgpiod3
   
 Tailscale:
   tailscale (via official install script)
