@@ -191,6 +191,18 @@ services:
       start_period: 60s
 
 
+  network-map:
+    build:
+      context: /home/jellyfish/repo/home-network/docker/network-map
+      dockerfile: Dockerfile
+    image: network-map:latest
+    container_name: network-map
+    restart: unless-stopped
+    ports:
+      - "8788:80"
+    volumes:
+      - /opt/docker/appdata/network-map/site:/usr/share/nginx/html:ro
+
   alloy:
     image: grafana/alloy:latest
     container_name: alloy

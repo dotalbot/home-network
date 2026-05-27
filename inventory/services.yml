@@ -76,13 +76,15 @@ services:
     category: Core
     mode: single-primary
     hosts:
-      - jellyberry
+      - jellybase
     containers:
-      jellyberry:
+      jellybase:
         - network-map
     urls:
-      primary: http://192.168.1.159:8788
-    description: interactive inventory | LAN and Tailscale discovery
+      primary: http://192.168.1.2:8788
+      jellybase_lan: http://192.168.1.2:8788
+      jellybase_tailscale: http://100.125.86.118:8788
+    description: Live network dashboard | topology, host health, backup status, alerts | Prometheus/Alertmanager integration
     backup: config-only
     status: active
 

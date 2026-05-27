@@ -1,14 +1,5 @@
 services:
 
-  network-map:
-    image: nginx:alpine
-    container_name: network-map
-    restart: unless-stopped
-    ports:
-      - "8788:80"
-    volumes:
-      - /opt/docker/appdata/network-map/site:/usr/share/nginx/html:ro
-
   portfolio-mission-control-v2:
     build:
       context: /home/jellybot/portfolio-intel
