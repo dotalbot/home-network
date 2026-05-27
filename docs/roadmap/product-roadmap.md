@@ -73,6 +73,17 @@ The platform should make the home lab understandable, reproducible, observable, 
 - [x] Source-manage Prometheus alert rules for stale backups, failed backups, disk pressure, disk-health failures, and stale probes.
 - [x] Source-manage Grafana dashboards and provisioning for backup, disk-health, host performance, and host sensor signals.
 
+## V4.5 — Network Map Live Dashboard
+
+- [ ] Refactor Network Map monolithic app.js into ES modules (topology, node-health, backup-status, alerts, service-matrix, drilldown, filters, api).
+- [ ] Move Network Map deployment from jellyberry to jellybase alongside Prometheus/Grafana.
+- [ ] Add nginx reverse proxy config for /api/prometheus/ and /api/alerts/ routes to avoid CORS.
+- [ ] Phase 1: Live node health on topology (CPU, memory, disk, temperature, online status from Prometheus).
+- [ ] Phase 2: Backup status per host (borgmatic_* metrics: timestamp, success, size).
+- [ ] Phase 3: Alert feed sidebar from Alertmanager v2 API, grouped by host, with node highlighting.
+- [ ] Phase 4: iframe drill-down links (Grafana kiosk, Dozzle, Portainer, Alertmanager).
+- [ ] Phase 5: Enhanced service matrix with health indicators, container status, backup class, and direct URLs.
+
 ## V5 — Logs and Grafana Observability
 
 - [x] Deploy self-hosted Loki beside Prometheus/Grafana on `jellybase`.
