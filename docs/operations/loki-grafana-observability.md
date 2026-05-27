@@ -204,6 +204,13 @@ The Compose service ships:
 - host systemd journal logs as `job="systemd-journal"`;
 - Docker container logs as `job="docker"`.
 
+Routing note:
+
+- `jellyhome` and `jellyberry` should keep pushing to `http://jellybase:3100/loki/api/v1/push`.
+- `jellybase` itself must push to `http://loki:3100/loki/api/v1/push` from inside the Alloy container.
+
+Using `http://jellybase:3100/...` from the local `jellybase` Alloy container produced request failures (`status_code="-1"`, retries, zero sent entries) because the container depended on hairpin access back to the host-published port instead of the local Compose service.
+
 Verification from `jellybase`:
 
 ```bash
@@ -216,3 +223,15 @@ curl -fsG --data-urlencode 'query=up{job="alloy"}' \
 ```
 
 Keep labels low-cardinality. Do not add file paths, command lines, secret paths, full log messages, archive names, repository URLs, tokens, or user-provided content as Loki labels.
+
+## Low-noise host log-signal metrics
+
+The node_exporter rollout generator now includes optional staged host log-signal probes:
+
+- `stage-08-install-log-signal-probe.sh`
+- `stage-09-enable-log-signal-timer.sh`
+- `stage-10-verify-log-signal-metrics.sh`
+
+These install `/usr/local/sbin/home-network-journal-signals-prometheus` plus a 5-minute systemd timer that writes low-cardinality textfile metrics for failed units, recent journal error volume, kernel error volume, OOM events, storage/filesystem error patterns, and probe freshness.
+
+Use Prometheus alert rules on those summary metrics with conservative `for:` windows instead of paging on every matching log line.

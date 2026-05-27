@@ -309,6 +309,148 @@ if __name__ == "__main__":
 '''
 
 
+JOURNAL_SIGNAL_PROBE = r'''#!/usr/bin/env python3
+"""Write low-noise host log signal metrics for node_exporter."""
+
+from __future__ import annotations
+
+import os
+import re
+import subprocess
+import tempfile
+import time
+from pathlib import Path
+
+HOST = "__HOST__"
+TEXTFILE_DIR = Path("__TEXTFILE_DIR__")
+PROM_FILE = TEXTFILE_DIR / "log_signals.prom"
+SAFE_LABEL_RE = re.compile(r"[^A-Za-z0-9_./:-]")
+
+
+def label(value: str) -> str:
+    return SAFE_LABEL_RE.sub("_", str(value)).replace('"', "_")[:160]
+
+
+def run(cmd: list[str], timeout: int = 20) -> tuple[int, str, str]:
+    try:
+        proc = subprocess.run(cmd, text=True, capture_output=True, timeout=timeout)
+        return proc.returncode, proc.stdout, proc.stderr
+    except FileNotFoundError:
+        return 127, "", f"missing command: {cmd[0]}"
+    except subprocess.TimeoutExpired:
+        return 124, "", "timeout"
+
+
+def metric_line(name: str, labels: dict[str, str], value: float | int) -> str:
+    parts = ",".join(f'{k}="{label(v)}"' for k, v in sorted(labels.items()))
+    return f"{name}{{{parts}}} {value}"
+
+
+def collect_lines(args: list[str], timeout: int = 25) -> tuple[int, list[str]]:
+    rc, out, _ = run(args, timeout=timeout)
+    return rc, [line for line in out.splitlines() if line.strip()]
+
+
+def count_failed_units() -> int:
+    rc, lines = collect_lines([
+        "systemctl",
+        "list-units",
+        "--failed",
+        "--no-legend",
+        "--plain",
+        "--type=service",
+        "--type=mount",
+        "--type=socket",
+    ], timeout=12)
+    return -1 if rc != 0 else len(lines)
+
+
+def count_matches(lines: list[str], pattern: str) -> int:
+    regex = re.compile(pattern, re.IGNORECASE)
+    return sum(1 for line in lines if regex.search(line))
+
+
+def main() -> int:
+    now = int(time.time())
+    probe_success = 1
+    failed_units = count_failed_units()
+    if failed_units < 0:
+        probe_success = 0
+        failed_units = 0
+
+    rc_warn, warn_lines = collect_lines([
+        "journalctl", "--since", "15 minutes ago", "--no-pager", "-o", "cat", "-p", "warning..alert"
+    ])
+    rc_err, err_lines = collect_lines([
+        "journalctl", "--since", "15 minutes ago", "--no-pager", "-o", "cat", "-p", "err..alert"
+    ])
+    rc_kernel_warn, kernel_warn_lines = collect_lines([
+        "journalctl", "-k", "--since", "15 minutes ago", "--no-pager", "-o", "cat", "-p", "warning..alert"
+    ])
+    rc_kernel_err, kernel_err_lines = collect_lines([
+        "journalctl", "-k", "--since", "15 minutes ago", "--no-pager", "-o", "cat", "-p", "err..alert"
+    ])
+
+    if any(code != 0 for code in (rc_warn, rc_err, rc_kernel_warn, rc_kernel_err)):
+        probe_success = 0
+
+    warn_lines = warn_lines if rc_warn == 0 else []
+    err_lines = err_lines if rc_err == 0 else []
+    kernel_warn_lines = kernel_warn_lines if rc_kernel_warn == 0 else []
+    kernel_err_lines = kernel_err_lines if rc_kernel_err == 0 else []
+
+    oom_count = count_matches(warn_lines, r"Out of memory|oom-kill|Killed process .* out of memory")
+    storage_error_count = count_matches(
+        warn_lines,
+        r"I/O error|Buffer I/O error|EXT4-fs error|blk_update_request|BTRFS.*error|XFS.*(error|corruption)|mmcblk.*error|nvme.*(I/O|error)",
+    )
+
+    lines = [
+        "# HELP home_network_log_signal_last_run_timestamp_seconds Last host log-signal probe timestamp.",
+        "# TYPE home_network_log_signal_last_run_timestamp_seconds gauge",
+        metric_line("home_network_log_signal_last_run_timestamp_seconds", {"host": HOST}, now),
+        "# HELP home_network_log_signal_probe_success Host log-signal probe success, 1 for success and 0 for failure.",
+        "# TYPE home_network_log_signal_probe_success gauge",
+        metric_line("home_network_log_signal_probe_success", {"host": HOST}, probe_success),
+        "# HELP home_network_systemd_failed_units Failed systemd unit count.",
+        "# TYPE home_network_systemd_failed_units gauge",
+        metric_line("home_network_systemd_failed_units", {"host": HOST}, failed_units),
+        "# HELP home_network_journal_warning_count Warning-or-higher journal lines seen in the last 15 minutes.",
+        "# TYPE home_network_journal_warning_count gauge",
+        metric_line("home_network_journal_warning_count", {"host": HOST, "window": "15m"}, len(warn_lines)),
+        "# HELP home_network_journal_error_count Error-or-higher journal lines seen in the last 15 minutes.",
+        "# TYPE home_network_journal_error_count gauge",
+        metric_line("home_network_journal_error_count", {"host": HOST, "window": "15m"}, len(err_lines)),
+        "# HELP home_network_journal_kernel_warning_count Warning-or-higher kernel journal lines seen in the last 15 minutes.",
+        "# TYPE home_network_journal_kernel_warning_count gauge",
+        metric_line("home_network_journal_kernel_warning_count", {"host": HOST, "window": "15m"}, len(kernel_warn_lines)),
+        "# HELP home_network_journal_kernel_error_count Error-or-higher kernel journal lines seen in the last 15 minutes.",
+        "# TYPE home_network_journal_kernel_error_count gauge",
+        metric_line("home_network_journal_kernel_error_count", {"host": HOST, "window": "15m"}, len(kernel_err_lines)),
+        "# HELP home_network_journal_oom_event_count OOM-related journal events seen in the last 15 minutes.",
+        "# TYPE home_network_journal_oom_event_count gauge",
+        metric_line("home_network_journal_oom_event_count", {"host": HOST, "window": "15m"}, oom_count),
+        "# HELP home_network_journal_storage_error_count Storage/filesystem-related journal events seen in the last 15 minutes.",
+        "# TYPE home_network_journal_storage_error_count gauge",
+        metric_line("home_network_journal_storage_error_count", {"host": HOST, "window": "15m"}, storage_error_count),
+    ]
+
+    TEXTFILE_DIR.mkdir(parents=True, exist_ok=True)
+    content = "\n".join(lines) + "\n"
+    with tempfile.NamedTemporaryFile("w", dir=str(TEXTFILE_DIR), delete=False, encoding="utf-8") as tmp:
+        tmp.write(content)
+        tmp_path = Path(tmp.name)
+    os.chmod(tmp_path, 0o644)
+    os.replace(tmp_path, PROM_FILE)
+    print(f"wrote {PROM_FILE}")
+    return 0 if probe_success == 1 else 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
+'''
+
+
 def header(host: str, textfile_dir: str, scrape_port: int, scheme: str, scrape_host: str, pi_early: bool) -> str:
     return f'''#!/usr/bin/env bash
 set -euo pipefail
@@ -322,6 +464,9 @@ PI_EARLY_WARNING={str(pi_early).lower()}
 DISK_HEALTH_SCRIPT="/usr/local/sbin/home-network-disk-health-prometheus"
 DISK_HEALTH_SERVICE="/etc/systemd/system/home-network-disk-health.service"
 DISK_HEALTH_TIMER="/etc/systemd/system/home-network-disk-health.timer"
+LOG_SIGNAL_SCRIPT="/usr/local/sbin/home-network-journal-signals-prometheus"
+LOG_SIGNAL_SERVICE="/etc/systemd/system/home-network-journal-signals.service"
+LOG_SIGNAL_TIMER="/etc/systemd/system/home-network-journal-signals.timer"
 NODE_EXPORTER_DEFAULT="/etc/default/prometheus-node-exporter"
 
 require_root() {{
@@ -353,6 +498,13 @@ def disk_probe_for_host(host: str, textfile_dir: str, pi_early: bool) -> str:
     )
 
 
+def journal_probe_for_host(host: str, textfile_dir: str) -> str:
+    return (
+        JOURNAL_SIGNAL_PROBE.replace("__HOST__", host)
+        .replace("__TEXTFILE_DIR__", textfile_dir)
+    )
+
+
 def stages(host: str, cfg: dict[str, Any], scrape_targets: list[str]) -> dict[str, str]:
     textfile_dir = cfg["textfile_collector_dir"]
     scrape_port = cfg["scrape_port"]
@@ -366,6 +518,7 @@ def stages(host: str, cfg: dict[str, Any], scrape_targets: list[str]) -> dict[st
     if pi_early:
         packages += " usbutils hdparm mmc-utils sysstat"
     probe = disk_probe_for_host(host, textfile_dir, pi_early)
+    journal_probe = journal_probe_for_host(host, textfile_dir)
     target_lines = "\n".join(f"          - {target}" for target in scrape_targets)
     base = header(host, textfile_dir, scrape_port, scheme, scrape_host, pi_early)
     return {
@@ -647,6 +800,86 @@ fi
 ufw status numbered | grep -E "Status:|${{SCRAPE_PORT}}" || true
 echo "good: staged node_exporter access-control policy inserted for $EXPECTED_HOST; verify approved Prometheus scrape and a non-approved negative check before marking runtime hardening complete"
 ''',
+        "stage-08-install-log-signal-probe.sh": base + f'''
+echo "Install host log-signal textfile probe for $EXPECTED_HOST"
+install -d -m 755 -o root -g root "$TEXTFILE_DIR"
+if [ -f "$LOG_SIGNAL_SCRIPT" ] && ! grep -q 'Write low-noise host log signal metrics' "$LOG_SIGNAL_SCRIPT"; then
+  if [ "${{ALLOW_OVERWRITE_LOG_SIGNAL_PROBE:-0}}" != "1" ]; then
+    echo "not good: $LOG_SIGNAL_SCRIPT exists and is not home-network managed" >&2
+    echo "Review it, then re-run with: sudo ALLOW_OVERWRITE_LOG_SIGNAL_PROBE=1 $0" >&2
+    exit 1
+  fi
+  cp -a "$LOG_SIGNAL_SCRIPT" "${{LOG_SIGNAL_SCRIPT}}.bak.$(date +%Y%m%d-%H%M%S)"
+fi
+cat > "$LOG_SIGNAL_SCRIPT" <<'PY'
+{journal_probe}
+PY
+chown root:root "$LOG_SIGNAL_SCRIPT"
+chmod 755 "$LOG_SIGNAL_SCRIPT"
+python3 -m py_compile "$LOG_SIGNAL_SCRIPT"
+if ! "$LOG_SIGNAL_SCRIPT"; then
+  echo "warning: log-signal probe wrote metrics but returned non-zero; inspect journalctl access and rerun after fixing" >&2
+fi
+test -f "$TEXTFILE_DIR/log_signals.prom"
+grep -E '^home_network_(log_signal_|systemd_failed_units|journal_)' "$TEXTFILE_DIR/log_signals.prom" >/dev/null
+echo "good: host log-signal probe installed and produced metrics"
+''',
+        "stage-09-enable-log-signal-timer.sh": base + '''
+echo "Install and enable host log-signal systemd timer for $EXPECTED_HOST"
+for path in "$LOG_SIGNAL_SERVICE" "$LOG_SIGNAL_TIMER"; do
+  if [ -f "$path" ] && ! grep -q 'home-network managed host log signals' "$path"; then
+    if [ "${ALLOW_OVERWRITE_LOG_SIGNAL_TIMER:-0}" != "1" ]; then
+      echo "not good: $path exists and is not home-network managed" >&2
+      echo "Review it, then re-run with: sudo ALLOW_OVERWRITE_LOG_SIGNAL_TIMER=1 $0" >&2
+      exit 1
+    fi
+    cp -a "$path" "${path}.bak.$(date +%Y%m%d-%H%M%S)"
+  fi
+done
+cat > "$LOG_SIGNAL_SERVICE" <<EOF
+# home-network managed host log signals
+[Unit]
+Description=Home Network host log signals Prometheus textfile probe
+After=local-fs.target
+
+[Service]
+Type=oneshot
+ExecStart=${LOG_SIGNAL_SCRIPT}
+EOF
+cat > "$LOG_SIGNAL_TIMER" <<EOF
+# home-network managed host log signals
+[Unit]
+Description=Run Home Network host log signal probe every 5 minutes
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=5min
+RandomizedDelaySec=1min
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+EOF
+chmod 644 "$LOG_SIGNAL_SERVICE" "$LOG_SIGNAL_TIMER"
+systemctl daemon-reload
+systemctl enable --now home-network-journal-signals.timer
+systemctl start home-network-journal-signals.service || true
+systemctl list-timers '*journal-signals*' --all --no-pager
+systemctl --no-pager --full status home-network-journal-signals.service || true
+echo "good: host log-signal timer enabled"
+''',
+        "stage-10-verify-log-signal-metrics.sh": base + '''
+echo "Verify host log-signal metrics for $EXPECTED_HOST"
+if ! "$LOG_SIGNAL_SCRIPT"; then
+  echo "warning: log-signal probe returned non-zero; continuing so you can inspect the emitted metrics" >&2
+fi
+metrics="$(curl -fsS "http://127.0.0.1:${SCRAPE_PORT}/metrics")"
+printf '%s\n' "$metrics" | grep -E '^home_network_log_signal_last_run_timestamp_seconds' >/dev/null
+printf '%s\n' "$metrics" | grep -E '^home_network_log_signal_probe_success' >/dev/null
+printf '%s\n' "$metrics" | grep -E '^home_network_systemd_failed_units' >/dev/null
+printf '%s\n' "$metrics" | grep -E '^home_network_journal_(warning_count|error_count|kernel_warning_count|kernel_error_count|oom_event_count|storage_error_count)' >/dev/null
+echo "good: host log-signal metrics verified"
+''',
     }
 
 
@@ -747,6 +980,9 @@ sudo ./stage-04-enable-disk-health-timer.sh
 sudo ./stage-05-verify-local-metrics.sh
 sudo ./stage-06-prometheus-target-note.sh
 sudo ./stage-07-configure-access-control.sh
+sudo ./stage-08-install-log-signal-probe.sh
+sudo ./stage-09-enable-log-signal-timer.sh
+sudo ./stage-10-verify-log-signal-metrics.sh
 ```
 
 Overwrite safety flags, only after reviewing existing files:
@@ -754,6 +990,8 @@ Overwrite safety flags, only after reviewing existing files:
 ```bash
 sudo ALLOW_OVERWRITE_DISK_HEALTH_PROBE=1 ./stage-03-install-disk-health-probe.sh
 sudo ALLOW_OVERWRITE_DISK_HEALTH_TIMER=1 ./stage-04-enable-disk-health-timer.sh
+sudo ALLOW_OVERWRITE_LOG_SIGNAL_PROBE=1 ./stage-08-install-log-signal-probe.sh
+sudo ALLOW_OVERWRITE_LOG_SIGNAL_TIMER=1 ./stage-09-enable-log-signal-timer.sh
 ```
 
 Expected local metrics endpoint:

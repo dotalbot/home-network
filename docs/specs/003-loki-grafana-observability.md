@@ -21,6 +21,9 @@ Add lightweight, source-managed log visibility to the home-network platform whil
 - [x] Decide MQTT/Hermes/Discord backup event notifications belong to the next event-notification phase, not the Loki log-history phase.
 - [x] Implement MQTT/Hermes/Discord backup event notifications with compact, secret-free backup lifecycle events.
 - [x] Extend host observability beyond backup logs to selected system/container logs, host performance stats, and available sensor information from each monitored host.
+- [x] Fix `jellybase` self-log shipping so its local Alloy agent pushes to the local `loki` service instead of the host LAN endpoint.
+- [x] Add low-noise host log-signal metrics for failed systemd units, recent kernel/storage errors, OOM events, and probe freshness.
+- [x] Add conservative alert rules for active Alloy/Loki log-loss conditions and host log-signal thresholds.
 - [ ] Add Grafana views that correlate logs with CPU, memory, load, disk I/O, filesystem use, network throughput, uptime, temperature, throttling/undervoltage state, and available thermal/fan/disk sensor data.
 - [x] Add alerting policy for backup failures/staleness, Loki availability, and log-investigation handoff.
 
@@ -125,3 +128,21 @@ Host and container logs are collected with a repo-managed Alloy service on each 
 - `job="docker"` for Docker container logs discovered through the read-only Docker socket, with `host`, `container`, `image`, `compose_service`, `compose_project`, and `environment` labels.
 
 Alloy's HTTP metrics endpoint is published on TCP `12345` on each managed host and scraped by central Prometheus; keep it limited to trusted LAN/Tailnet/firewall scope. Alerts cover Loki and Alloy scrape health.
+
+`jellybase` overrides the Loki push URL to `http://loki:3100/loki/api/v1/push` from inside the Alloy container so self-log shipping does not depend on hairpin access back to the host-published `jellybase:3100` endpoint. Remote hosts keep using `http://jellybase:3100/loki/api/v1/push`.
+
+## Low-noise host log intelligence
+
+Raw logs stay in Loki, but alerting should not fire on every spicy line. The node_exporter rollout generator therefore also stages a host log-signal probe that writes these summary metrics into the textfile collector path:
+
+- `home_network_systemd_failed_units`
+- `home_network_journal_warning_count{window="15m"}`
+- `home_network_journal_error_count{window="15m"}`
+- `home_network_journal_kernel_warning_count{window="15m"}`
+- `home_network_journal_kernel_error_count{window="15m"}`
+- `home_network_journal_oom_event_count{window="15m"}`
+- `home_network_journal_storage_error_count{window="15m"}`
+- `home_network_log_signal_last_run_timestamp_seconds`
+- `home_network_log_signal_probe_success`
+
+Prometheus rules consume those metrics with conservative `for:` windows so the system catches sustained trouble without turning routine warnings into wallpaper.

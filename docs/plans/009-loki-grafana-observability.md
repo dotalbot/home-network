@@ -20,8 +20,10 @@
 - [x] Task 6: Import/source-manage Borgmatic Grafana logs dashboard.
 - [x] Task 7: Roll out to `jellyhome` and `jellybase`.
 - [x] Task 8: Add MQTT event publishing for instant Discord notifications.
-- [ ] Task 9: Generalize observability beyond Borgmatic to host logs, performance stats, and sensor telemetry.
-- [ ] Task 10: Add alerting policy.
+- [x] Task 9: Generalize observability beyond Borgmatic to host logs, performance stats, and sensor telemetry.
+- [x] Task 10: Add alerting policy.
+- [x] Task 11: Fix jellybase self-log shipping so Alloy pushes to local Loki without depending on the host LAN endpoint from inside the container.
+- [x] Task 12: Add low-noise host log-signal metrics and alert thresholds for failed units, kernel/storage errors, OOM events, and stale probes.
 
 ## 1. What this adds
 

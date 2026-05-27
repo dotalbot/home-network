@@ -30,8 +30,8 @@ groups:
           severity: warning
           category: host
         annotations:
-          summary: "node_exporter is down for {{ $labels.instance }}"
-          description: "Prometheus cannot scrape node_exporter on {{ $labels.instance }}. Host performance, disk-health, and sensor telemetry may be missing."
+          summary: "node_exporter is down for {{ $labels.monitored_host | default $labels.instance }}"
+          description: "Prometheus cannot scrape node_exporter on {{ $labels.monitored_host | default $labels.instance }}. Host performance, disk-health, and sensor telemetry may be missing."
 
       - alert: FilesystemSpaceLow
         expr: |
@@ -150,8 +150,8 @@ groups:
           severity: warning
           service: alloy
         annotations:
-          summary: "Alloy is down on {{ $labels.instance }}"
-          description: "Alloy log shipping agent {{ $labels.instance }} has been unreachable for more than 5 minutes."
+          summary: "Alloy is down on {{ $labels.monitored_host | default $labels.instance }}"
+          description: "Alloy log shipping agent {{ $labels.monitored_host | default $labels.instance }} has been unreachable for more than 5 minutes."
 
       - alert: Seedit4meReverseTunnelDown
         expr: home_network_seedit4me_tunnel_success{job="node_exporter",host="jellyberry"} == 0
@@ -196,3 +196,117 @@ groups:
         annotations:
           summary: "Home-network scheduled operational checks are stale"
           description: "The scheduled operations check textfile metric has not been refreshed for more than 2 hours. Check home-network-scheduled-ops-check.timer/service on jellybase."
+
+  - name: home-network-log-pipeline
+    rules:
+      - alert: AlloyCannotReachLoki
+        expr: |
+          sum by (monitored_host, instance) (
+            rate(loki_write_request_duration_seconds_count{job="alloy",status_code="-1"}[15m])
+          ) > 0
+        for: 15m
+        labels:
+          severity: critical
+          category: log-pipeline
+          service: alloy
+        annotations:
+          summary: "Alloy cannot reach Loki from {{ $labels.monitored_host | default $labels.instance }}"
+          description: "Alloy on {{ $labels.monitored_host | default $labels.instance }} is failing to push logs to Loki. This usually means the Loki push URL or network path is wrong, so host/container logs are being lost."
+
+      - alert: AlloyDroppingLogEntries
+        expr: |
+          sum by (monitored_host, instance, reason) (
+            rate(loki_write_dropped_entries_total{job="alloy",reason=~"ingester_error|queue_is_full|rate_limited|stream_limited"}[15m])
+          ) > 0
+        for: 15m
+        labels:
+          severity: warning
+          category: log-pipeline
+          service: alloy
+        annotations:
+          summary: "Alloy is dropping log entries on {{ $labels.monitored_host | default $labels.instance }}"
+          description: "Alloy on {{ $labels.monitored_host | default $labels.instance }} is dropping log entries with reason {{ $labels.reason }}. Check Loki capacity, rate limits, and the host's Alloy metrics."
+
+      - alert: LokiDiscardingLogSamples
+        expr: |
+          sum by (monitored_host, reason) (
+            rate(loki_discarded_samples_total{job="loki"}[15m])
+          ) > 0
+        for: 15m
+        labels:
+          severity: warning
+          category: log-pipeline
+          service: loki
+        annotations:
+          summary: "Loki is discarding log samples on {{ $labels.monitored_host | default $labels.instance }}"
+          description: "Loki is actively discarding log samples with reason {{ $labels.reason }}. Investigate retention limits, ingestion rate limits, or stale/backfilled log pushes before more log history is lost."
+
+      - alert: HostSystemdFailedUnits
+        expr: home_network_systemd_failed_units{job="node_exporter"} > 0
+        for: 20m
+        labels:
+          severity: warning
+          category: host-log-signal
+        annotations:
+          summary: "Failed systemd units on {{ $labels.host }}"
+          description: "{{ $value | humanize }} systemd units have remained failed on {{ $labels.host }} for at least 20 minutes. Review the host journal before the failure becomes background wallpaper."
+
+      - alert: HostJournalKernelErrors
+        expr: home_network_journal_kernel_error_count{job="node_exporter",window="15m"} > 0
+        for: 10m
+        labels:
+          severity: critical
+          category: host-log-signal
+        annotations:
+          summary: "Kernel error signals on {{ $labels.host }}"
+          description: "The last 15 minutes of kernel journal on {{ $labels.host }} contain error-priority lines. Check dmesg/journalctl -k and recent hardware or filesystem events."
+
+      - alert: HostJournalStorageErrors
+        expr: home_network_journal_storage_error_count{job="node_exporter",window="15m"} > 0
+        for: 10m
+        labels:
+          severity: critical
+          category: host-log-signal
+        annotations:
+          summary: "Storage-related journal errors on {{ $labels.host }}"
+          description: "The last 15 minutes of journal on {{ $labels.host }} contain storage/filesystem error patterns. Check disk health, cabling, power, and filesystem state."
+
+      - alert: HostJournalOomEvents
+        expr: home_network_journal_oom_event_count{job="node_exporter",window="15m"} > 0
+        for: 10m
+        labels:
+          severity: warning
+          category: host-log-signal
+        annotations:
+          summary: "OOM events seen on {{ $labels.host }}"
+          description: "The last 15 minutes of journal on {{ $labels.host }} contain out-of-memory or oom-kill events. Check memory pressure, swap, and the offending service."
+
+      - alert: HostJournalErrorBurst
+        expr: home_network_journal_error_count{job="node_exporter",window="15m"} >= 20
+        for: 15m
+        labels:
+          severity: warning
+          category: host-log-signal
+        annotations:
+          summary: "Journal error burst on {{ $labels.host }}"
+          description: "{{ $value | humanize }} error-priority journal lines were seen in the last 15 minutes on {{ $labels.host }}. This is intentionally thresholded to avoid alert spam while still catching real trouble."
+
+      - alert: HostLogSignalProbeStale
+        expr: time() - home_network_log_signal_last_run_timestamp_seconds{job="node_exporter"} > 1800
+        for: 15m
+        labels:
+          severity: warning
+          category: host-log-signal
+        annotations:
+          summary: "Host log-signal probe is stale on {{ $labels.host }}"
+          description: "The host log-signal textfile probe has not refreshed for more than 30 minutes on {{ $labels.host }}. Alerting intelligence for failed units, kernel errors, and OOM events may be stale."
+
+      - alert: HostLogSignalProbeFailed
+        expr: home_network_log_signal_probe_success{job="node_exporter"} == 0
+        for: 10m
+        labels:
+          severity: warning
+          category: host-log-signal
+        annotations:
+          summary: "Host log-signal probe failed on {{ $labels.host }}"
+          description: "The host log-signal textfile probe last run failed on {{ $labels.host }}. Check systemd timer/service logs and journalctl access."

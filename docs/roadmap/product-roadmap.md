@@ -80,8 +80,10 @@ The platform should make the home lab understandable, reproducible, observable, 
 - [x] Send Borgmatic run logs to Loki using the Borgmatic Loki hook.
 - [x] Add Grafana log panels/search for backup runs.
 - [x] Extend log shipping beyond Borgmatic using Grafana Alloy on `jellyhome`, `jellybase`, and `jellyberry` for host systemd journal logs and selected Docker container logs.
+- [x] Fix `jellybase` self-log shipping to use the local Loki service endpoint instead of the host LAN endpoint from inside the Alloy container.
 - [x] Correlate host logs with Prometheus host performance and sensor telemetry in Grafana so operators can move from “what happened?” to “what was the host doing?”.
   - [x] Add host/time-range aligned correlation panels for Loki log volume, warning/error-like log volume, service scrape availability, recent warning/error logs, and raw selected host logs.
+- [x] Add low-noise host log-signal metrics and alerts for failed units, kernel/storage errors, OOM events, and stale probes.
 - [x] Keep Grafana as the primary observability UI and Loki as the log-history layer.
 
 ## V6 — Scheduled Operations and Alerting

@@ -24,18 +24,36 @@ scrape_configs:
     static_configs:
       - targets:
           - host.docker.internal:9100
+        labels:
+          monitored_host: jellybase
+      - targets:
           - jellyhome:9100
+        labels:
+          monitored_host: jellyhome
+      - targets:
           - jellyberry:9100
+        labels:
+          monitored_host: jellyberry
 
 
   - job_name: loki
     static_configs:
       - targets:
           - loki:3100
+        labels:
+          monitored_host: jellybase
 
   - job_name: alloy
     static_configs:
       - targets:
           - host.docker.internal:12345
+        labels:
+          monitored_host: jellybase
+      - targets:
           - jellyhome:12345
+        labels:
+          monitored_host: jellyhome
+      - targets:
           - jellyberry:12345
+        labels:
+          monitored_host: jellyberry
