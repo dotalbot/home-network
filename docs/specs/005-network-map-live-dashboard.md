@@ -163,11 +163,11 @@ For each monitored host, show:
 
 ### Alert feed sidebar
 
-- Right sidebar, collapsible on mobile
-- Sorted by severity (firing > pending)
-- Group by host label
-- Click an alert → highlight the affected node on the topology map
-- Node color shifts to worst active alert severity
+- Right sidebar/panel, collapsible on mobile
+- Sorted by severity (critical > warning > info)
+- Group by `monitored_host`/`host` label
+- Click an alert → select the affected host in the detail panel
+- Alert details include severity, state, age, summary, and description
 
 ### iframe drill-down
 

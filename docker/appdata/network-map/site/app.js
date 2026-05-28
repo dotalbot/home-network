@@ -18,13 +18,15 @@ import {
   renderOperationsBoard,
   bindTopologyInteractions,
 } from './modules/topology.js';
-import { fetchHealthData, fetchBackupData } from './modules/api.js';
+import { fetchHealthData, fetchBackupData, fetchAlertmanagerAlerts } from './modules/api.js';
 import { attachHealthToNodes, findHealthForItem, renderHealthDetail } from './modules/node-health.js';
 import { renderBackupDetail, renderBackupStatusPanel } from './modules/backup-status.js';
+import { renderAlertFeed } from './modules/alerts.js';
 
 let selected = null;
 let currentHealthData = null;
 let currentBackupData = null;
+let currentAlerts = [];
 let healthRefreshTimer = null;
 
 // ---- Data loading ----
@@ -125,9 +127,21 @@ function renderMap(items) {
       </div>
       <div id="backupStatus">${renderBackupStatusPanel(currentBackupData)}</div>
     </section>
+
+    <section class="option-card alert-sidebar" aria-labelledby="alerts-title">
+      <div class="option-heading">
+        <div>
+          <p class="eyebrow small">Phase 3</p>
+          <h3 id="alerts-title">Alert feed</h3>
+        </div>
+        <p class="muted">Active Alertmanager alerts, grouped by host. Click an alert to select the affected topology node.</p>
+      </div>
+      <div id="alertFeed">${renderAlertFeed(currentAlerts)}</div>
+    </section>
   `;
 
   bindDeviceClicks();
+  bindAlertClicks();
   bindTopologyInteractions(items);
 
   // Attach health badges after topology nodes are rendered
@@ -148,6 +162,18 @@ function selectByIp(ip) {
   renderDetail();
 }
 
+function selectByHostName(host) {
+  const normalized = normalizeInventoryName(host);
+  selected = allItems().find(item => [item.name, item.hostname, item.display_name].map(normalizeInventoryName).includes(normalized));
+  if (selected) renderDetail();
+}
+
+function bindAlertClicks() {
+  document.querySelectorAll('[data-alert-host]').forEach((el) => {
+    el.addEventListener('click', () => selectByHostName(el.dataset.alertHost));
+  });
+}
+
 function renderDetail() {
   if (!selected) {
     $('detail').className = 'detail muted';
@@ -158,6 +184,7 @@ function renderDetail() {
   const services = selected.services || [];
   const hostHealth = findHealthForItem(currentHealthData, selected);
   const backup = findBackupForItem(selected);
+  const selectedAlerts = findAlertsForItem(selected);
   $('detail').innerHTML = `
     <h3>${escapeHtml(selected.display_name)}</h3>
     <dl>
@@ -173,6 +200,7 @@ function renderDetail() {
     ${services.length ? `<h4>Services</h4><ul class="services">${services.map(s => `<li>${escapeHtml(s.name || 'service')} · ${escapeHtml(String(s.protocol || 'tcp'))} · :${escapeHtml(String(s.port || ''))}</li>`).join('')}</ul>` : ''}
     ${hostHealth ? renderHealthDetail(hostHealth) : ''}
     ${backup ? renderBackupDetail(backup) : ''}
+    ${selectedAlerts.length ? `<h4>Active alerts</h4><ul class="services">${selectedAlerts.map(alert => `<li>${escapeHtml(alert.labels?.severity || 'alert')} · ${escapeHtml(alert.annotations?.summary || alert.labels?.alertname || 'Unnamed alert')}</li>`).join('')}</ul>` : ''}
   `;
 }
 
@@ -191,6 +219,12 @@ function findBackupForItem(item) {
     item.ip,
   ].map(normalizeInventoryName).filter(Boolean);
   return candidates.map(key => currentBackupData[key]).find(Boolean) || null;
+}
+
+function findAlertsForItem(item) {
+  if (!item || !currentAlerts?.length) return [];
+  const candidates = [item.name, item.hostname, item.display_name, item.ip].map(normalizeInventoryName).filter(Boolean);
+  return currentAlerts.filter(alert => candidates.includes(normalizeInventoryName(alert.labels?.monitored_host || alert.labels?.host || alert.labels?.instance)));
 }
 
 function renderCards(items) {
@@ -243,14 +277,16 @@ function updateHealthTimestamp() {
 
 async function refreshHealthData() {
   try {
-    [currentHealthData, currentBackupData] = await Promise.all([
+    [currentHealthData, currentBackupData, currentAlerts] = await Promise.all([
       fetchHealthData(),
       fetchBackupData(),
+      fetchAlertmanagerAlerts(),
     ]);
   } catch (err) {
-    console.warn('[app] Health/backup data fetch failed:', err);
+    console.warn('[app] Health/backup/alert data fetch failed:', err);
     currentHealthData = null;
     currentBackupData = null;
+    currentAlerts = [];
   }
   updateHealthTimestamp();
   // Re-attach health badges if topology is already rendered
@@ -259,6 +295,11 @@ async function refreshHealthData() {
   }
   const backupEl = document.getElementById('backupStatus');
   if (backupEl) backupEl.innerHTML = renderBackupStatusPanel(currentBackupData);
+  const alertEl = document.getElementById('alertFeed');
+  if (alertEl) {
+    alertEl.innerHTML = renderAlertFeed(currentAlerts);
+    bindAlertClicks();
+  }
   renderDetail();
 }
 
