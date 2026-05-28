@@ -93,6 +93,7 @@ The platform should make the home lab understandable, reproducible, observable, 
 - [x] Temperature compensation for BME280 (software offset + GPIO extender cable recommendation).
 - [x] Health metrics via MQTT (uptime, CPU temp, disk, memory, Wi-Fi RSSI) — no node_exporter on 512MB device.
 - [x] Homepage and Network Map integration: `Jellyoffice Enviro` appears in Homepage IoT and Network Map as LAN `192.168.1.71` / Tailnet `100.120.3.77`, with MQTT/Prometheus health enrichment.
+- [ ] Headless two-SSID Wi-Fi failover: source-managed NetworkManager helper and runbook exist; live device still needs both SSIDs/passwords entered on jellyoffice.
 
 ## V5 — Logs and Grafana Observability
 

@@ -1,0 +1,143 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Configure jellyoffice/Pi Zero NetworkManager Wi-Fi failover without storing
+# credentials in Git or shell history. Run on the device, preferably over
+# Tailscale SSH so changing WLAN profiles cannot strand the operator.
+
+usage() {
+  cat <<'USAGE'
+Usage:
+  sudo ./configure-wifi-failover --ssid "Office SSID" --ssid "Other SSID" [--activate]
+
+What it does:
+  - prompts securely for each Wi-Fi password
+  - creates/updates NetworkManager profiles named jellyoffice-wifi-1, jellyoffice-wifi-2, ...
+  - enables autoconnect with descending priorities
+  - does NOT bounce Wi-Fi unless --activate is supplied
+
+Notes:
+  - Do not pass passwords as command-line args.
+  - Run from a Tailscale/console session if using --activate.
+  - NetworkManager will automatically choose the reachable saved SSID.
+USAGE
+}
+
+require_root() {
+  if [[ ${EUID} -ne 0 ]]; then
+    echo "error: run with sudo/root so NetworkManager can write system Wi-Fi profiles" >&2
+    exit 1
+  fi
+}
+
+require_nmcli() {
+  if ! command -v nmcli >/dev/null 2>&1; then
+    echo "error: nmcli not found; this script expects Raspberry Pi OS with NetworkManager" >&2
+    exit 1
+  fi
+  if ! systemctl is-active --quiet NetworkManager; then
+    echo "error: NetworkManager is not active" >&2
+    exit 1
+  fi
+}
+
+ssids=()
+activate=false
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --ssid)
+      [[ $# -ge 2 ]] || { echo "error: --ssid requires a value" >&2; exit 1; }
+      ssids+=("$2")
+      shift 2
+      ;;
+    --activate)
+      activate=true
+      shift
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      echo "error: unknown argument: $1" >&2
+      usage >&2
+      exit 1
+      ;;
+  esac
+done
+
+if [[ ${#ssids[@]} -lt 2 ]]; then
+  echo "error: provide at least two --ssid values for headless failover" >&2
+  usage >&2
+  exit 1
+fi
+
+require_root
+require_nmcli
+
+iface=$(nmcli -t -f DEVICE,TYPE,STATE device | awk -F: '$2=="wifi" {print $1; exit}')
+if [[ -z "${iface}" ]]; then
+  echo "error: no Wi-Fi interface found" >&2
+  exit 1
+fi
+
+echo "Configuring ${#ssids[@]} Wi-Fi profiles on ${iface}."
+echo "Passwords are read securely and written only to NetworkManager system connection files."
+
+idx=1
+for ssid in "${ssids[@]}"; do
+  con_name="jellyoffice-wifi-${idx}"
+  priority=$((100 - idx))
+  printf 'Password for SSID %q: ' "$ssid" >&2
+  IFS= read -r -s password
+  printf '\n' >&2
+  if [[ -z "${password}" ]]; then
+    echo "error: empty password for ${ssid}; aborting before changing this profile" >&2
+    exit 1
+  fi
+
+  if nmcli -t -f NAME connection show | grep -Fxq "${con_name}"; then
+    nmcli connection modify "${con_name}" \
+      connection.interface-name "${iface}" \
+      connection.autoconnect yes \
+      connection.autoconnect-priority "${priority}" \
+      802-11-wireless.ssid "${ssid}" \
+      802-11-wireless.mode infrastructure \
+      802-11-wireless-security.key-mgmt wpa-psk \
+      802-11-wireless-security.psk "${password}" \
+      ipv4.method auto \
+      ipv6.method auto >/dev/null
+  else
+    nmcli connection add type wifi ifname "${iface}" con-name "${con_name}" ssid "${ssid}" >/dev/null
+    nmcli connection modify "${con_name}" \
+      connection.autoconnect yes \
+      connection.autoconnect-priority "${priority}" \
+      802-11-wireless.mode infrastructure \
+      802-11-wireless-security.key-mgmt wpa-psk \
+      802-11-wireless-security.psk "${password}" \
+      ipv4.method auto \
+      ipv6.method auto >/dev/null
+  fi
+  chmod 600 "/etc/NetworkManager/system-connections/${con_name}.nmconnection" 2>/dev/null || true
+  echo "Configured ${con_name}: SSID=${ssid}, priority=${priority}"
+  idx=$((idx + 1))
+done
+
+nmcli connection reload
+
+echo
+echo "Configured profiles:"
+nmcli -f NAME,TYPE,AUTOCONNECT,AUTOCONNECT-PRIORITY connection show | grep -E '(^NAME|jellyoffice-wifi-)'
+
+echo
+if [[ "${activate}" == true ]]; then
+  echo "Rescanning and asking NetworkManager to activate the best reachable profile..."
+  nmcli device wifi rescan ifname "${iface}" || true
+  sleep 3
+  best="jellyoffice-wifi-1"
+  nmcli device connect "${iface}" || nmcli connection up "${best}"
+  nmcli -f GENERAL.STATE,GENERAL.CONNECTION,IP4.ADDRESS device show "${iface}"
+else
+  echo "Not bouncing Wi-Fi. NetworkManager will use these profiles after reboot or link loss."
+  echo "To test from a safe Tailscale/console session, rerun with --activate."
+fi

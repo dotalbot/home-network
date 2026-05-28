@@ -43,6 +43,7 @@ I2C verification on jellyoffice shows `0x23` (ADS1015) and `0x76` (BME280) which
 - **512MB RAM**: No Docker, no node_exporter, no Alloy, no Borg. Every service must be native and minimal.
 - **32-bit armhf OS**: Limits available packages; Pimoroni library supports this architecture.
 - **WiFi only**: Less reliable than Ethernet; needs reconnection logic and watchdog.
+- **Headless multi-SSID moves**: Device may move between two out-of-range Wi-Fi networks. Preload both NetworkManager profiles with autoconnect priorities using `scripts/jellyoffice/configure-wifi-failover`; credentials stay on-device only.
 - **Known BME280 heat issue**: Temperature readings are inflated by Pi CPU heat. Mitigation: GPIO extender cable to physically separate the Enviro from the Pi, plus software offset.
 - **ADS1015/noise status**: ADS1015 is detected at `0x23`, but live channel reads currently return I/O errors. Noise is deferred until the channel/read path is verified.
 
