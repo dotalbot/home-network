@@ -134,7 +134,8 @@ The platform should make the home lab understandable, reproducible, observable, 
 - [ ] Add auth requirements for sensitive dashboards.
 - [x] Add host firewall/UFW makeover spec and rollout runbook before enabling UFW anywhere.
 - [x] Apply staged host firewall/UFW rollout after approval: Tailscale SSH fallback, LAN SSH fallback, SSH/service allowlists, rollback, and positive verification completed for `jellyberry`, `jellyhome`, and `jellybase`.
-- [ ] Add Docker-layer hardening follow-up for Docker-published ports where UFW cannot enforce restrictions alone (`DOCKER-USER` rules or bind-address changes), then run negative verification for `9100`, `12345`, `7007`, `9001`, `5432`, and similar restricted ports.
+- [x] Add Docker-layer hardening follow-up for Docker-published ports where UFW cannot enforce restrictions alone (`DOCKER-USER` rules or bind-address changes), then run positive and negative verification for `12345`, `7007`, `9001`, `5432`, `9000`, and similar restricted ports.
+- [ ] Add persistence/reapply mechanism for DOCKER-USER hardening after reboot or container recreation.
 - [ ] Avoid exposing unauthenticated sensitive services beyond LAN/Tailnet.
 
 ## V8 — Automation and Rebuild Confidence
@@ -167,8 +168,8 @@ Do not build a Netdata streaming topology unless this decision is explicitly rev
 | Service restore coverage | Stateful services have exact restore steps and three completed non-destructive drills: Mosquitto, monitoring stack, and Home Assistant config | `docs/runbooks/<service>-restore.md`, `docs/plans/011-restore-drills-and-runtime-caveats.md` |
 | Scheduled operations | Drift/backup/status checks are scheduled via systemd timer and exported to Prometheus textfile metrics | `scripts/scheduled-ops-check`, `docs/operations/scheduled-ops-checks.md`, Prometheus rules |
 | Alerting | Alertmanager/Discord path is source-managed and live on `jellybase`; runtime still requires the host-local Discord webhook secret plus caveat tracking for Alloy data ownership warnings and planned `jellybase` reboot | `/opt/docker/.secrets/alertmanager/discord_webhook_url`, `docs/operations/prometheus-alerting.md`, `docs/plans/011-restore-drills-and-runtime-caveats.md` |
-| Node exporter hardening | UFW host baseline is now applied and positively verified on `jellyberry`, `jellyhome`, and `jellybase`, with Prometheus scrapes still green. Docker-published ports may still bypass plain UFW, so source-restricted hardening is not complete until DOCKER-USER rules, bind-address changes, or negative tests prove restricted access | Docker-layer hardening follow-up plus negative verification for `9100`, `12345`, `7007`, `9001`, `5432`, etc. |
-| Host firewall/UFW makeover | Staged UFW rollout completed for Docker hosts with Tailscale SSH and LAN SSH fallbacks, explicit allowlists, rollback docs, and positive service/Prometheus checks | Maintain runbook evidence in `docs/operations/host-firewall-ufw-rollout.md`; add Docker-layer hardening where required |
+| Node exporter hardening | UFW host baseline and DOCKER-USER Docker-layer hardening are now applied and positively verified on `jellyberry`, `jellyhome`, and `jellybase`; Prometheus scrapes remain green, and negative checks from a non-approved host timed out for sensitive Docker-published ports on jellybase | Add persistence/reapply mechanism for DOCKER-USER rules after reboot or container recreation |
+| Host firewall/UFW makeover | Staged UFW rollout and Docker-layer follow-up completed for Docker hosts with Tailscale SSH and LAN SSH fallbacks, explicit allowlists, rollback docs, and positive service/Prometheus checks | Maintain runbook evidence in `docs/operations/host-firewall-ufw-rollout.md` and `docs/operations/docker-user-firewall-hardening.md`; add persistence for Docker-layer rules |
 | Grafana/Loki observability | Loki, datasource provisioning, Borgmatic log hooks, Alloy host/container log shipping, Grafana dashboards, Alertmanager/Discord routing, and host log/metric/sensor correlation exist | keep Grafana dashboards source-managed and verify provisioning after changes |
 | Reverse proxy + TLS | Needed before safe broader access | proxy/TLS spec, Compose changes, rollback notes |
 | Metadata maturity | Inventory needs richer fields for automation | inventory schema notes and validation checks |
@@ -180,5 +181,5 @@ Do not build a Netdata streaming topology unless this decision is explicitly rev
 
 1. Delete retired root-owned Netdata appdata from `jellyhome` and `jellybase` after sudo is available; containers are already retired from the managed path.
 2. Plan the unrelated `jellybase` OS reboot required after package updates.
-3. Add Docker-layer firewall hardening follow-up for Docker-published ports that can bypass plain UFW, then run negative verification for restricted ports.
+3. Add persistence/reapply mechanism for DOCKER-USER hardening after reboot or container recreation.
 4. Run the next recovery-confidence step: non-destructive logical-dump restore drill for Manyfold into a scratch PostgreSQL container, following `docs/runbooks/central-postgres-manyfold-restore.md`.

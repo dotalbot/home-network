@@ -85,6 +85,15 @@ Restricted Docker-published ports:
 
 Tailnet is allowed for Loki because remote Alloy containers currently resolve `jellybase` to the jellybase Tailscale IP via `extra_hosts`.
 
+2026-05-28 apply result:
+
+- User applied `scripts/firewall/apply-docker-user-hardening --apply` on jellybase.
+- Follow-up checks confirmed HTTP 200/ready responses for Homepage `80`, Grafana `3001`, Prometheus `9090`, Alertmanager `9093`, Network Map `8788`, Home Assistant `8123`, Jellyfood web `8793`, Jellyfood API `8794`, and Loki `3100`.
+- Direct `mqtt-exporter:9000` from jellyberry timed out, but Prometheus still scraped mqtt-exporter successfully with `up=1`, which confirms the approved local Docker scrape path still works while non-approved LAN access is blocked.
+- Prometheus `up` remained `1` for all node_exporter targets (`jellybase`, `jellyhome`, `jellyberry`) and all Alloy targets (`jellybase`, `jellyhome`, `jellyberry`).
+- Negative checks from non-approved `jellyberry` to jellybase restricted ports timed out as intended: `5432`, `7007`, `9001`, `12345`, and `9000`.
+- Alertmanager still showed only the two pre-existing jellybase warning alerts (`HomeNetworkScheduledOpsCheckFailed`, `HostSystemdFailedUnits`).
+
 ## Apply sequence
 
 For each host:
