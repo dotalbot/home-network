@@ -132,7 +132,8 @@ The platform should make the home lab understandable, reproducible, observable, 
 - [ ] Pick a reverse proxy approach.
 - [ ] Define internal DNS and TLS source.
 - [ ] Add auth requirements for sensitive dashboards.
-- [ ] Keep direct LAN/Tailnet rollback paths documented.
+- [ ] Add host firewall/UFW makeover spec and rollout runbook before enabling UFW anywhere.
+- [ ] Apply staged host firewall/UFW rollout after approval: Tailscale SSH fallback, SSH/service allowlists, rollback, positive/negative verification, and node_exporter TCP `9100` hardening.
 - [ ] Avoid exposing unauthenticated sensitive services beyond LAN/Tailnet.
 
 ## V8 — Automation and Rebuild Confidence
