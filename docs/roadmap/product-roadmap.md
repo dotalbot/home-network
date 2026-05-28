@@ -180,4 +180,4 @@ Do not build a Netdata streaming topology unless this decision is explicitly rev
 1. Delete retired root-owned Netdata appdata from `jellyhome` and `jellybase` after sudo is available; containers are already retired from the managed path.
 2. Plan the unrelated `jellybase` OS reboot required after package updates.
 3. Add a host firewall/UFW makeover spec before enabling UFW anywhere: Tailscale SSH must be verified as the emergency access path, SSH/service allowlists must be explicit, rollback must be documented, and node_exporter TCP `9100` hardening should be folded into that staged rollout.
-4. Plan the next recovery-confidence step: database-aware restore validation for a central PostgreSQL-backed service, or a low-risk full rebuild drill on disposable hardware/VM.
+4. Run the next recovery-confidence step: non-destructive logical-dump restore drill for Manyfold into a scratch PostgreSQL container, following `docs/runbooks/central-postgres-manyfold-restore.md`.

@@ -14,6 +14,7 @@ Initial restore coverage:
 - Mosquitto MQTT on `jellyhome`
 - Prometheus, Alertmanager, Grafana, and Loki monitoring state on `jellybase`
 - Portfolio Mission Control on `jellyberry`
+- Central PostgreSQL / Manyfold database-aware restore validation
 
 This plan does not restore over production unless the operator explicitly approves a maintenance window.
 
@@ -45,6 +46,8 @@ This plan does not restore over production unless the operator explicitly approv
 - [x] Run second non-destructive drill for the monitoring stack on `jellybase`.
 - [x] Run Home Assistant config extraction drill on `jellybase`.
 - [x] Validate Home Assistant restored config shape and selected `.storage` JSON without touching production data.
+- [x] Draft central PostgreSQL / Manyfold database-aware restore runbook.
+- [ ] Run non-destructive logical-dump restore drill for Manyfold into a scratch PostgreSQL container.
 
 ## Completed drills
 
@@ -61,7 +64,7 @@ Why Mosquitto was a good first target:
 
 Completed third drill: Home Assistant config on `jellybase`, recorded in `docs/runbooks/homeassistant-restore.md`.
 
-Next drill candidate: database-aware service restore validation for a service backed by central PostgreSQL, or a low-risk full rebuild drill on disposable hardware/VM.
+Next drill candidate: non-destructive logical-dump restore drill for Manyfold into a scratch PostgreSQL container, following `docs/runbooks/central-postgres-manyfold-restore.md`.
 
 ## Acceptance criteria
 
