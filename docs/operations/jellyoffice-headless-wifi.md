@@ -30,6 +30,8 @@ sudo scripts/jellyoffice/configure-wifi-failover \
 
 The script prompts securely for each Wi-Fi password. Do not put passwords on the command line.
 
+Use plain ASCII quotes around SSID arguments. Smart/curly quotes copied from rich text can become part of the SSID string and prevent reconnection; the helper rejects them.
+
 By default the script does not bounce Wi-Fi. It only writes NetworkManager profiles and reloads NetworkManager.
 
 To test activation from a safe Tailscale SSH or local console session:

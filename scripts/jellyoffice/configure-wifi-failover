@@ -72,6 +72,14 @@ if [[ ${#ssids[@]} -lt 2 ]]; then
   exit 1
 fi
 
+for ssid in "${ssids[@]}"; do
+  if [[ "${ssid}" == *“* || "${ssid}" == *”* || "${ssid}" == *‘* || "${ssid}" == *’* ]]; then
+    echo "error: SSID contains smart/curly quotes: ${ssid}" >&2
+    echo "Use plain ASCII quotes around the argument, for example: --ssid \"${ssid//[“”‘’]/}\"" >&2
+    exit 1
+  fi
+done
+
 require_root
 require_nmcli
 
