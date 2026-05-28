@@ -44,6 +44,14 @@ Restricted Docker-published ports:
 - `dozzle-agent:7007`: allow only `192.168.1.1/32` (`jellyhome` Dozzle UI)
 - `alloy:12345`: allow only `192.168.1.2/32` (`jellybase` Prometheus)
 
+2026-05-28 apply result:
+
+- User applied `scripts/firewall/apply-docker-user-hardening --apply` on jellyberry after root-mode bug fix.
+- Follow-up checks confirmed HTTP 200 for Mission Control `8787`, SC-401 Study Hub `8791`, and Image Pastebin `8792`.
+- Prometheus `up` remained `1` for `jellyberry:9100` node_exporter and `jellyberry:12345` Alloy.
+- Dozzle UI on jellyhome `8080` remained reachable. Direct HTTP probing of `jellyberry:7007` returned remote close, which is expected for the Dozzle agent protocol and not treated as service failure.
+- Alertmanager still showed only the two pre-existing jellybase warning alerts (`HomeNetworkScheduledOpsCheckFailed`, `HostSystemdFailedUnits`).
+
 ### jellyhome
 
 Restricted Docker-published ports:
