@@ -28,12 +28,37 @@ Record:
 - running Docker-published ports
 - required service URLs
 
-## Emergency access test
+## Tailscale SSH backdoor setup
 
-From an operator machine, open a separate session over Tailnet:
+Before any UFW changes, Tailscale SSH must be enabled and tested on each target host.
+
+Inspect-only check, run on each host:
 
 ```bash
-ssh <user>@<host>.cheetah-iwato.ts.net 'hostname -s && ip -o -4 addr show tailscale0 || true'
+cd ~/repo/home-network 2>/dev/null || cd /home/jellybot/home-network
+scripts/tailscale-ssh-backdoor-check
+```
+
+Enable Tailscale SSH, run locally on the target host so the operator can enter sudo if prompted:
+
+```bash
+cd ~/repo/home-network 2>/dev/null || cd /home/jellybot/home-network
+scripts/tailscale-ssh-backdoor-check --enable
+```
+
+Expected successful output includes:
+
+```text
+run-ssh=true
+status=ok
+```
+
+## Emergency access test
+
+From an operator machine, open a separate session over Tailnet using Tailscale SSH:
+
+```bash
+tailscale ssh <user>@<host>.cheetah-iwato.ts.net 'hostname -s && ip -o -4 addr show tailscale0 || true'
 ```
 
 Keep that session open during UFW enablement.

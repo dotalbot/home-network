@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Verify or enable Tailscale SSH on a host before UFW/firewall rollout.
+# Safe default: inspect only. Use --enable to run sudo tailscale set --ssh.
+
+mode="check"
+if [[ "${1:-}" == "--enable" ]]; then
+  mode="enable"
+elif [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
+  cat <<'USAGE'
+Usage:
+  scripts/tailscale-ssh-backdoor-check          # inspect only
+  scripts/tailscale-ssh-backdoor-check --enable # enable Tailscale SSH with sudo, then inspect
+
+Run locally on each host before enabling UFW.
+USAGE
+  exit 0
+elif [[ $# -gt 0 ]]; then
+  echo "error: unknown argument: $1" >&2
+  exit 2
+fi
+
+host=$(hostname -s)
+user=$(id -un)
+echo "host=$host user=$user"
+
+if ! command -v tailscale >/dev/null 2>&1; then
+  echo "status=missing-tailscale"
+  exit 1
+fi
+
+if ! systemctl is-active --quiet tailscaled; then
+  echo "status=tailscaled-not-active"
+  exit 1
+fi
+
+echo "tailscaled=active"
+tailscale version | head -1 | sed 's/^/tailscale-version=/'
+
+if [[ "$mode" == "enable" ]]; then
+  echo "enabling=tailscale-ssh"
+  sudo tailscale set --ssh
+fi
+
+runssh=$(tailscale debug prefs 2>/dev/null | awk -F': ' '/"RunSSH"/ {gsub(/[",]/, "", $2); print $2; exit}')
+wantrunning=$(tailscale debug prefs 2>/dev/null | awk -F': ' '/"WantRunning"/ {gsub(/[",]/, "", $2); print $2; exit}')
+ips=$(tailscale ip -4 2>/dev/null | paste -sd, -)
+
+echo "want-running=${wantrunning:-unknown}"
+echo "run-ssh=${runssh:-unknown}"
+echo "tailscale-ipv4=${ips:-unknown}"
+
+if [[ "${runssh:-}" == "true" ]]; then
+  echo "status=ok"
+else
+  echo "status=ssh-disabled"
+  [[ "$mode" == "enable" ]] && exit 1 || exit 0
+fi
