@@ -225,3 +225,12 @@ Rule intent is derived from `docker/hosts/jellybase.yaml`, Prometheus scrape con
 - Local Prometheus scrape paths: Docker bridge ranges to `9100`, `12345`, and `9000` for host.docker.internal / mqtt-exporter scrape paths.
 
 Important Docker caveat applies here too: Docker-published ports can bypass plain UFW via Docker iptables/NAT paths. This script establishes the safe host firewall baseline first; deeper Docker-published service restriction needs DOCKER-USER or bind-address follow-up.
+
+2026-05-28 apply result:
+
+- User ran jellybase UFW apply and reported completion.
+- Follow-up checks from Hermes confirmed HTTP 200/ready responses for Homepage `80`, Grafana `3001`, Prometheus `9090`, Alertmanager `9093`, Network Map `8788`, Home Assistant `8123`, Jellyfood web `8793`, and Jellyfood API `8794`.
+- Prometheus `up` remained `1` for all node_exporter targets: `host.docker.internal:9100` / jellybase, `jellyhome:9100`, and `jellyberry:9100`.
+- Prometheus `up` remained `1` for all Alloy targets: `host.docker.internal:12345` / jellybase, `jellyhome:12345`, and `jellyberry:12345`.
+- Prometheus, Loki, and mqtt-exporter scrape checks remained `up=1`.
+- Alertmanager still showed only the two pre-existing jellybase warning alerts (`HomeNetworkScheduledOpsCheckFailed`, `HostSystemdFailedUnits`); no new firewall/scrape outage alert was observed.
