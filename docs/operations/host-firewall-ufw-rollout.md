@@ -153,3 +153,22 @@ Expected restricted ports should fail from non-approved sources.
 3. `jellybase`
 
 Do not continue to the next host until the previous host has stable positive checks and no unexpected Alertmanager noise.
+
+## jellyberry staged script
+
+Source-managed dry-run/apply helper:
+
+```bash
+scripts/firewall/apply-jellyberry-ufw          # print intended commands
+scripts/firewall/apply-jellyberry-ufw --apply  # apply locally with sudo
+```
+
+Preflight observed before script creation:
+
+- LAN IP: `192.168.1.159`
+- Tailnet IP: `100.68.81.120`
+- Tailscale SSH: verified by user; local prefs show `RunSSH=true`
+- Listening ports include: `22`, `7007`, `8787`, `8791`, `8792`, `9100`, `12345`
+- Docker services include: `portfolio-mission-control-v2`, `sc401-study-hub`, `image-pastebin`, `dozzle-agent`, `alloy`
+
+Important Docker caveat: Docker-published ports can bypass plain UFW via Docker iptables/NAT paths. The jellyberry script establishes a safe host UFW baseline and management fallback, but service-port hardening must be verified separately with DOCKER-USER rules or bind-address changes before claiming Docker-published ports are fully restricted.
