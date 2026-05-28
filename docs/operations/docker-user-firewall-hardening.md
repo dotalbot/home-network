@@ -58,6 +58,15 @@ Restricted Docker-published ports:
 
 - `alloy:12345`: allow only `192.168.1.2/32` (`jellybase` Prometheus)
 
+2026-05-28 apply result:
+
+- User applied `scripts/firewall/apply-docker-user-hardening --apply` on jellyhome.
+- Follow-up checks confirmed HTTP 200 for Homepage `80`, Dozzle `8080`, Portainer `9443`, 3dprint-loader `8793`, Hindsight API `18888`, and Hindsight UI `9999`.
+- Manyfold `3214` remained reachable but returned the known application redirect loop, indicating transport was not blocked.
+- Package/dev delivery ports `8888` and `8889` accepted TCP connections and remain available.
+- Prometheus `up` remained `1` for `jellyhome:9100` node_exporter and `jellyhome:12345` Alloy.
+- Alertmanager still showed only the two pre-existing jellybase warning alerts (`HomeNetworkScheduledOpsCheckFailed`, `HostSystemdFailedUnits`).
+
 Not restricted here:
 
 - `8888` and `8889` must remain open from LAN/Tailnet for package delivery/dev workflows.
