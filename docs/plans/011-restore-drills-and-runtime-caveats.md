@@ -47,7 +47,7 @@ This plan does not restore over production unless the operator explicitly approv
 - [x] Run Home Assistant config extraction drill on `jellybase`.
 - [x] Validate Home Assistant restored config shape and selected `.storage` JSON without touching production data.
 - [x] Draft central PostgreSQL / Manyfold database-aware restore runbook.
-- [ ] Run non-destructive logical-dump restore drill for Manyfold into a scratch PostgreSQL container.
+- [ ] Run non-destructive logical-dump restore drill for Manyfold into a scratch PostgreSQL container. 2026-05-28 precheck passed, but execution needs a fresh `jellybase` operator session because `/tmp/home-network-restore-drill` was not writable and the SSH session closed; runbook now uses `$HOME/home-network-restore-drill` fallback.
 
 ## Completed drills
 

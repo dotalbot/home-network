@@ -38,10 +38,14 @@ Logical dumps are preferred for database-aware validation because they can be re
 
 Run on `jellybase` from a safe operator shell.
 
-1. Create a unique scratch directory. Do not delete old scratch directories as part of the automated drill.
+1. Create a unique scratch directory. Do not delete old scratch directories as part of the automated drill. Prefer `/tmp/home-network-restore-drill` when writable; if that base directory is root-owned/non-writable and sudo is unavailable, use a user-owned scratch base under `$HOME`.
 
 ```bash
-DRILL_BASE=/tmp/home-network-restore-drill
+if [ -w /tmp/home-network-restore-drill ]; then
+  DRILL_BASE=/tmp/home-network-restore-drill
+else
+  DRILL_BASE="$HOME/home-network-restore-drill"
+fi
 SERVICE=central-postgres-manyfold
 STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
 DRILL="$DRILL_BASE/$SERVICE-$STAMP"
@@ -170,3 +174,4 @@ If old data was moved aside or archived first, restore that pre-restore copy und
 ## Drill log
 
 - Pending: first non-destructive logical-dump restore drill for `manyfold`.
+- 2026-05-28 precheck: `central-postgres` was healthy and logical dumps existed through `20260527T024501Z`, including `manyfold.dump`, `postgres.dump`, `globals.sql`, and `manifest.txt`. Drill execution was not completed because `/tmp/home-network-restore-drill` was not writable by the operator user, sudo was not cached, and the jellybase SSH session closed. Runbook updated to support a user-owned `$HOME/home-network-restore-drill` fallback for the next attempt.
