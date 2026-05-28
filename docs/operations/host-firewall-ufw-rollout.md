@@ -195,7 +195,7 @@ scripts/firewall/apply-jellyhome-ufw --apply  # apply locally with sudo
 Rule intent is derived from `docker/hosts/jellyhome.yaml` and inventory service URLs:
 
 - Management: Tailnet emergency access on `tailscale0`, LAN SSH from `192.168.1.0/24`.
-- LAN/Tailnet services: `80`, `8080`, `9443`, `1883`, `9001`, `3214`, `8793`, `18888`, `9999`.
+- LAN/Tailnet services: `80`, `8080`, `9443`, `1883`, `9001`, `3214`, `8793`, `8888`, `8889`, `18888`, `9999`. Ports `8888` and `8889` are intentionally left available for temporary package delivery/dev workflows.
 - Monitoring: jellybase `192.168.1.2` to `9100` and `12345`.
 
 Important Docker caveat applies here too: Docker-published ports can bypass plain UFW via Docker iptables/NAT paths. This script establishes the safe host firewall baseline first; deeper Docker-published service restriction needs DOCKER-USER or bind-address follow-up.

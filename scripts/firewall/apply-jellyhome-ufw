@@ -56,6 +56,7 @@ cat <<'NOTE'
 #   - 9001 Mosquitto websocket
 #   - 3214 Manyfold
 #   - 8793 3dprint-loader web
+#   - 8888/8889 temporary package delivery/dev ports
 #   - 18888 Hindsight API
 #   - 9999 Hindsight UI/control plane
 # Restrict monitoring ports where UFW can enforce host-input traffic:
@@ -82,7 +83,7 @@ run_sudo ufw allow in on tailscale0 comment 'Tailnet emergency/operator access'
 run_sudo ufw allow from 192.168.1.0/24 to any port 22 proto tcp comment 'LAN SSH admin'
 
 # LAN/Tailnet service access.
-for port in 80 8080 9443 1883 9001 3214 8793 18888 9999; do
+for port in 80 8080 9443 1883 9001 3214 8793 8888 8889 18888 9999; do
   run_sudo ufw allow from 192.168.1.0/24 to any port "$port" proto tcp comment "LAN service ${port}"
   run_sudo ufw allow in on tailscale0 to any port "$port" proto tcp comment "Tailnet service ${port}"
 done
@@ -104,6 +105,8 @@ cat <<'VERIFY'
 #              curl -kfsS https://192.168.1.1:9443/ >/dev/null && echo portainer-ok
 #              curl -fsS http://192.168.1.1:3214/ >/dev/null && echo manyfold-ok
 #              curl -fsS http://192.168.1.1:8793/ >/dev/null && echo 3dprint-ok
+#              nc -vz 192.168.1.1 8888 || true
+#              nc -vz 192.168.1.1 8889 || true
 #              curl -fsS http://192.168.1.1:9999/ >/dev/null && echo hindsight-ui-ok
 #   Prometheus: check jellyhome up/node_exporter/alloy targets stay green.
 # Rollback if needed:
