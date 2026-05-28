@@ -90,7 +90,11 @@ insert_rule() {
 }
 
 ensure_chain() {
-  run_cmd "${sudo_cmd[@]}" iptables -N DOCKER-USER 2>/dev/null || true
+  if "${sudo_cmd[@]}" iptables -S DOCKER-USER >/dev/null 2>&1; then
+    echo '# DOCKER-USER chain exists'
+    return 0
+  fi
+  run_cmd "${sudo_cmd[@]}" iptables -N DOCKER-USER
 }
 
 restrict_container_port() {
@@ -124,7 +128,7 @@ cat <<NOTE
 # This helper adds explicit allow/drop rules for sensitive forwarded Docker traffic.
 NOTE
 
-if [[ "$apply" == true ]]; then
+if [[ "$apply" == true && ${#sudo_cmd[@]} -gt 0 ]]; then
   "${sudo_cmd[@]}" -v
 fi
 ensure_chain
