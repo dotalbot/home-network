@@ -101,9 +101,9 @@ function renderMap(items) {
             <p class="eyebrow small">Option 3</p>
             <h3 id="matrix-title">Service matrix</h3>
           </div>
-          <p class="muted">A compact "what exposes what" view across common ports.</p>
+          <p class="muted">Live operational matrix: health, backup, active alerts, service count, direct URL, and common exposed ports.</p>
         </div>
-        ${renderServiceMatrix(items)}
+        ${renderServiceMatrix(items, {healthData: currentHealthData, backupData: currentBackupData, alerts: currentAlerts})}
       </article>
     </section>
 

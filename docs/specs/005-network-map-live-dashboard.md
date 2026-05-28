@@ -313,7 +313,15 @@ And `nginx.conf` with the reverse proxy routes above.
 16. ✅ Fix `sync-docker-config` script: `chgrp -R` on root-owned alertmanager data now uses `2>/dev/null || true`
 17. ✅ Add `jellyfood-api` service to jellybase compose overlay and inventory/services.yml
 
-## Implementation phases
+### Enhanced service matrix
+
+- Existing port-exposure grid is expanded with operational columns: Health, Backup, Alerts, Services, and Direct.
+- Health uses live Prometheus/MQTT-derived host status where available.
+- Backup uses live borgmatic status where available.
+- Alerts counts active Alertmanager entries matched by `monitored_host`/`host`.
+- Direct provides a best-effort HTTP/HTTPS link for common management ports, while preserving the raw port exposure columns.
+
+## Implementation checklist
 
 ### Phase 1: Live node health on topology ✅
 

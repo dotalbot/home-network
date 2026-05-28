@@ -165,18 +165,23 @@ function renderDeviceChip(item) {
 
 // ---- Service Matrix ----
 
-export function renderServiceMatrix(items) {
+export function renderServiceMatrix(items, context = {}) {
   const ports = [...new Set(items.flatMap(item => item.open_ports || []))].sort((a, b) => a - b).slice(0, 8);
   if (!items.length) return '<p class="muted">No devices match the current filters.</p>';
-  if (!ports.length) return '<p class="muted">No checked ports are open in the current filter.</p>';
+  const rows = items.sort((a, b) => (b.service_count || 0) - (a.service_count || 0) || byName(a, b)).slice(0, 18);
   return `
     <div class="matrix-scroll">
-      <table class="service-matrix">
-        <thead><tr><th>Device</th>${ports.map(port => `<th>:${escapeHtml(String(port))}</th>`).join('')}</tr></thead>
+      <table class="service-matrix enhanced-service-matrix">
+        <thead><tr><th>Device</th><th>Health</th><th>Backup</th><th>Alerts</th><th>Services</th><th>Direct</th>${ports.map(port => `<th>:${escapeHtml(String(port))}</th>`).join('')}</tr></thead>
         <tbody>
-          ${items.sort((a, b) => (b.service_count || 0) - (a.service_count || 0) || byName(a, b)).slice(0, 18).map(item => `
+          ${rows.map(item => `
             <tr>
               <th><button class="matrix-device" data-ip="${escapeHtml(item.ip)}">${escapeHtml(shortName(item.display_name))}<span>${escapeHtml(item.ip)}</span></button></th>
+              <td>${renderMatrixHealth(item, context.healthData)}</td>
+              <td>${renderMatrixBackup(item, context.backupData)}</td>
+              <td>${renderMatrixAlerts(item, context.alerts)}</td>
+              <td><span class="matrix-service-count">${escapeHtml(String(item.service_count || (item.services || []).length || 0))}</span></td>
+              <td>${renderDirectLink(item)}</td>
               ${ports.map(port => `<td>${(item.open_ports || []).includes(port) ? '<span class="matrix-hit">●</span>' : '<span class="matrix-empty">—</span>'}</td>`).join('')}
             </tr>
           `).join('')}
@@ -184,6 +189,60 @@ export function renderServiceMatrix(items) {
       </table>
     </div>
   `;
+}
+
+function normalizeMatrixName(value) {
+  return String(value || '').replace(/:\d+$/, '').replace(/\.lan$|\.local$|\.cheetah-iwato\.ts\.net$/i, '').replace(/^host\.docker\.internal$/, 'jellybase').toLowerCase();
+}
+
+function matrixKeys(item) {
+  return [item.name, item.hostname, item.display_name, item.ip].map(normalizeMatrixName).filter(Boolean);
+}
+
+function dataForItem(item, data) {
+  if (!data) return null;
+  const keys = matrixKeys(item);
+  return keys.map(key => data[key]).find(Boolean) || null;
+}
+
+function renderStatusPill(label, tone) {
+  return `<span class="matrix-status matrix-${escapeHtml(tone)}">${escapeHtml(label)}</span>`;
+}
+
+function renderMatrixHealth(item, healthData) {
+  const health = dataForItem(item, healthData);
+  if (!health) return renderStatusPill('n/a', 'grey');
+  if (health.online === false) return renderStatusPill('down', 'red');
+  if (health.diskTotal && (1 - (health.diskAvail / health.diskTotal)) > 0.90) return renderStatusPill('disk', 'amber');
+  if (health.diskUsedPct !== undefined && health.diskUsedPct > 90) return renderStatusPill('disk', 'amber');
+  return renderStatusPill('up', 'green');
+}
+
+function renderMatrixBackup(item, backupData) {
+  const backup = dataForItem(item, backupData);
+  if (!backup) return renderStatusPill('n/a', 'grey');
+  if (backup.success === 0 || backup.repositoryReachable === 0 || (backup.exitCode !== undefined && backup.exitCode !== 0)) return renderStatusPill('fail', 'red');
+  if (backup.ageSeconds !== undefined && backup.ageSeconds > 36 * 60 * 60) return renderStatusPill('stale', 'amber');
+  return renderStatusPill('ok', 'green');
+}
+
+function renderMatrixAlerts(item, alerts) {
+  const keys = matrixKeys(item);
+  const matches = (alerts || []).filter(alert => keys.includes(normalizeMatrixName(alert.labels?.monitored_host || alert.labels?.host || alert.labels?.instance)));
+  if (!matches.length) return renderStatusPill('0', 'green');
+  const critical = matches.some(alert => String(alert.labels?.severity || '').toLowerCase() === 'critical');
+  return renderStatusPill(String(matches.length), critical ? 'red' : 'amber');
+}
+
+function renderDirectLink(item) {
+  const ports = item.open_ports || [];
+  const preferred = [443, 9443, 8123, 8080, 3000, 80, 22].find(port => ports.includes(port));
+  if (!preferred) return '<span class="matrix-empty">—</span>';
+  const scheme = [443, 9443].includes(preferred) ? 'https' : 'http';
+  if (preferred === 22) return '<span class="matrix-empty">ssh</span>';
+  const defaultPort = (scheme === 'http' && preferred === 80) || (scheme === 'https' && preferred === 443) ? '' : `:${preferred}`;
+  const url = `${scheme}://${item.ip}${defaultPort}`;
+  return `<a class="matrix-link" href="${escapeHtml(url)}" target="_blank" rel="noopener">open</a>`;
 }
 
 // ---- Operations Board ----
