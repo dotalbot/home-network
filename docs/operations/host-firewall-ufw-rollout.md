@@ -63,6 +63,19 @@ tailscale ssh <user>@<host>.cheetah-iwato.ts.net 'hostname -s && ip -o -4 addr s
 
 Keep that session open during UFW enablement.
 
+### Verified Tailscale SSH evidence
+
+2026-05-28: User verified from Windows PowerShell that Tailscale SSH returns `hostname -s; whoami` successfully for:
+
+```text
+jellyhome   jellyfish@jellyhome   -> jellyhome / jellyfish
+jellybase   jellyfish@jellybase   -> jellybase / jellyfish
+jellyberry  jellybot@jellyberry   -> jellyberry / jellybot
+jellyoffice jellyfish@jellyoffice -> jellyoffice / jellyfish
+```
+
+This satisfies the Tailnet emergency shell prerequisite for `jellyhome`, `jellybase`, and `jellyberry`. Keep LAN SSH as the backdoor-for-the-backdoor. `jellyoffice` is verified too, but remains outside the main Docker-host UFW rollout and should use a separate Pi-safe firewall profile if hardened later.
+
 ## Generic rollback
 
 Run from Tailscale SSH or local console:

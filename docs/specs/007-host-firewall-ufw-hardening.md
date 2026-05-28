@@ -192,9 +192,7 @@ Per host:
    - `sudo ufw status verbose`
    - `docker ps --format '{{.Names}} {{.Ports}}'`
    - `ss -ltnup`
-2. Confirm emergency access:
-   - Open a separate Tailscale SSH session.
-   - Verify `hostname -s` and `sudo -n true` or be ready with password.
+2. Tailscale SSH emergency access is verified on `jellyhome`, `jellybase`, and `jellyberry` from an operator machine; LAN SSH remains allowed as the backdoor-for-the-backdoor.
 3. Generate staged rule script for that host.
 4. Review script in terminal before execution.
 5. Apply allow rules while UFW is still inactive.
