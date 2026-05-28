@@ -1,0 +1,119 @@
+# Docker DOCKER-USER firewall hardening
+
+Status: staged; apply host-by-host only after reviewing dry-run output.
+
+Related baseline: `docs/operations/host-firewall-ufw-rollout.md`
+
+## Why this exists
+
+UFW is now active and positively verified on the Docker hosts, but Docker-published ports can bypass normal host INPUT policy because Docker DNAT/forwarding rules are applied before UFW sees some traffic.
+
+`DOCKER-USER` is Docker's supported operator chain for filtering forwarded Docker traffic before Docker's own accept rules.
+
+## Scope
+
+This hardening targets only sensitive Docker-published ports:
+
+- metrics/agent endpoints
+- central database endpoint
+- log aggregation endpoint where broad LAN exposure is unnecessary
+
+It intentionally does not restrict user-facing LAN/Tailnet apps such as Homepage, Grafana, Prometheus UI, Network Map, Home Assistant, Jellyfood, Hindsight, Manyfold, MQTT, or jellyhome package/dev ports `8888`/`8889`.
+
+## Source-managed helper
+
+```bash
+scripts/firewall/apply-docker-user-hardening          # dry-run
+scripts/firewall/apply-docker-user-hardening --apply  # apply locally with sudo
+```
+
+Run it on each Docker host:
+
+1. `jellyberry`
+2. `jellyhome`
+3. `jellybase`
+
+The helper resolves current container IPs at runtime. Re-run after recreating restricted containers, because DOCKER-USER rules match container IPs after Docker DNAT.
+
+## Policy by host
+
+### jellyberry
+
+Restricted Docker-published ports:
+
+- `dozzle-agent:7007`: allow only `192.168.1.1/32` (`jellyhome` Dozzle UI)
+- `alloy:12345`: allow only `192.168.1.2/32` (`jellybase` Prometheus)
+
+### jellyhome
+
+Restricted Docker-published ports:
+
+- `alloy:12345`: allow only `192.168.1.2/32` (`jellybase` Prometheus)
+
+Not restricted here:
+
+- `8888` and `8889` must remain open from LAN/Tailnet for package delivery/dev workflows.
+- Mosquitto, Homepage, Portainer UI, Dozzle UI, Manyfold, 3dprint-loader, and Hindsight stay governed by the UFW LAN/Tailnet allowlist.
+
+### jellybase
+
+Restricted Docker-published ports:
+
+- `central-postgres:5432`: allow `192.168.1.1/32` and `192.168.1.2/32`
+- `dozzle-agent:7007`: allow `192.168.1.1/32`
+- `portainer-agent:9001`: allow `192.168.1.1/32`
+- `loki:3100`: allow `192.168.1.1/32`, `192.168.1.159/32`, `192.168.1.2/32`, `100.64.0.0/10`, and `172.16.0.0/12`
+- `mqtt-exporter:9000`: allow `172.16.0.0/12`
+- `alloy:12345`: allow `172.16.0.0/12` and `192.168.1.2/32`
+
+Tailnet is allowed for Loki because remote Alloy containers currently resolve `jellybase` to the jellybase Tailscale IP via `extra_hosts`.
+
+## Apply sequence
+
+For each host:
+
+1. Confirm Tailscale SSH and LAN SSH still work.
+2. Run dry-run:
+
+```bash
+cd ~/repo/home-network 2>/dev/null || cd /home/jellybot/home-network
+scripts/firewall/apply-docker-user-hardening
+```
+
+3. Apply:
+
+```bash
+scripts/firewall/apply-docker-user-hardening --apply
+```
+
+4. Verify positives:
+
+```bash
+curl -fsS http://192.168.1.2:9090/-/ready
+curl -fsS 'http://192.168.1.2:9090/api/v1/query?query=up'
+```
+
+5. Verify no new Alertmanager alerts.
+6. Negative-check from a non-approved LAN client when available.
+
+## Rollback
+
+Fast rollback on the affected host:
+
+```bash
+sudo iptables -F DOCKER-USER
+```
+
+Optional Docker chain refresh if needed:
+
+```bash
+sudo systemctl restart docker
+```
+
+Restarting Docker interrupts containers, so prefer flushing `DOCKER-USER` first.
+
+## Known caveats
+
+- DOCKER-USER rules are not made reboot-persistent by this helper yet. Add a systemd unit or iptables-persistent after the policy is verified.
+- Rules match current container IPs. Re-run after container recreation or replace with a persistent generated apply unit.
+- Negative tests require a non-approved source; positive tests alone prove no breakage, not full isolation.

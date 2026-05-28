@@ -1,0 +1,173 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Docker-layer firewall hardening for sensitive Docker-published ports.
+# Dry-run by default. Use --apply locally on each host after reviewing output.
+#
+# Why this exists:
+#   Docker-published ports can bypass plain UFW because Docker DNATs traffic to
+#   containers before normal host INPUT policy. DOCKER-USER is the supported
+#   chain for operator policy on forwarded Docker traffic.
+#
+# Scope:
+#   Restrict only sensitive agent/metrics/database ports. Leave intentional
+#   LAN/Tailnet apps alone (dashboards, app UIs, MQTT, Home Assistant, etc.).
+
+apply=false
+if [[ "${1:-}" == "--apply" ]]; then
+  apply=true
+elif [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
+  cat <<'USAGE'
+Usage:
+  scripts/firewall/apply-docker-user-hardening          # print intended rules for this host
+  scripts/firewall/apply-docker-user-hardening --apply  # apply with sudo
+
+Run on each Docker host after UFW baseline is active and verified:
+  - jellyberry
+  - jellyhome
+  - jellybase
+
+Rollback:
+  sudo iptables -F DOCKER-USER
+  sudo systemctl restart docker   # optional if Docker recreates its chain policy
+
+Notes:
+  - Rules match current container IPs. Re-run after container recreation.
+  - This script is intentionally conservative and only restricts sensitive ports.
+USAGE
+  exit 0
+elif [[ $# -gt 0 ]]; then
+  echo "error: unknown argument: $1" >&2
+  exit 2
+fi
+
+host=$(hostname -s)
+if [[ ! "$host" =~ ^(jellyberry|jellyhome|jellybase)$ ]]; then
+  echo "error: unsupported host for Docker firewall hardening: $host" >&2
+  exit 1
+fi
+
+if ! command -v docker >/dev/null 2>&1; then
+  echo "error: docker not found" >&2
+  exit 1
+fi
+if ! command -v iptables >/dev/null 2>&1; then
+  echo "error: iptables not found" >&2
+  exit 1
+fi
+
+sudo_cmd=()
+if [[ $(id -u) -ne 0 ]]; then
+  sudo_cmd=(sudo)
+fi
+
+run_cmd() {
+  printf '+'
+  printf ' %q' "$@"
+  printf '\n'
+  if [[ "$apply" == true ]]; then
+    "$@"
+  fi
+}
+
+container_ip() {
+  local container="$1"
+  docker inspect -f '{{range .NetworkSettings.Networks}}{{if .IPAddress}}{{.IPAddress}}{{end}}{{end}}' "$container" 2>/dev/null | awk 'NF {print; exit}'
+}
+
+rule_exists() {
+  "${sudo_cmd[@]}" iptables -C DOCKER-USER "$@" >/dev/null 2>&1
+}
+
+insert_rule() {
+  if rule_exists "$@"; then
+    printf '# exists:'
+    printf ' %q' "$@"
+    printf '\n'
+    return 0
+  fi
+  run_cmd "${sudo_cmd[@]}" iptables -I DOCKER-USER 1 "$@"
+}
+
+ensure_chain() {
+  run_cmd "${sudo_cmd[@]}" iptables -N DOCKER-USER 2>/dev/null || true
+}
+
+restrict_container_port() {
+  local container="$1" port="$2" description="$3"
+  shift 3
+  local allows=("$@")
+  local ip
+  ip=$(container_ip "$container")
+  if [[ -z "$ip" ]]; then
+    echo "error: container IP not found for $container; is it running?" >&2
+    exit 1
+  fi
+
+  echo
+  echo "# $description"
+  echo "# container=$container ip=$ip port=$port"
+  echo "# allowed sources: ${allows[*]}"
+
+  # Insert DROP first, then insert ALLOW rules at position 1 so allows sit above drop.
+  insert_rule -p tcp -d "${ip}/32" --dport "$port" -m comment --comment "home-network deny ${host} ${container}:${port}" -j DROP
+  local src
+  for src in "${allows[@]}"; do
+    insert_rule -p tcp -s "$src" -d "${ip}/32" --dport "$port" -m comment --comment "home-network allow ${host} ${container}:${port}" -j RETURN
+  done
+}
+
+cat <<NOTE
+# Docker DOCKER-USER hardening intent for $host
+# Dry-run: $([[ "$apply" == true ]] && echo false || echo true)
+# UFW already protects host INPUT, but Docker-published ports may bypass it.
+# This helper adds explicit allow/drop rules for sensitive forwarded Docker traffic.
+NOTE
+
+if [[ "$apply" == true ]]; then
+  "${sudo_cmd[@]}" -v
+fi
+ensure_chain
+
+case "$host" in
+  jellyberry)
+    restrict_container_port dozzle-agent 7007 'Dozzle agent: only jellyhome Dozzle UI should connect' \
+      192.168.1.1/32
+    restrict_container_port alloy 12345 'Alloy metrics endpoint: only jellybase Prometheus should scrape' \
+      192.168.1.2/32
+    ;;
+  jellyhome)
+    restrict_container_port alloy 12345 'Alloy metrics endpoint: only jellybase Prometheus should scrape' \
+      192.168.1.2/32
+    ;;
+  jellybase)
+    restrict_container_port central-postgres 5432 'Central Postgres: only jellyhome apps and jellybase/local host should connect' \
+      192.168.1.1/32 192.168.1.2/32
+    restrict_container_port dozzle-agent 7007 'Dozzle agent: only jellyhome Dozzle UI should connect' \
+      192.168.1.1/32
+    restrict_container_port portainer-agent 9001 'Portainer agent: only jellyhome Portainer server should connect' \
+      192.168.1.1/32
+    restrict_container_port loki 3100 'Loki: allow LAN log shippers, Tailnet log shippers, and local Docker clients' \
+      192.168.1.1/32 192.168.1.159/32 192.168.1.2/32 100.64.0.0/10 172.16.0.0/12
+    restrict_container_port mqtt-exporter 9000 'mqtt-exporter metrics: only local Docker Prometheus path should scrape' \
+      172.16.0.0/12
+    restrict_container_port alloy 12345 'Alloy metrics endpoint: only local Docker Prometheus path should scrape' \
+      172.16.0.0/12 192.168.1.2/32
+    ;;
+esac
+
+echo
+echo '# Current DOCKER-USER rules after dry-run/apply:'
+run_cmd "${sudo_cmd[@]}" iptables -S DOCKER-USER
+
+cat <<'VERIFY'
+
+# Verify after apply:
+#   - Required apps still answer from LAN/Tailnet.
+#   - Prometheus targets remain up=1.
+#   - Loki receives log entries.
+#   - Negative-check restricted ports from a non-approved LAN host.
+#
+# Fast rollback:
+#   sudo iptables -F DOCKER-USER
+VERIFY

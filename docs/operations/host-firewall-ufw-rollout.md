@@ -234,3 +234,19 @@ Important Docker caveat applies here too: Docker-published ports can bypass plai
 - Prometheus `up` remained `1` for all Alloy targets: `host.docker.internal:12345` / jellybase, `jellyhome:12345`, and `jellyberry:12345`.
 - Prometheus, Loki, and mqtt-exporter scrape checks remained `up=1`.
 - Alertmanager still showed only the two pre-existing jellybase warning alerts (`HomeNetworkScheduledOpsCheckFailed`, `HostSystemdFailedUnits`); no new firewall/scrape outage alert was observed.
+
+## Docker-layer follow-up
+
+Plain UFW is now active and positively verified, but Docker-published ports can bypass normal host INPUT policy. The follow-up is staged in:
+
+```bash
+scripts/firewall/apply-docker-user-hardening
+```
+
+Runbook:
+
+```text
+docs/operations/docker-user-firewall-hardening.md
+```
+
+The helper uses `DOCKER-USER` to restrict sensitive Docker-published ports while leaving intentional LAN/Tailnet apps alone.
