@@ -313,6 +313,10 @@ async function refreshHealthData() {
     currentAlerts = [];
   }
   updateHealthTimestamp();
+  if (allItems().length) {
+    render();
+    return;
+  }
   // Re-attach health badges if topology is already rendered
   if (currentHealthData) {
     attachHealthToNodes(currentHealthData, allItems());

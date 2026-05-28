@@ -192,7 +192,18 @@ export function renderServiceMatrix(items, context = {}) {
 }
 
 function normalizeMatrixName(value) {
-  return String(value || '').replace(/:\d+$/, '').replace(/\.lan$|\.local$|\.cheetah-iwato\.ts\.net$/i, '').replace(/^host\.docker\.internal$/, 'jellybase').toLowerCase();
+  const normalized = String(value || '').replace(/:\d+$/, '').replace(/\.lan$|\.local$|\.cheetah-iwato\.ts\.net$/i, '').replace(/^host\.docker\.internal$/, 'jellybase').toLowerCase();
+  const ipAliases = {
+    '192.168.1.1': 'jellyhome',
+    '100.90.175.59': 'jellyhome',
+    '192.168.1.2': 'jellybase',
+    '100.125.86.118': 'jellybase',
+    '192.168.1.159': 'jellyberry',
+    '100.126.122.63': 'jellyberry',
+    '192.168.1.71': 'jellyoffice',
+    '100.120.3.77': 'jellyoffice',
+  };
+  return ipAliases[normalized] || normalized;
 }
 
 function matrixKeys(item) {
