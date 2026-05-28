@@ -140,7 +140,7 @@ Do not use broad `ufw allow 9100/tcp`; use source-restricted rules for node_expo
 
 Allow from LAN/Tailnet:
 
-- 22, 80, 8080, 9443, 1883, 9001, 3214, 8793, 18888, 9999
+- 22, 80, 8080, 9443, 1883, 9001, 3214, 8793, 8888, 8889, 18888, 9999
 
 Restrict to jellybase / monitoring source:
 
@@ -151,7 +151,7 @@ Restrict to jellybase / monitoring source:
 
 Allow from LAN/Tailnet:
 
-- 22, 80, 3001, 9090, 9093, 8788, 8793, 8794
+- 22, 80, 3001, 9090, 9093, 8788, 8793, 8794, 8123
 
 Restrict to service peers:
 

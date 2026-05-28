@@ -199,3 +199,29 @@ Rule intent is derived from `docker/hosts/jellyhome.yaml` and inventory service 
 - Monitoring: jellybase `192.168.1.2` to `9100` and `12345`.
 
 Important Docker caveat applies here too: Docker-published ports can bypass plain UFW via Docker iptables/NAT paths. This script establishes the safe host firewall baseline first; deeper Docker-published service restriction needs DOCKER-USER or bind-address follow-up.
+
+2026-05-28 apply result:
+
+- User ran jellyhome UFW apply after adding package/dev delivery ports `8888` and `8889`.
+- User reported completion.
+- Follow-up checks from Hermes confirmed HTTP 200 on Homepage `80`, Dozzle `8080`, Portainer `9443`, 3dprint-loader `8793`, Hindsight API `18888`, and Hindsight UI `9999`.
+- Manyfold `3214` was reachable but returned an application redirect loop, indicating transport was not blocked.
+- Prometheus `up` remained `1` for `jellyhome:9100` node_exporter and `jellyhome:12345` Alloy.
+
+## jellybase staged script
+
+Source-managed dry-run/apply helper:
+
+```bash
+scripts/firewall/apply-jellybase-ufw          # print intended commands
+scripts/firewall/apply-jellybase-ufw --apply  # apply locally with sudo
+```
+
+Rule intent is derived from `docker/hosts/jellybase.yaml`, Prometheus scrape config, and inventory service URLs:
+
+- Management: Tailnet emergency access on `tailscale0`, LAN SSH from `192.168.1.0/24`.
+- LAN/Tailnet services: `80`, `3001`, `9090`, `9093`, `8788`, `8793`, `8794`, `8123`.
+- Service peers: jellyhome to `5432`, `7007`, `9001`; jellyhome/jellyberry to Loki `3100` if LAN push/query paths are used.
+- Local Prometheus scrape paths: Docker bridge ranges to `9100`, `12345`, and `9000` for host.docker.internal / mqtt-exporter scrape paths.
+
+Important Docker caveat applies here too: Docker-published ports can bypass plain UFW via Docker iptables/NAT paths. This script establishes the safe host firewall baseline first; deeper Docker-published service restriction needs DOCKER-USER or bind-address follow-up.

@@ -1,0 +1,129 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Stage/apply UFW baseline for jellybase only.
+# Dry-run by default. Use --apply locally on jellybase after Tailscale SSH and LAN SSH are open.
+
+apply=false
+if [[ "${1:-}" == "--apply" ]]; then
+  apply=true
+elif [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
+  cat <<'USAGE'
+Usage:
+  scripts/firewall/apply-jellybase-ufw          # print intended commands
+  scripts/firewall/apply-jellybase-ufw --apply  # apply with sudo
+
+Preconditions:
+  - Run only on jellybase.
+  - Tailscale SSH verified from an independent operator session.
+  - LAN SSH verified from 192.168.1.0/24.
+  - Be ready to run: sudo ufw disable
+USAGE
+  exit 0
+elif [[ $# -gt 0 ]]; then
+  echo "error: unknown argument: $1" >&2
+  exit 2
+fi
+
+host=$(hostname -s)
+if [[ "$host" != "jellybase" ]]; then
+  if [[ "$apply" == true ]]; then
+    echo "error: this script is for jellybase only; current host=$host" >&2
+    exit 1
+  fi
+  echo "# dry-run from non-target host: current host=$host, target=jellybase" >&2
+fi
+
+run_sudo() {
+  printf '+ sudo'
+  printf ' %q' "$@"
+  printf '\n'
+  if [[ "$apply" == true ]]; then
+    sudo "$@"
+  fi
+}
+
+cat <<'NOTE'
+# jellybase firewall intent
+# Keep two management paths:
+#   - LAN SSH: 192.168.1.0/24 -> tcp/22
+#   - Tailnet: tailscale0 all inbound
+# Keep LAN/Tailnet operator/service access:
+#   - 80 Homepage
+#   - 3001 Grafana
+#   - 9090 Prometheus
+#   - 9093 Alertmanager
+#   - 8788 Network Map
+#   - 8793 Jellyfood web
+#   - 8794 Jellyfood API
+#   - 8123 Home Assistant (host networking)
+# Restrict service-peer/monitoring ports where UFW can enforce host-input traffic:
+#   - 5432 central Postgres from jellyhome only
+#   - 7007 Dozzle agent from jellyhome only
+#   - 9001 Portainer agent from jellyhome only
+#   - 3100 Loki from LAN peers that push logs, plus Tailnet via tailscale0
+#   - 9000 mqtt-exporter metrics from local Docker bridge only
+#   - 9100 node_exporter and 12345 Alloy from local Docker bridge only
+#
+# Docker note:
+# Docker-published ports can bypass plain UFW via Docker iptables/NAT paths.
+# This baseline is still useful for host-input policy, but Docker-published
+# service restrictions must be verified separately with DOCKER-USER rules or
+# service bind-address changes before claiming full port hardening.
+NOTE
+
+if [[ "$apply" == true ]]; then
+  sudo -v
+fi
+
+run_sudo ufw --force reset
+run_sudo ufw default deny incoming
+run_sudo ufw default allow outgoing
+
+# Management backdoors.
+run_sudo ufw allow in on tailscale0 comment 'Tailnet emergency/operator access'
+run_sudo ufw allow from 192.168.1.0/24 to any port 22 proto tcp comment 'LAN SSH admin'
+
+# LAN/Tailnet operator and app access.
+for port in 80 3001 9090 9093 8788 8793 8794 8123; do
+  run_sudo ufw allow from 192.168.1.0/24 to any port "$port" proto tcp comment "LAN service ${port}"
+  run_sudo ufw allow in on tailscale0 to any port "$port" proto tcp comment "Tailnet service ${port}"
+done
+
+# Service peers.
+run_sudo ufw allow from 192.168.1.1 to any port 5432 proto tcp comment 'jellyhome apps to central Postgres'
+run_sudo ufw allow from 192.168.1.1 to any port 7007 proto tcp comment 'Dozzle UI to jellybase agent from jellyhome'
+run_sudo ufw allow from 192.168.1.1 to any port 9001 proto tcp comment 'Portainer server to jellybase agent from jellyhome'
+
+# Loki receives log pushes from LAN peers if they use LAN rather than Tailnet resolution.
+run_sudo ufw allow from 192.168.1.1 to any port 3100 proto tcp comment 'Loki push/query from jellyhome'
+run_sudo ufw allow from 192.168.1.159 to any port 3100 proto tcp comment 'Loki push/query from jellyberry'
+
+# Prometheus self-scrapes host services from Docker using host.docker.internal.
+# Allow RFC1918 Docker bridge ranges for host-local scrape paths only.
+for cidr in 172.16.0.0/12 192.168.1.2; do
+  run_sudo ufw allow from "$cidr" to any port 9100 proto tcp comment 'jellybase local Prometheus scrape node_exporter'
+  run_sudo ufw allow from "$cidr" to any port 12345 proto tcp comment 'jellybase local Prometheus scrape Alloy'
+  run_sudo ufw allow from "$cidr" to any port 9000 proto tcp comment 'jellybase local Prometheus scrape mqtt-exporter'
+done
+
+run_sudo ufw --force enable
+run_sudo ufw status verbose
+
+cat <<'VERIFY'
+
+# Verify immediately from another shell:
+#   LAN:       ssh jellyfish@192.168.1.2 'hostname -s; sudo ufw status verbose'
+#   Tailnet:   tailscale ssh jellyfish@jellybase 'hostname -s; sudo ufw status verbose'
+#   Services:  curl -fsS http://192.168.1.2/ >/dev/null && echo homepage-ok
+#              curl -fsS http://192.168.1.2:3001/ >/dev/null && echo grafana-ok
+#              curl -fsS http://192.168.1.2:9090/-/ready && echo prometheus-ok
+#              curl -fsS http://192.168.1.2:9093/-/ready && echo alertmanager-ok
+#              curl -fsS http://192.168.1.2:8788/ >/dev/null && echo network-map-ok
+#              curl -fsS http://192.168.1.2:8123/manifest.json >/dev/null && echo homeassistant-ok
+#              curl -fsS http://192.168.1.2:8793/ >/dev/null && echo jellyfood-web-ok
+#              curl -fsS http://192.168.1.2:8794/api/health >/dev/null && echo jellyfood-api-ok
+#   Prometheus: check jellybase/jellyhome/jellyberry node_exporter and Alloy targets stay green.
+# Rollback if needed:
+#   sudo ufw disable
+VERIFY
