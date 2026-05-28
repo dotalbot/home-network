@@ -172,3 +172,30 @@ Preflight observed before script creation:
 - Docker services include: `portfolio-mission-control-v2`, `sc401-study-hub`, `image-pastebin`, `dozzle-agent`, `alloy`
 
 Important Docker caveat: Docker-published ports can bypass plain UFW via Docker iptables/NAT paths. The jellyberry script establishes a safe host UFW baseline and management fallback, but service-port hardening must be verified separately with DOCKER-USER rules or bind-address changes before claiming Docker-published ports are fully restricted.
+
+2026-05-28 apply result:
+
+- User ran `scripts/firewall/apply-jellyberry-ufw --apply` as root on jellyberry.
+- UFW became active with default deny incoming / allow outgoing / deny routed.
+- Management rules present: `tailscale0` emergency access and LAN SSH from `192.168.1.0/24`.
+- LAN app rules present for `8787`, `8791`, `8792`.
+- Monitoring/peer rules present for jellybase to `9100`/`12345` and jellyhome to `7007`.
+- User reported all checks worked.
+- Follow-up checks from Hermes confirmed HTTP 200 on `192.168.1.159:8787`, `:8791`, and `:8792`; Prometheus `up` remained `1` for `jellyberry:9100` node_exporter and `jellyberry:12345` Alloy.
+
+## jellyhome staged script
+
+Source-managed dry-run/apply helper:
+
+```bash
+scripts/firewall/apply-jellyhome-ufw          # print intended commands
+scripts/firewall/apply-jellyhome-ufw --apply  # apply locally with sudo
+```
+
+Rule intent is derived from `docker/hosts/jellyhome.yaml` and inventory service URLs:
+
+- Management: Tailnet emergency access on `tailscale0`, LAN SSH from `192.168.1.0/24`.
+- LAN/Tailnet services: `80`, `8080`, `9443`, `1883`, `9001`, `3214`, `8793`, `18888`, `9999`.
+- Monitoring: jellybase `192.168.1.2` to `9100` and `12345`.
+
+Important Docker caveat applies here too: Docker-published ports can bypass plain UFW via Docker iptables/NAT paths. This script establishes the safe host firewall baseline first; deeper Docker-published service restriction needs DOCKER-USER or bind-address follow-up.

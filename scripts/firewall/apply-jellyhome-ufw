@@ -1,0 +1,111 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Stage/apply UFW baseline for jellyhome only.
+# Dry-run by default. Use --apply locally on jellyhome after Tailscale SSH and LAN SSH are open.
+
+apply=false
+if [[ "${1:-}" == "--apply" ]]; then
+  apply=true
+elif [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
+  cat <<'USAGE'
+Usage:
+  scripts/firewall/apply-jellyhome-ufw          # print intended commands
+  scripts/firewall/apply-jellyhome-ufw --apply  # apply with sudo
+
+Preconditions:
+  - Run only on jellyhome.
+  - Tailscale SSH verified from an independent operator session.
+  - LAN SSH verified from 192.168.1.0/24.
+  - Be ready to run: sudo ufw disable
+USAGE
+  exit 0
+elif [[ $# -gt 0 ]]; then
+  echo "error: unknown argument: $1" >&2
+  exit 2
+fi
+
+host=$(hostname -s)
+if [[ "$host" != "jellyhome" ]]; then
+  if [[ "$apply" == true ]]; then
+    echo "error: this script is for jellyhome only; current host=$host" >&2
+    exit 1
+  fi
+  echo "# dry-run from non-target host: current host=$host, target=jellyhome" >&2
+fi
+
+run_sudo() {
+  printf '+ sudo'
+  printf ' %q' "$@"
+  printf '\n'
+  if [[ "$apply" == true ]]; then
+    sudo "$@"
+  fi
+}
+
+cat <<'NOTE'
+# jellyhome firewall intent
+# Keep two management paths:
+#   - LAN SSH: 192.168.1.0/24 -> tcp/22
+#   - Tailnet: tailscale0 all inbound
+# Keep LAN/Tailnet service access:
+#   - 80 Homepage
+#   - 8080 Dozzle UI
+#   - 9443 Portainer UI
+#   - 1883 Mosquitto MQTT
+#   - 9001 Mosquitto websocket
+#   - 3214 Manyfold
+#   - 8793 3dprint-loader web
+#   - 18888 Hindsight API
+#   - 9999 Hindsight UI/control plane
+# Restrict monitoring ports where UFW can enforce host-input traffic:
+#   - 9100 node_exporter from jellybase only
+#   - 12345 Alloy metrics from jellybase only
+#
+# Docker note:
+# Docker-published ports can bypass plain UFW via Docker iptables/NAT paths.
+# This baseline is still useful for host-input policy, but Docker-published
+# service restrictions must be verified separately with DOCKER-USER rules or
+# service bind-address changes before claiming full port hardening.
+NOTE
+
+if [[ "$apply" == true ]]; then
+  sudo -v
+fi
+
+run_sudo ufw --force reset
+run_sudo ufw default deny incoming
+run_sudo ufw default allow outgoing
+
+# Management backdoors.
+run_sudo ufw allow in on tailscale0 comment 'Tailnet emergency/operator access'
+run_sudo ufw allow from 192.168.1.0/24 to any port 22 proto tcp comment 'LAN SSH admin'
+
+# LAN/Tailnet service access.
+for port in 80 8080 9443 1883 9001 3214 8793 18888 9999; do
+  run_sudo ufw allow from 192.168.1.0/24 to any port "$port" proto tcp comment "LAN service ${port}"
+  run_sudo ufw allow in on tailscale0 to any port "$port" proto tcp comment "Tailnet service ${port}"
+done
+
+# Monitoring access from jellybase.
+run_sudo ufw allow from 192.168.1.2 to any port 9100 proto tcp comment 'Prometheus scrape node_exporter from jellybase'
+run_sudo ufw allow from 192.168.1.2 to any port 12345 proto tcp comment 'Prometheus scrape Alloy from jellybase'
+
+run_sudo ufw --force enable
+run_sudo ufw status verbose
+
+cat <<'VERIFY'
+
+# Verify immediately from another shell:
+#   LAN:       ssh jellyfish@192.168.1.1 'hostname -s; sudo ufw status verbose'
+#   Tailnet:   tailscale ssh jellyfish@jellyhome 'hostname -s; sudo ufw status verbose'
+#   Services:  curl -fsS http://192.168.1.1/ >/dev/null && echo homepage-ok
+#              curl -fsS http://192.168.1.1:8080/ >/dev/null && echo dozzle-ok
+#              curl -kfsS https://192.168.1.1:9443/ >/dev/null && echo portainer-ok
+#              curl -fsS http://192.168.1.1:3214/ >/dev/null && echo manyfold-ok
+#              curl -fsS http://192.168.1.1:8793/ >/dev/null && echo 3dprint-ok
+#              curl -fsS http://192.168.1.1:9999/ >/dev/null && echo hindsight-ui-ok
+#   Prometheus: check jellyhome up/node_exporter/alloy targets stay green.
+# Rollback if needed:
+#   sudo ufw disable
+VERIFY
