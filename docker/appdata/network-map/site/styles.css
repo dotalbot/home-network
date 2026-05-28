@@ -379,6 +379,67 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   font-size: .78rem;
 }
 .alert-description { line-height: 1.35; }
+.drilldown-links {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+.drilldown-button-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.drilldown-button {
+  padding: 7px 9px;
+  font-size: .78rem;
+  border-color: rgba(56,189,248,.30);
+}
+.drilldown-modal.hidden { display: none; }
+.drilldown-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(0,0,0,.72);
+  backdrop-filter: blur(8px);
+}
+.drilldown-modal-card {
+  width: min(1180px, 96vw);
+  height: min(760px, 92vh);
+  display: grid;
+  grid-template-rows: auto 1fr;
+  border: 1px solid var(--line-strong);
+  border-radius: 18px;
+  overflow: hidden;
+  background: #08090a;
+  box-shadow: 0 28px 90px rgba(0,0,0,.62);
+}
+.drilldown-modal-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line);
+  background: rgba(255,255,255,.04);
+}
+.drilldown-modal-bar > div { display: flex; align-items: center; gap: 10px; }
+.drilldown-modal-bar a { font-size: .85rem; }
+#drilldownClose {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: 999px;
+  font-size: 1.25rem;
+}
+#drilldownFrame {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: #0b0c0e;
+}
 .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
 .card { padding: 16px; cursor: pointer; transition: transform .12s ease, border-color .12s ease; }
 .card:hover { transform: translateY(-2px); border-color: var(--accent); }

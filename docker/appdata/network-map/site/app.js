@@ -22,6 +22,7 @@ import { fetchHealthData, fetchBackupData, fetchAlertmanagerAlerts } from './mod
 import { attachHealthToNodes, findHealthForItem, renderHealthDetail } from './modules/node-health.js';
 import { renderBackupDetail, renderBackupStatusPanel } from './modules/backup-status.js';
 import { renderAlertFeed } from './modules/alerts.js';
+import { renderDrilldownLinks } from './modules/drilldown.js';
 
 let selected = null;
 let currentHealthData = null;
@@ -201,7 +202,9 @@ function renderDetail() {
     ${hostHealth ? renderHealthDetail(hostHealth) : ''}
     ${backup ? renderBackupDetail(backup) : ''}
     ${selectedAlerts.length ? `<h4>Active alerts</h4><ul class="services">${selectedAlerts.map(alert => `<li>${escapeHtml(alert.labels?.severity || 'alert')} · ${escapeHtml(alert.annotations?.summary || alert.labels?.alertname || 'Unnamed alert')}</li>`).join('')}</ul>` : ''}
+    ${renderDrilldownLinks(selected)}
   `;
+  bindDrilldownClicks();
 }
 
 function normalizeInventoryName(value) {
@@ -225,6 +228,27 @@ function findAlertsForItem(item) {
   if (!item || !currentAlerts?.length) return [];
   const candidates = [item.name, item.hostname, item.display_name, item.ip].map(normalizeInventoryName).filter(Boolean);
   return currentAlerts.filter(alert => candidates.includes(normalizeInventoryName(alert.labels?.monitored_host || alert.labels?.host || alert.labels?.instance)));
+}
+
+function openDrilldown(url, title) {
+  const modal = $('drilldownModal');
+  $('drilldownTitle').textContent = title || 'Drill-down';
+  $('drilldownOpenNew').href = url;
+  $('drilldownFrame').src = url;
+  modal.classList.remove('hidden');
+}
+
+function closeDrilldown() {
+  $('drilldownFrame').src = 'about:blank';
+  $('drilldownModal').classList.add('hidden');
+}
+
+function bindDrilldownClicks() {
+  document.querySelectorAll('[data-drilldown-url]').forEach((el) => {
+    if (el.dataset.drilldownBound === '1') return;
+    el.dataset.drilldownBound = '1';
+    el.addEventListener('click', () => openDrilldown(el.dataset.drilldownUrl, el.dataset.drilldownTitle));
+  });
 }
 
 function renderCards(items) {
@@ -335,7 +359,8 @@ document.addEventListener('topologynodepopup', (event) => {
   if (!hostHealth && !backup) return;
   const detailEl = document.getElementById('healthDetail');
   if (detailEl) {
-    detailEl.innerHTML = `${hostHealth ? renderHealthDetail(hostHealth) : ''}${backup ? renderBackupDetail(backup) : ''}`;
+    detailEl.innerHTML = `${hostHealth ? renderHealthDetail(hostHealth) : ''}${backup ? renderBackupDetail(backup) : ''}${renderDrilldownLinks(item)}`;
+    bindDrilldownClicks();
   }
 });
 
@@ -343,6 +368,13 @@ document.addEventListener('topologynodepopup', (event) => {
 
 ['search', 'sourceFilter', 'categoryFilter', 'portFilter', 'managementOnly'].forEach(id => $(id).addEventListener('input', render));
 $('refreshData').addEventListener('click', loadData);
+$('drilldownClose').addEventListener('click', closeDrilldown);
+$('drilldownModal').addEventListener('click', (event) => {
+  if (event.target.id === 'drilldownModal') closeDrilldown();
+});
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape') closeDrilldown();
+});
 
 Promise.all([loadData(), refreshHealthData()]).catch(err => {
   $('cards').innerHTML = `<p class="muted">${escapeHtml(err.message)}</p>`;

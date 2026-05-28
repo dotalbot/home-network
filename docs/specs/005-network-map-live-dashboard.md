@@ -171,6 +171,11 @@ For each monitored host, show:
 
 ### iframe drill-down
 
+- Host/detail popovers include drill-down buttons for Grafana Host Observability, Grafana Borgmatic Backups, Prometheus, Alertmanager, Dozzle, and Portainer.
+- Links open in an in-page iframe modal with a separate “Open new tab” fallback for dashboards that block embedding or require login.
+- Grafana links pass `var-host=<host>` and kiosk/time-range parameters where applicable.
+- Alertmanager links include a host filter where the Alertmanager UI supports it.
+
 Modal/panel overlay with tabs:
 - Grafana: embed kiosk-mode per-host dashboard panel
 - Dozzle: link to per-host container logs

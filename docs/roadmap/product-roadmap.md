@@ -81,7 +81,7 @@ The platform should make the home lab understandable, reproducible, observable, 
 - [x] Phase 1: Live node health on topology (CPU, memory, disk, temperature, online status from Prometheus). Deployed and verified — 3 nodes reporting health data.
 - [x] Phase 2: Backup status per host from deployed `borgmatic_last_run_*`, `borgmatic_repository_reachable`, and `borgmatic_last_archive_info` Prometheus metrics.
 - [x] Phase 3: Alert feed sidebar from Alertmanager v2 API, grouped by host, with click-to-select affected host in the detail panel.
-- [ ] Phase 4: iframe drill-down links (Grafana kiosk, Dozzle, Portainer, Alertmanager).
+- [x] Phase 4: iframe drill-down links (Grafana host/backups, Prometheus, Dozzle, Portainer, Alertmanager).
 - [ ] Phase 5: Enhanced service matrix with health indicators, container status, backup class, and direct URLs.
 
 ## V4.6 — Jellyoffice Environmental Sensor Node

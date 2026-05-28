@@ -92,6 +92,19 @@
     </section>
   </main>
 
+  <div id="drilldownModal" class="drilldown-modal hidden" role="dialog" aria-modal="true" aria-labelledby="drilldownTitle">
+    <div class="drilldown-modal-card">
+      <div class="drilldown-modal-bar">
+        <strong id="drilldownTitle">Drill-down</strong>
+        <div>
+          <a id="drilldownOpenNew" href="#" target="_blank" rel="noopener">Open new tab</a>
+          <button id="drilldownClose" type="button">×</button>
+        </div>
+      </div>
+      <iframe id="drilldownFrame" title="Network Map drill-down" loading="lazy"></iframe>
+    </div>
+  </div>
+
   <script type="module" src="app.js"></script>
 </body>
 </html>
