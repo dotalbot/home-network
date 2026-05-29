@@ -32,6 +32,17 @@ backup_classes:
       - temp files
     restore_priority: high
 
+  sqlite-data:
+    description: Service persists a local SQLite database under service appdata.
+    includes:
+      - /opt/docker/appdata/SERVICE
+      - SQLite database files and WAL/SHM sidecars
+    excludes:
+      - cache
+      - logs
+      - temp files
+    restore_priority: high
+
   postgres-volume-and-logical-dumps:
     description: PostgreSQL service with Borg-covered data directory plus logical dump artifacts.
     includes:
@@ -252,6 +263,16 @@ restore_rules:
       - restore database dump or volume
       - deploy service
       - verify application health
+
+  sqlite-data:
+    method: restore_sqlite_appdata_then_deploy
+    steps:
+      - bootstrap host
+      - restore /opt/docker/appdata/SERVICE from Borg, including SQLite database and WAL/SHM sidecars when present
+      - restore or clone source directory recorded in service metadata when the service is source-built
+      - sync docker config
+      - deploy service
+      - verify HTTP/API health and expected database records
 
   postgres-volume-and-logical-dumps:
     method: restore_postgres_volume_or_logical_dump
