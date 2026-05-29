@@ -947,15 +947,257 @@
         "showPercentChange": false
       },
       "description": "LTR559 proximity reading when available."
+    },
+    {
+      "id": 15,
+      "type": "timeseries",
+      "title": "Office room temp vs jelly host hardware temps",
+      "gridPos": {
+        "x": 0,
+        "y": 34,
+        "w": 24,
+        "h": 9
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "mqtt_temperature{monitored_host=\"jellyoffice\"}",
+          "legendFormat": "jellyoffice room",
+          "instant": false,
+          "range": true,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        },
+        {
+          "refId": "B",
+          "expr": "max by (monitored_host) (node_hwmon_temp_celsius{job=\"node_exporter\",monitored_host=~\"^(jellybase|jellyberry|jellyhome)$\"})",
+          "legendFormat": "{{monitored_host}} hottest hwmon",
+          "instant": false,
+          "range": true,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "celsius",
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "fillOpacity": 8,
+            "showPoints": "never",
+            "spanNulls": false
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "jellyoffice room"
+            },
+            "properties": [
+              {
+                "id": "custom.lineWidth",
+                "value": 3
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "blue"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": [
+            "lastNotNull",
+            "min",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "description": "Overlay jellyoffice room temperature with the hottest node_exporter hwmon temperature per jelly host. Use 24h/7d ranges to see whether room warmth leads host thermal rise. Host series use max hwmon, so they are a practical hottest-sensor proxy rather than strict CPU-only temperature."
+    },
+    {
+      "id": 16,
+      "type": "timeseries",
+      "title": "Host temperature above office room",
+      "gridPos": {
+        "x": 0,
+        "y": 43,
+        "w": 16,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "max by (monitored_host) (node_hwmon_temp_celsius{job=\"node_exporter\",monitored_host=~\"^(jellybase|jellyberry|jellyhome)$\"}) - on() group_left max(mqtt_temperature{monitored_host=\"jellyoffice\"})",
+          "legendFormat": "{{monitored_host}} above office",
+          "instant": false,
+          "range": true,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "celsius",
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "fillOpacity": 8,
+            "showPoints": "never",
+            "spanNulls": false
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": [
+            "lastNotNull",
+            "min",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "description": "Host hottest hwmon temperature minus jellyoffice room temperature. Rising deltas suggest host workload/cooling effects; flat deltas moving with room temp suggest ambient influence. Office temperature is aggregated to one series for stable PromQL matching."
+    },
+    {
+      "id": 17,
+      "type": "stat",
+      "title": "Current host-over-office delta",
+      "gridPos": {
+        "x": 16,
+        "y": 43,
+        "w": 8,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "max by (monitored_host) (node_hwmon_temp_celsius{job=\"node_exporter\",monitored_host=~\"^(jellybase|jellyberry|jellyhome)$\"}) - on() group_left max(mqtt_temperature{monitored_host=\"jellyoffice\"})",
+          "legendFormat": "{{monitored_host}}",
+          "instant": true,
+          "range": false,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "celsius",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 20
+              },
+              {
+                "color": "orange",
+                "value": 30
+              },
+              {
+                "color": "red",
+                "value": 40
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "wideLayout": true,
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "showPercentChange": false
+      },
+      "description": "Current hottest host hardware temperature minus office room temperature, using an instant query."
+    },
+    {
+      "id": 18,
+      "type": "text",
+      "title": "How to read thermal influence",
+      "gridPos": {
+        "x": 0,
+        "y": 51,
+        "w": 24,
+        "h": 4
+      },
+      "options": {
+        "mode": "markdown",
+        "content": "Look for host lines rising shortly after the blue **jellyoffice room** line rises. If the **host-over-office delta** stays mostly flat while both rise, ambient temperature is probably driving it. If the delta rises independently, workload/cooling is likely the bigger factor. Tiny thermostat joke: if the graph gets heated, at least it is being transparent."
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      }
     }
   ],
   "refresh": "1m",
   "schemaVersion": 39,
   "tags": [
+    "correlation",
+    "environment",
     "home-network",
     "jellyoffice",
     "mqtt",
-    "environment"
+    "thermals"
   ],
   "templating": {
     "list": []
@@ -967,6 +1209,6 @@
   "timezone": "browser",
   "title": "Jellyoffice Environment",
   "uid": "jellyoffice-environment",
-  "version": 1,
+  "version": 3,
   "weekStart": ""
 }
