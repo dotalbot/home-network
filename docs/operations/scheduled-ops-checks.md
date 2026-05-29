@@ -84,7 +84,7 @@ The runner checks:
 
 ## Install on jellybase
 
-From `/home/jellybot/home-network` on `jellybase`:
+From the primary `jellyfish` operator checkout on `jellybase`:
 
 ```bash
 sudo install -m 644 systemd/home-network-scheduled-ops-check.service /etc/systemd/system/home-network-scheduled-ops-check.service
@@ -93,11 +93,11 @@ sudo systemctl daemon-reload
 sudo systemctl enable --now home-network-scheduled-ops-check.timer
 ```
 
-The service file runs the `jellybase` operator checkout at `/home/jellyfish/home-network/scripts/scheduled-ops-check` so source updates apply after the jellybase checkout is refreshed. If that path changes, update the service file before enabling the timer.
+The service file runs the primary `jellybase` operator checkout at `/home/jellyfish/repo/home-network/scripts/scheduled-ops-check` so source updates apply after the jellybase checkout is refreshed. Avoid the older `/home/jellyfish/home-network` checkout; it may be stale and can make drift checks report containers as unexpected even when the primary deployment checkout is correct.
 
 ## Manual run
 
-From `/home/jellybot/home-network` on `jellybase`:
+From `/home/jellyfish/repo/home-network` on `jellybase`:
 
 ```bash
 just scheduled-ops-check
