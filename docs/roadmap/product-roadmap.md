@@ -69,7 +69,7 @@ The platform should make the home lab understandable, reproducible, observable, 
 - [ ] Add per-host performance dashboards for CPU, memory, load, disk I/O, filesystem use, network throughput, and uptime.
 - [ ] Add per-host sensor telemetry where available, including CPU/GPU temperature, disk temperature, throttling/undervoltage state, fan/thermal-zone readings, and other safe hardware-health signals.
 - [ ] Keep sensor gaps explicit as `unknown`/`not available` rather than false healthy or false failure.
-- [ ] Harden node_exporter TCP `9100` access to approved scraper hosts; staged generator exists, live host application/negative verification remains.
+- [x] Harden node_exporter TCP `9100` access to approved scraper hosts; UFW baselines now allow Prometheus/jellybase scrape paths, Prometheus reports all targets up, and negative checks from non-approved `jellyberry` to `jellyhome`/`jellybase` TCP `9100` time out.
 - [x] Source-manage Prometheus alert rules for stale backups, failed backups, disk pressure, disk-health failures, and stale probes.
 - [x] Source-manage Grafana dashboards and provisioning for backup, disk-health, host performance, and host sensor signals.
 

@@ -65,11 +65,8 @@ Unless stated otherwise, paths in this index are relative to the repository root
 
 Use `docs/roadmap/product-roadmap.md` as the active gap register. Current high-value gaps:
 
-1. Apply and verify generated node_exporter TCP `9100` access-control stages on live hosts.
-2. Document scheduled operations and check pause/resume handling.
-3. Finish Grafana correlation across host logs, performance stats, and sensor telemetry.
-4. Run the next safe non-destructive restore drill, preferably Home Assistant config extraction on `jellybase`.
-5. Plan the unrelated jellybase OS reboot.
-6. Clean up retired Netdata appdata and stale preserved generated-file scratch directories when explicitly approved.
-7. Draft reverse proxy/TLS design before exposing services beyond direct LAN/Tailnet URLs.
-8. Add inventory validation for required service metadata.
+1. Run the next safe non-destructive restore drill, preferably Home Assistant config extraction on `jellybase`.
+2. Plan the unrelated jellybase OS reboot.
+3. Clean up retired Netdata appdata and stale preserved generated-file scratch directories when explicitly approved.
+4. Draft reverse proxy/TLS design before exposing services beyond direct LAN/Tailnet URLs.
+5. Add inventory validation for required service metadata.

@@ -214,6 +214,8 @@ git diff --check
 
 **Runtime attempt on 2026-05-25:** Stage 07 was executed with sudo on `jellybase`, `jellyhome`, and `jellyberry`. All three hosts reported `Status: inactive` from UFW, so the generated stage intentionally made no firewall changes and printed the reviewed policy instead. Post-attempt Prometheus verification still returned `up{job="node_exporter"} == 1` for `jellyhome:9100`, `jellyberry:9100`, and `host.docker.internal:9100`; TCP `9100` from `jellyberry` to `192.168.1.1`, `192.168.1.2`, and `192.168.1.159` still connected, so negative verification has not passed and runtime hardening remains incomplete until the operator explicitly chooses UFW activation or equivalent nftables/iptables rules.
 
+**Runtime verification on 2026-05-29:** After the host UFW rollout, Prometheus on `jellybase` reports `up{job="node_exporter"} == 1` for `host.docker.internal:9100` / `jellybase`, `jellyhome:9100`, and `jellyberry:9100`. A non-approved source check from `jellyberry` to `192.168.1.1:9100` and `192.168.1.2:9100` timed out, while local `jellyberry` node_exporter remained reachable on loopback. Alertmanager showed only pre-existing disk-health info alerts during this verification.
+
 **Default policy:**
 
 ```text
@@ -242,8 +244,9 @@ deny TCP 9100 from everything else
 - Source of truth remains this repo, with runtime copies deployed to the managed hosts.
 - Prometheus ready endpoint answers on `jellybase:9090`.
 - Grafana health endpoint answers on `jellybase:3001`.
-- `jellyhome:9100`, `jellybase:9100`, and `jellyberry:9100` answer node_exporter metrics.
+- `jellyhome:9100`, `jellybase` via the Prometheus host-gateway path, and `jellyberry:9100` answer node_exporter metrics from approved scrape paths.
 - Prometheus query `up{job="node_exporter"}` returns three healthy targets.
+- TCP `9100` from non-approved `jellyberry` to `jellyhome` and `jellybase` now times out, confirming the deferred access-control hardening path for those remote hosts.
 - Prometheus query `home_network_disk_health_last_run_timestamp_seconds` returns all three host labels.
 - Prometheus query `borgmatic_last_run_success` returns all three host labels.
 
@@ -254,6 +257,6 @@ Please choose/confirm:
 1. Add `jellybackup` to node_exporter/disk-health monitoring now that the first three hosts work?
    - Recommendation: yes soon, because it is the backup target.
 2. How should TCP `9100` be hardened on each host?
-   - Decision: staged allowlist with `jellybase`/Prometheus as the approved scraper path, using UFW only where active and printing reviewed UFW guidance otherwise.
+   - Decision: completed through the staged allowlist/UFW baseline path with `jellybase`/Prometheus as the approved scraper path; keep generated stage 07 for future hosts and re-verification.
 3. Which Prometheus alert rules and Grafana dashboards should be source-managed first?
    - Recommendation: backup success/staleness, disk pressure, disk-health failure/unknown/stale, and host scrape down.
