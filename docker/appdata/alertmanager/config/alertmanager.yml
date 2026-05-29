@@ -6,6 +6,7 @@ route:
   group_by:
     - alertname
     - host
+    - monitored_host
     - instance
     - category
     - service
@@ -44,3 +45,11 @@ receivers:
       - url: http://alertmanager-discord-bridge:9094/alertmanager?route=info
         send_resolved: true
         max_alerts: 10
+
+inhibit_rules:
+  - source_matchers:
+      - alertname="HostTelemetryUnreachable"
+    target_matchers:
+      - alertname=~"NodeExporterDown|AlloyDown"
+    equal:
+      - monitored_host

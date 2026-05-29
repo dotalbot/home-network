@@ -12,6 +12,7 @@ import argparse
 import fcntl
 import json
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -26,6 +27,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_PROMETHEUS_URL = "http://127.0.0.1:9090"
 DEFAULT_ALERTMANAGER_URL = "http://127.0.0.1:9093"
 DEFAULT_TEXTFILE = "/var/lib/node_exporter/textfile_collector/home_network_scheduled_ops.prom"
+DEFAULT_STATE_FILE = "/var/lib/home-network/scheduled-ops-check.json"
 DEFAULT_LOCK_FILE = f"/tmp/home-network-scheduled-ops-check-{os.getuid()}.lock"
 
 
@@ -173,6 +175,27 @@ def render_metrics(results: list[CheckResult], started_at: int, finished_at: int
     return "\n".join(lines)
 
 
+def render_state(results: list[CheckResult], started_at: int, finished_at: int) -> str:
+    payload = {
+        "schema_version": 1,
+        "repo_root": str(REPO_ROOT),
+        "started_at": started_at,
+        "finished_at": finished_at,
+        "duration_seconds": max(0, finished_at - started_at),
+        "overall_success": all(result.ok for result in results),
+        "checks": [
+            {
+                "name": result.name,
+                "ok": result.ok,
+                "detail": result.detail,
+                "duration_seconds": round(result.duration_seconds, 3),
+            }
+            for result in results
+        ],
+    }
+    return json.dumps(payload, indent=2, sort_keys=True) + "\n"
+
+
 def write_atomic(path: Path, content: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     fd, tmp_name = tempfile.mkstemp(prefix=f".{path.name}.", dir=str(path.parent), text=True)
@@ -186,15 +209,37 @@ def write_atomic(path: Path, content: str) -> None:
             os.unlink(tmp_name)
 
 
+def run_dashboard_render_checks() -> list[CheckResult]:
+    """Validate generated dashboard renders in a temp copy so the live checkout stays clean."""
+    temp_parent = Path(tempfile.mkdtemp(prefix="home-network-render-check-"))
+    temp_repo = temp_parent / "home-network"
+    try:
+        def ignore(_dir: str, names: list[str]) -> set[str]:
+            return {".git", "__pycache__", ".pytest_cache"}.intersection(names)
+
+        shutil.copytree(REPO_ROOT, temp_repo, ignore=ignore)
+        return [
+            run_command("dashboard_homepage_render", [str(temp_repo / "scripts" / "homepage-render")], cwd=temp_repo, timeout=60),
+            run_command("dashboard_network_map_render", [str(temp_repo / "scripts" / "network-map-render")], cwd=temp_repo, timeout=60),
+        ]
+    except Exception as exc:  # noqa: BLE001 - render validation is defensive
+        return [CheckResult("dashboard_render_setup", False, f"exception: {exc.__class__.__name__}: {exc}", 0.0)]
+    finally:
+        shutil.rmtree(temp_parent, ignore_errors=True)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Run home-network scheduled operational checks")
     parser.add_argument("--prometheus-url", default=os.environ.get("PROMETHEUS_URL", DEFAULT_PROMETHEUS_URL))
     parser.add_argument("--alertmanager-url", default=os.environ.get("ALERTMANAGER_URL", DEFAULT_ALERTMANAGER_URL))
     parser.add_argument("--textfile", default=os.environ.get("TEXTFILE", ""), help="Write Prometheus textfile metrics to this path")
     parser.add_argument("--default-textfile", action="store_true", help=f"Write metrics to {DEFAULT_TEXTFILE}")
+    parser.add_argument("--state-file", default=os.environ.get("STATE_FILE", ""), help="Write atomic JSON status snapshot to this path")
+    parser.add_argument("--default-state-file", action="store_true", help=f"Write state snapshot to {DEFAULT_STATE_FILE}")
     parser.add_argument("--lock-file", default=os.environ.get("LOCK_FILE", DEFAULT_LOCK_FILE), help="Non-blocking lock file to prevent overlapping runs")
     parser.add_argument("--no-lock", action="store_true", help="Disable overlap lock; intended only for one-off tests")
     parser.add_argument("--no-command-checks", action="store_true", help="Skip local just/script command checks")
+    parser.add_argument("--dashboard-render-checks", action="store_true", default=os.environ.get("DASHBOARD_RENDER_CHECKS", "").lower() in ("1", "true", "yes"), help="Validate Homepage and Network Map renders in a temporary copy")
     args = parser.parse_args()
 
     lock_handle = None
@@ -219,8 +264,12 @@ def main() -> int:
             run_command("service_status", [str(REPO_ROOT / "scripts" / "status")], timeout=45),
             run_command("docker_drift", [str(REPO_ROOT / "scripts" / "drift-check")], timeout=45),
             run_command("backup_policy", [str(REPO_ROOT / "scripts" / "backup-policy-check")], timeout=45),
+            run_command("borg_check", [str(REPO_ROOT / "scripts" / "borg-check")], timeout=45),
             run_command("host_monitoring_policy", [str(REPO_ROOT / "scripts" / "host-monitoring-policy-check")], timeout=45),
         ])
+
+    if args.dashboard_render_checks:
+        results.extend(run_dashboard_render_checks())
 
     results.extend([
         check_http_ready("prometheus_ready", f"{args.prometheus_url.rstrip('/')}/-/ready"),
@@ -235,6 +284,10 @@ def main() -> int:
     textfile = args.textfile or (DEFAULT_TEXTFILE if args.default_textfile else "")
     if textfile:
         write_atomic(Path(textfile), metrics)
+
+    state_file = args.state_file or (DEFAULT_STATE_FILE if args.default_state_file else "")
+    if state_file:
+        write_atomic(Path(state_file), render_state(results, started_at, finished_at))
 
     print("Home-network scheduled operational checks")
     for result in results:

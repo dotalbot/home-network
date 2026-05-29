@@ -64,7 +64,7 @@ docker compose -f /opt/docker/docker-compose.yml -f /opt/docker/hosts/jellybase.
 
 Alertmanager default route:
 
-- warning alerts grouped by `alertname`, `host`, `instance`, `category`, and `service`
+- warning alerts grouped by `alertname`, `host`, `monitored_host`, `instance`, `category`, and `service`
 - group wait: 30s
 - group interval: 10m
 - repeat interval: 4h
@@ -84,6 +84,32 @@ Info route:
 - repeat interval: 12h
 
 The bridge posts compact messages to Discord and includes a reminder that Grafana/Prometheus remain the investigation path.
+
+## Red-flag rule coverage and noise control
+
+Current source-managed red-flag alerts use the monitoring-native route: Prometheus evaluates rules, Alertmanager groups/deduplicates/silences, and the Discord bridge delivers compact wake-up messages. Hermes cron remains for human summaries only, not critical failure delivery.
+
+Covered checks:
+
+- Backup stale/failing: `BorgmaticLastRunFailed`, `BorgmaticMetricsStale`, and `BorgmaticMetricsMissing`.
+- Scheduled Borg prerequisite failures: `HomeNetworkScheduledBorgCheckFailed`.
+- Host unreachable: `HostTelemetryUnreachable` fires only when both node_exporter and Alloy scrapes are down for the same monitored host.
+- node_exporter missing/down: `NodeExporterDown`.
+- Textfile collector parse failures: `NodeTextfileScrapeError` for `node_textfile_scrape_error > 0`.
+- Disk health probe failed/stale/failed disk: `DiskHealthFailure`, `DiskHealthProbeFailed`, and `DiskHealthProbeStale`.
+- Unexpected unknown disk device changes: `UnexpectedUnknownDiskDeviceChange` waits 12h after the unknown-device count changes and remains nonzero; stable known Pi/USB gaps stay covered by the lower-priority `DiskHealthUnknown` info alert.
+- Container drift: `HomeNetworkContainerDrift`, sourced from the scheduled `scripts/drift-check` result.
+- Optional dashboard render validation: `HomeNetworkScheduledDashboardRenderCheckFailed`, emitted only when the scheduled runner is configured with `DASHBOARD_RENDER_CHECKS=1` or run manually with `--dashboard-render-checks`.
+
+Noise controls:
+
+- Critical alerts are reserved for backup run failures, likely whole-host unreachable conditions, and direct disk/power/kernel red flags.
+- `HostTelemetryUnreachable` inhibits lower-level `NodeExporterDown` and `AlloyDown` alerts for the same `monitored_host` so a dead host does not produce three Discord messages.
+- Specific scheduled-check alerts suppress the generic scheduled-ops failure for container drift, backup-policy, Borg prerequisite, and optional dashboard-render failures.
+- Warning alerts have `for:` windows and Alertmanager repeat interval 4h by default.
+- Info alerts use a 12h repeat interval and are for known-but-worth-tracking gaps such as long-term unknown disk-health status.
+- Prefer narrow silences by `alertname`, `host`/`monitored_host`, `instance`, `category`, or `service` during maintenance.
+- Do not page on raw logs; log-derived alerts are thresholded textfile metrics.
 
 ## Deploy
 

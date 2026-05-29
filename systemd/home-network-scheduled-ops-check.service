@@ -6,11 +6,13 @@ After=network-online.target docker.service
 [Service]
 Type=oneshot
 RuntimeDirectory=home-network
+StateDirectory=home-network
 WorkingDirectory=/home/jellyfish/repo/home-network
 Environment=PROMETHEUS_URL=http://127.0.0.1:9090
 Environment=ALERTMANAGER_URL=http://127.0.0.1:9093
 Environment=LOCK_FILE=/run/home-network/scheduled-ops-check.lock
-ExecStart=/home/jellyfish/repo/home-network/scripts/scheduled-ops-check --default-textfile
+Environment=STATE_FILE=/var/lib/home-network/scheduled-ops-check.json
+ExecStart=/home/jellyfish/repo/home-network/scripts/scheduled-ops-check --default-textfile --default-state-file
 
 # The script writes a Prometheus textfile collector metric and exits non-zero when
 # checks fail. systemd should record the failure, while Prometheus/Alertmanager

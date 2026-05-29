@@ -119,8 +119,8 @@ The platform should make the home lab understandable, reproducible, observable, 
   - [x] Add source-managed Alertmanager service on `jellybase`.
   - [x] Add `alerting.alertmanagers` wiring to Prometheus.
   - [x] Store Discord webhook URL outside Git under `/opt/docker/.secrets/alertmanager/discord_webhook_url` or an equivalent host-local secret.
-  - [x] Route critical alerts immediately: backup failures/staleness, `node_exporter` down, Loki down, Alloy down, critical disk/temperature/voltage/throttling conditions.
-  - [x] Group warning alerts with conservative repeat intervals for filesystem/inode pressure, stale probes, and non-critical capacity warnings.
+  - [x] Route red-flag alerts through monitoring-native delivery for backup failures/staleness/missing metrics, scheduled Borg check failures, likely host unreachable, `node_exporter` down, `node_textfile_scrape_error`, disk-health failure/probe failure/staleness, unexpected unknown disk-device count changes, container drift, optional dashboard render validation, Loki/Alloy down, critical disk/voltage conditions, and warning-level temperature/throttling conditions.
+  - [x] Group warning alerts with conservative repeat intervals for filesystem/inode pressure, stale probes, container drift, and non-critical capacity warnings.
   - [x] Add silence/runbook docs for maintenance windows, fake-alert testing, first-response checks, and rollback.
   - [x] Verified on `jellybase`: Prometheus has active Alertmanager target, bridge health is OK, synthetic alert delivery returned HTTP 200, and synthetic groups cleared after expiry.
   - [x] Track operational caveats: host-local Discord webhook secret must be recreated during rebuilds; `/opt/docker/appdata/alloy/data` ownership drift may produce warning-only sync output; `jellybase` still needs a planned OS reboot after package updates.

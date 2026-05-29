@@ -73,6 +73,9 @@ host-monitoring-policy-check:
 scheduled-ops-check:
     ./scripts/scheduled-ops-check
 
+scheduled-ops-check-with-render-validation:
+    ./scripts/scheduled-ops-check --dashboard-render-checks
+
 borg-check:
     ./scripts/borg-check
 

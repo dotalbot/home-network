@@ -61,10 +61,11 @@ Source-managed files:
 - `systemd/home-network-scheduled-ops-check.timer`
 - `docker/appdata/prometheus/config/rules/home-network-alerts.yml`
 
-Runtime metric path on `jellybase`:
+Runtime files on `jellybase`:
 
 ```bash
 /var/lib/node_exporter/textfile_collector/home_network_scheduled_ops.prom
+/var/lib/home-network/scheduled-ops-check.json
 ```
 
 ## Checks currently covered
@@ -76,7 +77,9 @@ The runner checks:
 - service reachability through `scripts/status`;
 - Docker service drift through `scripts/drift-check`;
 - backup policy metadata through `scripts/backup-policy-check`;
+- Borg backup prerequisites through `scripts/borg-check`;
 - host monitoring policy through `scripts/host-monitoring-policy-check`;
+- optional Homepage and Network Map render validation via `--dashboard-render-checks` or `DASHBOARD_RENDER_CHECKS=1`; render validation runs in a temporary copy so scheduled runs do not dirty the live checkout;
 - Prometheus readiness;
 - Alertmanager readiness;
 - `up{job="node_exporter"}` for all node_exporter targets;
@@ -103,6 +106,12 @@ From `/home/jellyfish/repo/home-network` on `jellybase`:
 just scheduled-ops-check
 ```
 
+To include non-mutating dashboard render validation:
+
+```bash
+just scheduled-ops-check-with-render-validation
+```
+
 From another host, point it at jellybase services and skip local command checks:
 
 ```bash
@@ -119,12 +128,17 @@ systemctl list-timers 'home-network-scheduled-ops-check.timer' --all --no-pager
 systemctl status home-network-scheduled-ops-check.timer --no-pager
 systemctl status home-network-scheduled-ops-check.service --no-pager
 curl -fsS http://127.0.0.1:9100/metrics | grep home_network_scheduled_check
+sudo jq . /var/lib/home-network/scheduled-ops-check.json
 curl -fsG --data-urlencode 'query=home_network_scheduled_check_overall_success' http://127.0.0.1:9090/api/v1/query
 ```
 
 Prometheus alerts added by this rollout:
 
 - `HomeNetworkScheduledOpsCheckFailed`
+- `HomeNetworkContainerDrift`
+- `HomeNetworkScheduledBackupPolicyCheckFailed`
+- `HomeNetworkScheduledBorgCheckFailed`
+- `HomeNetworkScheduledDashboardRenderCheckFailed` (only fires when render validation is enabled and emits the matching metric)
 - `HomeNetworkScheduledOpsCheckStale`
 
 ## Pause and resume
@@ -151,5 +165,7 @@ category="scheduled-ops"
 
 - If `home_network_scheduled_check_last_run_timestamp_seconds` is stale, check the timer and service journal.
 - If only command checks fail, run `just scheduled-ops-check` locally on `jellybase` and inspect the named failed check.
+- If `borg_check` fails, verify Borg is installed on the host, the host is enabled in `inventory/backups.yml`, and each host-specific important path still exists.
+- If dashboard render validation fails, run `just scheduled-ops-check-with-render-validation`; the validation uses a temporary copy, so fix the source render script or inventory rather than editing the temp path.
 - If Prometheus or Alertmanager checks fail, verify the containers and local ready endpoints first.
 - If Discord does not receive a scheduled-ops alert, verify Alertmanager and the Discord bridge using `docs/operations/prometheus-alerting.md`.
