@@ -211,6 +211,99 @@ ssh jellybot@jellyhome 'test -s /opt/docker/.secrets/3dprint-loader/makerworld-s
 
 If it is missing, the app should still support public-source flows but may not access auth-gated MakerWorld downloads.
 
+## MakerWorld auth-state maintenance
+
+The MakerWorld authenticated resolver uses a Playwright storage-state file saved to `/opt/docker/.secrets/3dprint-loader/makerworld-storage-state.json` on jellyhome. This file contains session cookies that expire over time.
+
+### Health check script
+
+A cron-compatible health check lives at:
+
+```
+scripts/3dprint-loader/check-makerworld-auth.sh
+```
+
+Exit codes:
+
+| Code | Meaning                           |
+|------|-----------------------------------|
+| 0    | Auth state OK, cookies valid      |
+| 1    | Warning — expiring or session-only cookies |
+| 2    | Auth state missing, invalid, or expired |
+| 3    | Infrastructure error (API unreachable) |
+
+The script is silent on exit 0. Warnings and errors go to stderr.
+
+Run it manually:
+
+```bash
+./scripts/3dprint-loader/check-makerworld-auth.sh
+```
+
+Output example (exit 0):
+
+```
+makerworld_auth file=/run/secrets/3dprint-loader/makerworld-storage-state.json status=ok cookies=24 persistent=6 expired=0 session=18 usable=true domains=[makerworld.com,bambulab.com] earliest=2026-08-01T00:00:00+00:00
+```
+
+### Maintenance schedule
+
+| Frequency | Action                                          | Who         |
+|-----------|-------------------------------------------------|-------------|
+| Daily     | Run `check-makerworld-auth.sh`                  | Cron job    |
+| On warning| Re-run `makerworld-login` to refresh session    | Operator    |
+| On expiry | Re-run `makerworld-login` immediately           | Operator    |
+
+MakerWorld session cookies typically have a shelf life of 30–90 days depending on Bambu Lab's policy. The check script treats any cookie expiry within 7 days as a warning (override with `WARN_DAYS` env).
+
+### Re-running makerworld-login
+
+When the session expires or is about to expire, regenerate the storage-state file from a machine with a display (the login tool opens a browser window):
+
+**Option A — attach to running Chrome (easiest, Mac/desktop Linux):**
+
+1. Launch Chrome with remote debugging:
+   ```bash
+   /Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome \
+     --remote-debugging-port=9222 \
+     --remote-debugging-address=127.0.0.1
+   ```
+
+2. In the 3dprint_loader backend directory:
+   ```bash
+   cd backend
+   . .venv/bin/activate
+   makerworld-login --cdp-url http://127.0.0.1:9222 \
+     --storage-state /tmp/makerworld-storage-state.json
+   ```
+
+3. Log into MakerWorld in the Chrome window (or use an existing session).
+4. Press Enter in the terminal to save the state.
+
+**Option B — standalone Playwright browser:**
+
+```bash
+cd backend
+. .venv/bin/activate
+makerworld-login --storage-state /tmp/makerworld-storage-state.json
+```
+
+A headed Chromium window opens. Log into MakerWorld, then press Enter.
+
+**Deploy the refreshed state to jellyhome:**
+
+```bash
+ssh jellybot@192.168.1.1 'mkdir -p /opt/docker/.secrets/3dprint-loader && chmod 700 /opt/docker/.secrets/3dprint-loader'
+scp /tmp/makerworld-storage-state.json jellybot@192.168.1.1:/opt/docker/.secrets/3dprint-loader/makerworld-storage-state.json
+ssh jellybot@192.168.1.1 'chmod 600 /opt/docker/.secrets/3dprint-loader/makerworld-storage-state.json'
+```
+
+The new state file is immediately usable — no restart needed. The API container mounts `/opt/docker/.secrets/3dprint-loader/` as a read-only volume, so the new file is available on next API request.
+
+### Current state (as of this writing)
+
+The storage-state file is **not present** on jellyhome. Authenticated MakerWorld flows (discovering models from maker pages, watching collections, downloading auth-gated STL/3MF files) require this file to be created first via `makerworld-login`.
+
 ## Backup and restore
 
 Backup class: `appdata-and-source-repo`.
