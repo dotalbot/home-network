@@ -177,6 +177,30 @@ Verify the app checkout exists on `jellyhome`:
 ssh jellybot@jellyhome 'test -d /home/jellybot/3dprint_loader/.git && git -C /home/jellybot/3dprint_loader status --short --branch'
 ```
 
+### Web proxy returns 502 Bad Gateway even though the API container is healthy
+
+The web container's nginx caches DNS resolution for upstream proxy targets at startup. If the API container is recreated (e.g., after a health restart), it gets a new Docker network IP, but nginx continues trying the stale address.
+
+Fix: restart the web container to force DNS re-resolution:
+
+```bash
+docker compose \
+  --env-file /opt/docker/.env \
+  -f /opt/docker/docker-compose.yml \
+  -f /opt/docker/hosts/jellyhome.yaml \
+  restart 3dprint-loader-web
+```
+
+After restart, verify health:
+
+```bash
+curl -fsS http://192.168.1.1:8793/health
+```
+
+Expected: `{"status":"ok","service":"3dprint-loader-api"}`
+
+Long-term fix: add an nginx `resolver` directive with `valid=` and use a variable in `proxy_pass` so nginx re-resolves DNS at runtime.
+
 ### MakerWorld authenticated discovery does not work
 
 Check whether the optional Playwright storage-state file exists without printing it:
