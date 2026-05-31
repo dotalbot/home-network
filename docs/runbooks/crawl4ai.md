@@ -45,10 +45,14 @@ Before first deploy, create the secret runtime config and JWT signing secret on 
 sudo install -d -m 0750 -o root -g dockerops /opt/docker/.secrets/crawl4ai
 sudo cp /opt/docker/appdata/crawl4ai/config.example.yml /opt/docker/.secrets/crawl4ai/config.yml
 sudoedit /opt/docker/.secrets/crawl4ai/config.yml   # replace REPLACE_WITH_LONG_RANDOM_TOKEN
-sudo chmod 0640 /opt/docker/.secrets/crawl4ai/config.yml
+# The container runs as appuser and must be able to read the bind-mounted file.
+# The parent /opt/docker/.secrets/crawl4ai directory remains 0750 root:dockerops.
+sudo chmod 0644 /opt/docker/.secrets/crawl4ai/config.yml
 
-# Also add this to /opt/docker/.env with a long random value:
+# Also add this to /opt/docker/.env with a long random value, then keep .env restricted:
 # CRAWL4AI_JWT_SECRET=<long-random-secret>
+sudo chmod 0640 /opt/docker/.env
+sudo chown root:dockerops /opt/docker/.env
 ```
 
 The initial deployment does not require LLM provider secrets. If later workflows need LLM-powered extraction, put provider keys in `/opt/docker/.secrets/crawl4ai/` and mount or inject them via source-managed Compose changes without committing secret values.
@@ -126,8 +130,10 @@ JWT token bootstrap test:
 ```bash
 curl -fsS http://192.168.1.2:11235/token \
   -H 'Content-Type: application/json' \
-  -d '{"email":"operator@local.invalid","api_token":"<token-from-secret-config>"}'
+  -d '{"email":"operator@gmail.com","api_token":"<token-from-secret-config>"}'
 ```
+
+Crawl4AI v0.8.6 validates that the email domain has MX records; reserved domains such as `local.invalid` fail with `Invalid email domain`.
 
 Functional smoke test with a benign page should use a bearer token returned by `/token`:
 
