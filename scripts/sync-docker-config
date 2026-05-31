@@ -102,6 +102,8 @@ DEST_ALERTMANAGER_DISCORD_BRIDGE="${DOCKER_DIR}/appdata/alertmanager-discord-bri
 SRC_POSTGRES_CONFIG="${REPO_ROOT}/docker/appdata/postgres/config"
 DEST_POSTGRES_CONFIG="${DOCKER_DIR}/appdata/postgres/config"
 DEST_POSTGRES_DUMPS="${DOCKER_DIR}/appdata/postgres/logical-dumps"
+SRC_CRAWL4AI_CONFIG="${REPO_ROOT}/docker/appdata/crawl4ai"
+DEST_CRAWL4AI_CONFIG="${DOCKER_DIR}/appdata/crawl4ai"
 DEST_BIN="${DOCKER_DIR}/bin"
 RSYNC_OPTS=(-rtD --delete --omit-dir-times --no-perms --no-owner --no-group)
 
@@ -233,6 +235,17 @@ if [ -d "$SRC_POSTGRES_CONFIG" ]; then
   else
     [ -O "$DEST_POSTGRES_CONFIG" ] && chmod -R 775 "$DEST_POSTGRES_CONFIG"
     [ -O "$DEST_POSTGRES_DUMPS" ] && chmod -R 770 "$DEST_POSTGRES_DUMPS"
+  fi
+fi
+
+if [ -d "$SRC_CRAWL4AI_CONFIG" ]; then
+  run_privileged mkdir -p "$DEST_CRAWL4AI_CONFIG"
+  run_privileged rsync "${RSYNC_OPTS[@]}" "$SRC_CRAWL4AI_CONFIG"/ "$DEST_CRAWL4AI_CONFIG"/
+  set_managed_perms "$DEST_CRAWL4AI_CONFIG"
+  if [ "$needs_sudo" -eq 1 ] || [ "$(id -u)" -eq 0 ]; then
+    run_privileged chmod -R 775 "$DEST_CRAWL4AI_CONFIG"
+  elif [ -O "$DEST_CRAWL4AI_CONFIG" ]; then
+    chmod -R 775 "$DEST_CRAWL4AI_CONFIG"
   fi
 fi
 
