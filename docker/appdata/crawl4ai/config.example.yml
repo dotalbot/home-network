@@ -1,0 +1,98 @@
+# Crawl4AI API configuration for the home-network deployment.
+# Source of truth: home-network repo. Copy this template to
+# /opt/docker/.secrets/crawl4ai/config.yml on jellybase and replace the token
+# placeholder there. Do not commit the runtime config with real credentials.
+
+app:
+  title: "Crawl4AI API"
+  version: "1.0.0"
+  host: "0.0.0.0"
+  port: 11235
+  reload: false
+  workers: 1
+  timeout_keep_alive: 300
+
+llm:
+  provider: "openai/gpt-4o-mini"
+
+redis:
+  host: "localhost"
+  port: 6379
+  db: 0
+  password: ""
+  task_ttl_seconds: 3600
+  ssl: false
+  ssl_cert_reqs: null
+  ssl_ca_certs: null
+  ssl_certfile: null
+  ssl_keyfile: null
+
+rate_limiting:
+  enabled: true
+  default_limit: "120/minute"
+  trusted_proxies: []
+  storage_uri: "memory://"
+
+security:
+  enabled: true
+  jwt_enabled: true
+  # Copy this file to /opt/docker/.secrets/crawl4ai/config.yml and replace
+  # this placeholder with a long random token. Do not commit the real token.
+  api_token: "REPLACE_WITH_LONG_RANDOM_TOKEN"
+  https_redirect: false
+  trusted_hosts:
+    - "127.0.0.1"
+    - "localhost"
+    - "192.168.1.2"
+    - "jellybase"
+    - "jellybase.cheetah-iwato.ts.net"
+  headers:
+    x_content_type_options: "nosniff"
+    x_frame_options: "DENY"
+    content_security_policy: "default-src 'self'"
+    strict_transport_security: "max-age=63072000; includeSubDomains"
+
+crawler:
+  base_config:
+    simulate_user: true
+  memory_threshold_percent: 90.0
+  rate_limiter:
+    enabled: true
+    base_delay: [1.0, 2.0]
+  timeouts:
+    stream_init: 30.0
+    batch_process: 180.0
+  pool:
+    max_pages: 8
+    idle_ttl_sec: 300
+  browser:
+    kwargs:
+      headless: true
+      text_mode: true
+    extra_args:
+      - "--no-sandbox"
+      - "--disable-gpu"
+      - "--disable-software-rasterizer"
+
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+
+observability:
+  prometheus:
+    enabled: true
+    endpoint: "/metrics"
+  health_check:
+    endpoint: "/health"
+
+webhooks:
+  enabled: false
+  default_url: null
+  data_in_payload: false
+  retry:
+    max_attempts: 3
+    initial_delay_ms: 1000
+    max_delay_ms: 8000
+    timeout_ms: 10000
+  headers:
+    User-Agent: "Crawl4AI-Webhook/1.0"

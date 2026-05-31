@@ -116,6 +116,11 @@
         API on 18888, UI on 9999, bound to jellyhome LAN and Tailnet addresses only
       icon: mdi-brain
       siteMonitor: http://192.168.1.1:9999
+  - Crawl4AI:
+      href: http://192.168.1.2:11235/playground
+      description: local open-source web crawler and markdown extraction API on jellybase; LAN-bound internal service
+      icon: mdi-spider-web
+      siteMonitor: http://192.168.1.2:11235/health
 - Media:
   - Manyfold:
       href: http://192.168.1.1:3214

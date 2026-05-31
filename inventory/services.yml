@@ -471,6 +471,38 @@ services:
     backup: appdata
     status: active
 
+  crawl4ai:
+    display_name: Crawl4AI
+    icon: mdi-spider-web
+    category: Tools
+    mode: single-primary
+    hosts:
+      - jellybase
+    containers:
+      jellybase:
+        - crawl4ai
+    urls:
+      primary: http://192.168.1.2:11235/playground
+      api: http://192.168.1.2:11235
+      health: http://192.168.1.2:11235/health
+      metrics: http://192.168.1.2:11235/metrics
+    description: local open-source web crawler and markdown extraction API for Hermes/project workflows; LAN-bound on jellybase, not a public scraper endpoint
+    appdata:
+      config_template: /opt/docker/appdata/crawl4ai/config.example.yml
+      runtime_config_secret: /opt/docker/.secrets/crawl4ai/config.yml
+      secrets: /opt/docker/.secrets/crawl4ai
+    integrations:
+      hermes_candidate: true
+      firecrawl_fallback_candidate: true
+      api_base_url: http://jellybase:11235
+    backup: config-only
+    status: planned
+    notes:
+      - Docker image pinned to unclecode/crawl4ai:0.8.6.
+      - Runtime config is mounted from /opt/docker/.secrets/crawl4ai/config.yml because it contains the API token used to mint JWTs.
+      - Initial deployment uses no LLM provider secrets; add them only under /opt/docker/.secrets/crawl4ai if a later workflow needs LLM extraction.
+      - Consuming apps must still apply URL allowlists/private-IP blocking before sending crawl requests.
+
   seedit4me-reverse-tunnel:
     display_name: Seedit4.me Reverse Tunnel
     icon: mdi-tunnel
