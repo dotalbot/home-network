@@ -124,7 +124,7 @@ BORG_ROLLOUT_OUTPUT_DIR=/tmp/borgmatic-rollout-review scripts/borgmatic-rollout-
 
 ## How to perform a scratch restore drill
 
-Scratch restore drills prove that an archive is usable without touching production paths.
+Scratch restore drills prove that an archive is usable without touching production paths. The detailed phase 4 safety model lives in `docs/operations/backup-restore-drill-safety.md`; use it as the canonical guide for future restore-drill automation, approval gates, validators, and tmux/sudo handoff points.
 
 ### Before you start
 
@@ -219,6 +219,8 @@ Minimum gate before production restore:
 10. Keep rollback artifacts until at least one later successful backup cycle.
 
 ## Database restores
+
+The database hook design lives in `docs/plans/014-database-pre-backup-hooks.md`. Treat that plan as the current design source for PostgreSQL pre-backup hooks, SQLite WAL/SHM constraints, scratch validators, and timer consolidation gates.
 
 For central PostgreSQL services:
 

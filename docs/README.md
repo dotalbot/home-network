@@ -20,6 +20,7 @@ Unless stated otherwise, paths in this index are relative to the repository root
 ## Operations docs
 
 - `docs/operations/borgmatic-host-rollout.md` — Borg/Borgmatic host rollout checklist and LAN backup target notes.
+- `docs/operations/backup-restore-drill-safety.md` — scratch-only restore drill safety model, approval gates, validators, and tmux/sudo handoff points.
 - `docs/operations/docker-host-bootstrap.md` — bootstrap a Docker host into the `/opt/docker` model.
 - `docs/operations/jellyberry-docker-host-bootstrap.md` — jellyberry-specific bootstrap/deploy notes.
 - `docs/operations/network-map-dashboard.md` — Network Map operations.
@@ -51,6 +52,8 @@ Unless stated otherwise, paths in this index are relative to the repository root
 ## Plans
 
 - `docs/plans/` — numbered implementation plans and design options.
+- `docs/plans/012-consolidated-borg-management.md` — consolidated Borg/backup-management architecture plan and phase tracker.
+- `docs/plans/014-database-pre-backup-hooks.md` — first-class database dump hook design for PostgreSQL and SQLite backup sets.
 
 ## Source of truth files
 

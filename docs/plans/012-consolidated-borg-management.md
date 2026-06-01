@@ -14,6 +14,9 @@ Date: 2026-06-01
 - [x] Phase 2: split render-only Borgmatic config/systemd/restore-manifest generation from installer stages.
   - [x] Add `scripts/borgmatic-render-generate` for generated Borgmatic config, systemd unit/timer/wrapper text, restore manifests, and validation report under `build/borgmatic-render/` or `/tmp`.
   - [x] Add `docs/guides/render-only-borgmatic-artifact-review.md` with review checklist and promotion boundary.
+- [x] Phase 4 design: document scratch-only restore-drill safety, database pre-backup hook integration, SQLite/PostgreSQL restore constraints, approval gates, and tmux/sudo handoff points.
+  - [x] Add `docs/operations/backup-restore-drill-safety.md` as the canonical scratch restore safety guide.
+  - [x] Add `docs/plans/014-database-pre-backup-hooks.md` for PostgreSQL/SQLite hook and validator design.
 - [ ] Phase 3: build a read-only management surface over inventory and telemetry.
 - [ ] Phase 4+: add controlled Git-reviewed edits, restore-drill automation, database pre-backup hooks, secondary destination rollout, and optional BorgWarehouse evaluation.
 
@@ -411,11 +414,15 @@ Add UI/API actions that create validated patches/commits for `inventory/backups.
 
 ### Phase 5 — Restore drill automation
 
-Add `scripts/backup-restore-drill` with service/host/archive arguments. It extracts into scratch paths and runs validators. UI can generate or launch drills only after explicit confirmation.
+Design reference: `docs/operations/backup-restore-drill-safety.md`.
+
+Add `scripts/backup-restore-drill` with service/host/archive arguments. It extracts into scratch paths and runs validators. UI can generate or launch drills only after explicit confirmation. The first implementation should support dry-run manifest generation, hardcoded production-path refusal, secret-free result JSON, and tmux/sudo handoff for operator-run stages.
 
 ### Phase 6 — Database pre-backup hooks
 
-Move logical dump freshness into Borgmatic-controlled pre-backup execution, while keeping the standalone timer until confidence is high.
+Design reference: `docs/plans/014-database-pre-backup-hooks.md`.
+
+Move logical dump freshness into Borgmatic-controlled pre-backup execution, while keeping the standalone timer until confidence is high. Required database hooks should fail the backup when they fail or produce stale output; SQLite backup sets should declare WAL/SHM and production restore constraints before automation relies on them.
 
 ### Phase 7 — Secondary destination
 

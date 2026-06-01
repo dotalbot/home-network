@@ -39,6 +39,8 @@ The platform should make the home lab understandable, reproducible, observable, 
 - [x] Complete Borg/Borgmatic setup and verification for `jellyhome`, `jellybase`, and `jellyberry`; remaining scope is future hosts such as `jellybackup` if they become backup clients.
 - [x] Add restore runbooks for Home Assistant, Mosquitto, Prometheus, Grafana, Portfolio Mission Control, and key stateful services.
 - [x] Run and document safe restore drills for Mosquitto on `jellyhome` and monitoring-stack config on `jellybase`.
+- [x] Document scratch-only restore-drill automation safety, operator approval gates, SQLite/PostgreSQL validators, and tmux/sudo handoff points in `docs/operations/backup-restore-drill-safety.md`.
+- [x] Document first-class database pre-backup hook design for PostgreSQL logical dumps and SQLite WAL/SHM constraints in `docs/plans/014-database-pre-backup-hooks.md`.
 
 
 ## V3.5 — Shared Database Platform and Manyfold Adoption
