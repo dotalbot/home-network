@@ -32,6 +32,16 @@ services:
     ports:
       - "8791:80"
 
+  ms102-study-hub:
+    build:
+      context: /home/jellybot/ms-102-prep/study-web
+      dockerfile: Dockerfile
+    image: study-web-ms102-study-hub:latest
+    container_name: ms102-study-hub
+    restart: unless-stopped
+    ports:
+      - "8794:80"
+
   image-pastebin:
     build:
       context: /home/jellybot/image-pastebin

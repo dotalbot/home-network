@@ -134,6 +134,29 @@ services:
     backup: source-repo
     status: active
 
+  ms102-study-hub:
+    display_name: MS-102 Study Hub
+    icon: mdi-school-outline
+    category: Study
+    mode: single-primary-home-network-compose
+    hosts:
+      - jellyberry
+    containers:
+      jellyberry:
+        - ms102-study-hub
+    urls:
+      primary: http://192.168.1.159:8794
+    description: Microsoft 365 Administrator study hub | home-network managed on jellyberry
+    source:
+      type: local-directory
+      local_path: /home/jellybot/ms-102-prep/study-web
+      remote: TBD
+      build_context: /home/jellybot/ms-102-prep/study-web
+      dockerfile: Dockerfile
+      restore_note: Requires the MS-102 study-web source directory; no git remote is currently recorded in this repo.
+    backup: source-repo
+    status: active
+
   image-pastebin:
     display_name: Image Pastebin
     icon: mdi-image-plus-outline

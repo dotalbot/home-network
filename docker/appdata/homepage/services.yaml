@@ -104,6 +104,11 @@
       description: certification study hub | home-network managed on jellyberry
       icon: mdi-school-outline
       siteMonitor: http://192.168.1.159:8791
+  - MS-102 Study Hub:
+      href: http://192.168.1.159:8794
+      description: Microsoft 365 Administrator study hub | home-network managed on jellyberry
+      icon: mdi-school-outline
+      siteMonitor: http://192.168.1.159:8794
 - Tools:
   - Image Pastebin:
       href: http://192.168.1.159:8792
