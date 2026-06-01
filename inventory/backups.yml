@@ -131,6 +131,42 @@ backup_classes:
       - logs
     restore_priority: low
 
+backup_defaults:
+  retention:
+    keep_daily: 7
+    keep_weekly: 4
+    keep_monthly: 6
+  checks:
+    repository: true
+    archives_frequency: 2 weeks
+  schedule:
+    on_calendar: "*-*-* 03:00:00"
+    randomized_delay_sec: 30m
+  notes:
+    - Validation-only defaults for future render-only Borgmatic config generation.
+    - Current live behavior still uses legacy host repository_path and important_paths fields.
+
+destinations:
+  primary:
+    enabled: true
+    type: borg_ssh
+    host: jellybackup
+    address: 192.168.1.75
+    ssh_user: jellybackup
+    transport: ssh
+    address_policy: use_lan_ip_not_fqdn
+    repository_path_template: /home/jellybackup/externaldisk/borg_{host}
+    purpose: current LAN-only Borg destination
+  secondary:
+    enabled: false
+    type: borg_ssh
+    host: TBD
+    address: TBD
+    ssh_user: TBD
+    transport: ssh
+    address_policy: use_lan_ip_not_fqdn
+    repository_path_template: TBD
+    purpose: disabled future second/offsite destination placeholder; must stay disabled until a rollout card supplies concrete target details
 
 primary_target:
   host: jellybackup
@@ -172,8 +208,13 @@ hosts:
 
   jellyhome:
     borg_enabled: true
+    host_type: docker
     role: primary-docker-dev-host
     repository_path: /home/jellybackup/externaldisk/borg_jellyhome
+    destinations:
+      primary:
+        enabled: true
+        repository_path: /home/jellybackup/externaldisk/borg_jellyhome
     rollout_status:
       config_status: validated
       latest_verified_archive: jellyhome-2026-05-23T09:40:36
@@ -183,6 +224,36 @@ hosts:
       - /opt/docker
       - /home/jellyfish/repo
       - /home/jellyfish/media/Primary_5TB/3D_models
+    backup_sets:
+      - id: docker-root
+        type: path
+        backup_class: appdata
+        paths:
+          - /opt/docker
+        destinations:
+          - primary
+        restore_metadata:
+          docker_host: true
+          restore_scope: host-level Docker config and appdata covered by existing Borgmatic source path
+      - id: dev-repos
+        type: source_repo
+        backup_class: source-repo
+        paths:
+          - /home/jellyfish/repo
+        destinations:
+          - primary
+        restore_metadata:
+          restore_scope: developer checkout mirror; Git remotes remain the authoritative source for tracked repositories
+      - id: model-library-3d
+        type: media_library
+        backup_class: appdata-and-library
+        paths:
+          - /home/jellyfish/media/Primary_5TB/3D_models
+        destinations:
+          - primary
+        restore_metadata:
+          restore_scope: Manyfold-visible 3D model library path
+          related_restore_runbook: docs/runbooks/central-postgres-manyfold-restore.md
     notes:
       - Runs core management UI.
       - Runs planned Calibre and Mosquitto.
@@ -190,8 +261,13 @@ hosts:
 
   jellybase:
     borg_enabled: true
+    host_type: docker
     role: secondary-monitoring-host
     repository_path: /home/jellybackup/externaldisk/borg_jellybase
+    destinations:
+      primary:
+        enabled: true
+        repository_path: /home/jellybackup/externaldisk/borg_jellybase
     rollout_status:
       config_status: validated
       latest_verified_archive: jellybase-2026-05-25T03:12:03
@@ -203,14 +279,55 @@ hosts:
     important_paths:
       - /opt/docker
       - /home/jellyfish/repo
+    backup_sets:
+      - id: docker-root
+        type: path
+        backup_class: appdata
+        paths:
+          - /opt/docker
+        destinations:
+          - primary
+        restore_metadata:
+          docker_host: true
+          restore_scope: monitoring stack Docker config, appdata, and generated local state already covered by /opt/docker
+      - id: central-postgres-logical-dumps
+        type: postgres_logical_dump
+        backup_class: postgres-volume-and-logical-dumps
+        paths:
+          - /opt/docker/appdata/postgres/logical-dumps
+        output_path: /opt/docker/appdata/postgres/logical-dumps
+        database_hook:
+          command: /opt/docker/bin/postgres-logical-dump
+          run_before_backup: true
+          failure_policy: fail_backup
+          current_runtime: standalone timer remains in place until a later hook rollout phase
+        destinations:
+          - primary
+        restore_runbook: docs/runbooks/central-postgres-manyfold-restore.md
+        restore_metadata:
+          restore_scope: logical dumps for central PostgreSQL databases; scratch restores stay default
+      - id: dev-repos
+        type: source_repo
+        backup_class: source-repo
+        paths:
+          - /home/jellyfish/repo
+        destinations:
+          - primary
+        restore_metadata:
+          restore_scope: developer checkout mirror; Git remotes remain authoritative for tracked repositories
     notes:
       - Runs Prometheus and Grafana.
       - May hold synced dev mirror.
 
   jellyberry:
     borg_enabled: true
+    host_type: docker
     role: raspberry-pi-lightweight-node
     repository_path: /home/jellybackup/externaldisk/borg_jellyberry
+    destinations:
+      primary:
+        enabled: true
+        repository_path: /home/jellybackup/externaldisk/borg_jellyberry
     rollout_status:
       package_status: installed
       root_ssh_status: verified
@@ -224,15 +341,46 @@ hosts:
       timer_status: enabled
     important_paths:
       - /opt/docker
+    backup_sets:
+      - id: docker-root
+        type: path
+        backup_class: appdata
+        paths:
+          - /opt/docker
+        destinations:
+          - primary
+        restore_metadata:
+          docker_host: true
+          restore_scope: lightweight node Docker config, appdata, backup status, and local runtime files under /opt/docker
     notes:
       - Only back up if it has local state worth preserving.
 
   seedbox:
     borg_enabled: true
+    host_type: remote
     role: remote-sync-backup-helper
+    destinations:
+      primary:
+        enabled: false
+        status: planned_repository_path_missing
     important_paths:
       - /opt/docker
       - /home/jellyfish
+    backup_sets:
+      - id: remote-docker-root
+        type: path
+        backup_class: appdata
+        paths:
+          - /opt/docker
+        restore_metadata:
+          restore_scope: future remote Docker payload; destination remains disabled until repo path and transport are confirmed
+      - id: remote-home
+        type: path
+        backup_class: appdata
+        paths:
+          - /home/jellyfish
+        restore_metadata:
+          restore_scope: future remote user data payload; destination remains disabled until repo path and transport are confirmed
     notes:
       - May act as offsite sync or backup relay.
 

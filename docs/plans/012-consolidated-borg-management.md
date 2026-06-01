@@ -8,7 +8,9 @@ Date: 2026-06-01
 - [x] Phase 0: inspect current repository backup artifacts plus local `jellyberry` runtime-facing backup status without changing live services.
 - [x] Phase 0: document current-state and target backup-management architecture in `docs/architecture/consolidated-borg-management.md`.
 - [x] Phase 0: document operator status, path-change, and scratch-restore workflows in `docs/guides/consolidated-backup-management-operator-guide.md`.
-- [ ] Phase 1: evolve `inventory/backups.yml` schema and validation for first-class destinations, backup sets, database hooks, and restore metadata.
+- [x] Phase 1: evolve `inventory/backups.yml` schema and validation for first-class destinations, backup sets, database hooks, and restore metadata.
+  - [x] Add validation-only `backup_defaults`, `destinations`, host destination mappings, `backup_sets`, database hook metadata, restore metadata, Docker/remote host typing, and disabled secondary destination placeholder.
+  - [x] Extend `scripts/backup-policy-check` with additive schema validation plus self-test fixtures while keeping live Borgmatic rollout behavior unchanged.
 - [ ] Phase 2: split render-only Borgmatic config/systemd/restore-manifest generation from installer stages.
 - [ ] Phase 3: build a read-only management surface over inventory and telemetry.
 - [ ] Phase 4+: add controlled Git-reviewed edits, restore-drill automation, database pre-backup hooks, secondary destination rollout, and optional BorgWarehouse evaluation.
@@ -202,6 +204,23 @@ Recommended backup set types:
 - `media_library` — large library paths with explicit destination/retention policy.
 - `config_only` — Git-backed service; no Borg payload unless runtime config exists.
 - `none` — e.g. constrained sensor nodes where config is in Git and data ships elsewhere.
+
+## Phase 1 validation-only schema notes
+
+Phase 1 adds additive inventory fields that are ignored by the existing Borgmatic rollout generator until a later render-only phase switches over deliberately. The legacy fields `primary_target`, `hosts.<host>.repository_path`, and `hosts.<host>.important_paths` remain in place so live behavior is unchanged.
+
+Schema additions:
+
+- `backup_defaults` records future retention/check/schedule defaults for renderers and UI validation only.
+- `destinations` declares named Borg targets. `primary` mirrors the existing `primary_target` values and still routes to `jellybackup` over `192.168.1.75`; `secondary` is explicitly `enabled: false` with TBD fields so it cannot be rendered accidentally.
+- `hosts.<host>.host_type` distinguishes `docker`, `non_docker`, `hybrid`, and `remote` handling before backup sets are interpreted. Docker-specific backup sets are valid only on `docker` or `hybrid` hosts.
+- `hosts.<host>.destinations.<label>` maps host repositories to destination labels. For currently validated hosts, `primary.repository_path` must match the legacy `repository_path` exactly.
+- `hosts.<host>.backup_sets[]` describes payload intent without changing source paths. Each set has an `id`, `type`, optional `backup_class`, paths covered by legacy `important_paths`, destination labels, and `restore_metadata`.
+- `postgres_logical_dump` backup sets make database dump hooks first-class. The current `central-postgres-logical-dumps` set records `/opt/docker/bin/postgres-logical-dump`, `run_before_backup: true`, and the existing dump output path while noting that the standalone timer remains live until a later rollout phase.
+- Restore metadata and `restore_runbook` values link backup sets to scratch-first restore procedures without storing secrets or permitting production writes.
+- Hosts without a confirmed repository, currently `seedbox`, keep legacy `borg_enabled: true` for compatibility with existing planning but have their phase 1 destination disabled and marked `planned_repository_path_missing`.
+
+Validation added to `scripts/backup-policy-check` now checks the additive schema without rendering or installing anything: destination consistency, disabled secondary presence, repository path parity with legacy fields, absolute safe paths, backup set coverage by legacy source roots, database dump output coverage, Docker/non-Docker type constraints, restore rule references, and source metadata requirements.
 
 ## Management UI shape
 

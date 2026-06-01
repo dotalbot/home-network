@@ -4,73 +4,457 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SERVICES_FILE="${REPO_ROOT}/inventory/services.yml"
 BACKUPS_FILE="${REPO_ROOT}/inventory/backups.yml"
-
-if [ ! -f "$SERVICES_FILE" ]; then
-  echo "not good: missing $SERVICES_FILE"
-  exit 1
-fi
-
-if [ ! -f "$BACKUPS_FILE" ]; then
-  echo "not good: missing $BACKUPS_FILE"
-  exit 1
-fi
+MODE="${1:-check}"
 
 if ! python3 -c "import yaml" >/dev/null 2>&1; then
   echo "not good: missing python3-yaml"
   exit 1
 fi
 
-python3 - "$SERVICES_FILE" "$BACKUPS_FILE" <<'PY'
+if [ "$MODE" != "--self-test" ]; then
+  if [ ! -f "$SERVICES_FILE" ]; then
+    echo "not good: missing $SERVICES_FILE"
+    exit 1
+  fi
+
+  if [ ! -f "$BACKUPS_FILE" ]; then
+    echo "not good: missing $BACKUPS_FILE"
+    exit 1
+  fi
+fi
+
+python3 - "$SERVICES_FILE" "$BACKUPS_FILE" "$MODE" <<'PY'
+import copy
+import os
+import re
 import sys
+from typing import Any
+
 import yaml
 
 services_file = sys.argv[1]
 backups_file = sys.argv[2]
+mode = sys.argv[3]
 
-with open(services_file, "r", encoding="utf-8") as f:
-    services_data = yaml.safe_load(f) or {}
-
-with open(backups_file, "r", encoding="utf-8") as f:
-    backups_data = yaml.safe_load(f) or {}
-
-services = services_data.get("services", {})
-backup_classes = backups_data.get("backup_classes", {})
-restore_rules = backups_data.get("restore_rules", {})
+HOST_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9-]*$")
+LABEL_RE = re.compile(r"^[a-z][a-z0-9-]*$")
+SAFE_ABS_PATH_RE = re.compile(r"^/[A-Za-z0-9._/@:+,={}-][A-Za-z0-9._/@:+,={} -]*$")
+SAFE_REL_DOC_RE = re.compile(r"^docs/[A-Za-z0-9._/@:+,=-]+\.md$")
+ADDRESS_POLICY_VALUES = {"use_lan_ip_not_fqdn", "dns_ok", "provider_managed"}
+DESTINATION_TYPES = {"borg_ssh", "borgbase", "local_borg"}
+HOST_TYPES = {"docker", "non_docker", "hybrid", "remote"}
+BACKUP_SET_TYPES = {
+    "path",
+    "docker_appdata",
+    "source_repo",
+    "postgres_logical_dump",
+    "sqlite",
+    "media_library",
+    "config_only",
+    "none",
+}
 source_backed_classes = {"source-repo", "appdata-and-source-repo", "uploads-if-needed"}
 required_source_fields = {"type", "local_path", "build_context", "dockerfile", "restore_note"}
 
-bad = False
-referenced_backup_classes = set()
 
-for name, svc in services.items():
-    backup_class = svc.get("backup")
+def load_yaml(path: str) -> dict[str, Any]:
+    with open(path, "r", encoding="utf-8") as f:
+        return yaml.safe_load(f) or {}
 
-    if not backup_class:
-        print(f"missing backup class: {name}")
-        bad = True
-        continue
 
-    referenced_backup_classes.add(backup_class)
+def fail(errors: list[str], message: str) -> None:
+    errors.append(message)
 
-    if backup_class not in backup_classes:
-        print(f"unknown backup class: {name} -> {backup_class}")
-        bad = True
 
-    if backup_class in source_backed_classes:
-        source = svc.get("source") or {}
-        missing_fields = sorted(required_source_fields - set(source))
-        if missing_fields:
-            print(f"missing source metadata: {name} -> {', '.join(missing_fields)}")
-            bad = True
+def validate_label(value: str, context: str, errors: list[str]) -> None:
+    if not LABEL_RE.match(value):
+        fail(errors, f"invalid label at {context}: {value}")
 
-for backup_class in sorted(referenced_backup_classes):
-    if backup_class not in restore_rules:
-        print(f"missing restore rule for referenced backup class: {backup_class}")
-        bad = True
 
-if bad:
+def validate_host_name(value: str, context: str, errors: list[str]) -> None:
+    if not HOST_RE.match(value):
+        fail(errors, f"invalid host name at {context}: {value}")
+
+
+def validate_abs_path(value: Any, context: str, errors: list[str]) -> None:
+    if not isinstance(value, str) or not value.startswith("/"):
+        fail(errors, f"path must be absolute at {context}: {value}")
+        return
+    if not SAFE_ABS_PATH_RE.match(value):
+        fail(errors, f"path has unsafe characters at {context}: {value}")
+
+
+def path_is_covered(path: str, roots: list[str]) -> bool:
+    return any(path == root or path.startswith(root.rstrip("/") + "/") for root in roots)
+
+
+def validate_restore_runbook(value: Any, context: str, errors: list[str]) -> None:
+    if not isinstance(value, str) or not SAFE_REL_DOC_RE.match(value):
+        fail(errors, f"{context} must be a docs/*.md path")
+        return
+    repo_root = os.path.dirname(os.path.dirname(backups_file))
+    if not os.path.exists(os.path.join(repo_root, value)):
+        fail(errors, f"{context} does not exist: {value}")
+
+
+def validate_services(services_data: dict[str, Any], backups_data: dict[str, Any], errors: list[str]) -> None:
+    services = services_data.get("services", {})
+    backup_classes = backups_data.get("backup_classes", {})
+    restore_rules = backups_data.get("restore_rules", {})
+    referenced_backup_classes: set[str] = set()
+
+    if not isinstance(services, dict):
+        fail(errors, "inventory/services.yml services must be a mapping")
+        return
+
+    for name, svc in services.items():
+        if not isinstance(svc, dict):
+            fail(errors, f"service config must be a mapping: {name}")
+            continue
+        backup_class = svc.get("backup")
+
+        if not backup_class:
+            fail(errors, f"missing backup class: {name}")
+            continue
+
+        referenced_backup_classes.add(str(backup_class))
+
+        if backup_class not in backup_classes:
+            fail(errors, f"unknown backup class: {name} -> {backup_class}")
+
+        if backup_class in source_backed_classes:
+            source = svc.get("source") or {}
+            missing_fields = sorted(required_source_fields - set(source))
+            if missing_fields:
+                fail(errors, f"missing source metadata: {name} -> {', '.join(missing_fields)}")
+
+    for backup_class in sorted(referenced_backup_classes):
+        if backup_class not in restore_rules:
+            fail(errors, f"missing restore rule for referenced backup class: {backup_class}")
+
+
+def validate_destinations(backups_data: dict[str, Any], errors: list[str]) -> dict[str, Any]:
+    destinations = backups_data.get("destinations") or {}
+    primary_target = backups_data.get("primary_target") or {}
+
+    if not destinations:
+        return {}
+    if not isinstance(destinations, dict):
+        fail(errors, "destinations must be a mapping")
+        return {}
+
+    disabled_count = 0
+    for label, dest in destinations.items():
+        label = str(label)
+        validate_label(label, f"destinations.{label}", errors)
+        if not isinstance(dest, dict):
+            fail(errors, f"destination must be a mapping: {label}")
+            continue
+        enabled = dest.get("enabled")
+        if not isinstance(enabled, bool):
+            fail(errors, f"destinations.{label}.enabled must be true or false")
+        if enabled is False:
+            disabled_count += 1
+        dest_type = dest.get("type")
+        if dest_type not in DESTINATION_TYPES:
+            fail(errors, f"destinations.{label}.type must be one of {sorted(DESTINATION_TYPES)}")
+        if dest.get("address_policy") and dest.get("address_policy") not in ADDRESS_POLICY_VALUES:
+            fail(errors, f"destinations.{label}.address_policy is unknown: {dest.get('address_policy')}")
+        if enabled:
+            for key in ("host", "address", "ssh_user"):
+                if not dest.get(key):
+                    fail(errors, f"destinations.{label}.{key} is required when enabled")
+            if dest.get("repository_path_template"):
+                validate_abs_path(dest["repository_path_template"], f"destinations.{label}.repository_path_template", errors)
+
+    primary = destinations.get("primary") or {}
+    if primary and primary_target:
+        pairs = [
+            ("host", "host"),
+            ("address", "lan_ip"),
+            ("ssh_user", "ssh_user"),
+            ("address_policy", "address_policy"),
+        ]
+        for new_key, old_key in pairs:
+            if primary.get(new_key) and primary_target.get(old_key) and primary[new_key] != primary_target[old_key]:
+                fail(errors, f"destinations.primary.{new_key} must match legacy primary_target.{old_key}")
+    if destinations and disabled_count == 0:
+        fail(errors, "destinations must include at least one disabled future destination for validation-only secondary rollout planning")
+    return destinations
+
+
+def validate_backup_sets(
+    host: str,
+    cfg: dict[str, Any],
+    backup_classes: dict[str, Any],
+    restore_rules: dict[str, Any],
+    global_destinations: dict[str, Any],
+    errors: list[str],
+) -> None:
+    host_type = cfg.get("host_type")
+    if host_type and host_type not in HOST_TYPES:
+        fail(errors, f"hosts.{host}.host_type must be one of {sorted(HOST_TYPES)}")
+
+    important_paths = cfg.get("important_paths") or []
+    if not isinstance(important_paths, list):
+        fail(errors, f"hosts.{host}.important_paths must be a list")
+        important_paths = []
+    source_roots: list[str] = []
+    for idx, item in enumerate(important_paths):
+        validate_abs_path(item, f"hosts.{host}.important_paths[{idx}]", errors)
+        if isinstance(item, str):
+            source_roots.append(item)
+
+    host_destinations = cfg.get("destinations") or {}
+    legacy_repo = cfg.get("repository_path")
+    if host_destinations:
+        if not isinstance(host_destinations, dict):
+            fail(errors, f"hosts.{host}.destinations must be a mapping")
+            host_destinations = {}
+        enabled_host_destinations = []
+        for label, dest_cfg in host_destinations.items():
+            label = str(label)
+            validate_label(label, f"hosts.{host}.destinations.{label}", errors)
+            if global_destinations and label not in global_destinations:
+                fail(errors, f"hosts.{host}.destinations.{label} is not declared under destinations")
+            if not isinstance(dest_cfg, dict):
+                fail(errors, f"hosts.{host}.destinations.{label} must be a mapping")
+                continue
+            enabled = dest_cfg.get("enabled", True)
+            if not isinstance(enabled, bool):
+                fail(errors, f"hosts.{host}.destinations.{label}.enabled must be true or false")
+            if enabled:
+                enabled_host_destinations.append(label)
+                if global_destinations and not (global_destinations.get(label) or {}).get("enabled", False):
+                    fail(errors, f"hosts.{host}.destinations.{label} is enabled but global destination is disabled")
+                repo_path = dest_cfg.get("repository_path")
+                validate_abs_path(repo_path, f"hosts.{host}.destinations.{label}.repository_path", errors)
+                if label == "primary" and legacy_repo and repo_path != legacy_repo:
+                    fail(errors, f"hosts.{host}.destinations.primary.repository_path must match legacy repository_path")
+        if cfg.get("borg_enabled") and legacy_repo and not enabled_host_destinations:
+            fail(errors, f"hosts.{host} has legacy repository_path but no enabled destination")
+    elif cfg.get("borg_enabled") and legacy_repo and global_destinations:
+        fail(errors, f"hosts.{host} has legacy repository_path but no destinations mapping")
+
+    backup_sets = cfg.get("backup_sets") or []
+    if backup_sets:
+        if not isinstance(backup_sets, list):
+            fail(errors, f"hosts.{host}.backup_sets must be a list")
+            return
+        seen_ids: set[str] = set()
+        all_backup_set_paths: list[str] = []
+        for idx, backup_set in enumerate(backup_sets):
+            context = f"hosts.{host}.backup_sets[{idx}]"
+            if not isinstance(backup_set, dict):
+                fail(errors, f"{context} must be a mapping")
+                continue
+            set_id = backup_set.get("id")
+            if not isinstance(set_id, str):
+                fail(errors, f"{context}.id is required")
+            else:
+                validate_label(set_id, f"{context}.id", errors)
+                if set_id in seen_ids:
+                    fail(errors, f"duplicate backup set id on {host}: {set_id}")
+                seen_ids.add(set_id)
+            set_type = backup_set.get("type")
+            if set_type not in BACKUP_SET_TYPES:
+                fail(errors, f"{context}.type must be one of {sorted(BACKUP_SET_TYPES)}")
+            if set_type == "docker_appdata" and host_type not in {"docker", "hybrid"}:
+                fail(errors, f"{context} uses docker_appdata on non-Docker host_type {host_type}")
+            backup_class = backup_set.get("backup_class")
+            if backup_class:
+                if backup_class not in backup_classes:
+                    fail(errors, f"{context}.backup_class is unknown: {backup_class}")
+                if backup_class not in restore_rules:
+                    fail(errors, f"{context}.backup_class has no restore rule: {backup_class}")
+            paths = backup_set.get("paths") or []
+            if paths and not isinstance(paths, list):
+                fail(errors, f"{context}.paths must be a list")
+                paths = []
+            for path_idx, path in enumerate(paths):
+                validate_abs_path(path, f"{context}.paths[{path_idx}]", errors)
+                if isinstance(path, str):
+                    all_backup_set_paths.append(path)
+                if isinstance(path, str) and source_roots and not path_is_covered(path, source_roots):
+                    fail(errors, f"{context}.paths[{path_idx}] is not covered by legacy important_paths: {path}")
+            destinations = backup_set.get("destinations") or []
+            if destinations:
+                if not isinstance(destinations, list):
+                    fail(errors, f"{context}.destinations must be a list")
+                else:
+                    for label in destinations:
+                        if label not in host_destinations:
+                            fail(errors, f"{context}.destinations references undeclared host destination: {label}")
+                        elif not (host_destinations.get(label) or {}).get("enabled", False):
+                            fail(errors, f"{context}.destinations references disabled host destination: {label}")
+            restore_runbook = backup_set.get("restore_runbook")
+            if restore_runbook:
+                validate_restore_runbook(restore_runbook, f"{context}.restore_runbook", errors)
+            restore_metadata = backup_set.get("restore_metadata") or {}
+            if restore_metadata:
+                if not isinstance(restore_metadata, dict):
+                    fail(errors, f"{context}.restore_metadata must be a mapping")
+                else:
+                    related_runbook = restore_metadata.get("related_restore_runbook")
+                    if related_runbook:
+                        validate_restore_runbook(related_runbook, f"{context}.restore_metadata.related_restore_runbook", errors)
+            if set_type == "postgres_logical_dump":
+                output_path = backup_set.get("output_path")
+                validate_abs_path(output_path, f"{context}.output_path", errors)
+                if isinstance(output_path, str) and source_roots and not path_is_covered(output_path, source_roots):
+                    fail(errors, f"{context}.output_path is not covered by legacy important_paths: {output_path}")
+                hook = backup_set.get("database_hook") or {}
+                if not isinstance(hook, dict):
+                    fail(errors, f"{context}.database_hook must be a mapping")
+                else:
+                    command = hook.get("command")
+                    validate_abs_path(command, f"{context}.database_hook.command", errors)
+                    if hook.get("run_before_backup") is not True:
+                        fail(errors, f"{context}.database_hook.run_before_backup must be true")
+        for source_root in source_roots:
+            if not any(path == source_root or path.startswith(source_root.rstrip("/") + "/") for path in all_backup_set_paths):
+                fail(errors, f"hosts.{host}.important_paths entry is not represented by any backup_set path: {source_root}")
+
+
+def validate_backup_inventory(backups_data: dict[str, Any], errors: list[str]) -> None:
+    backup_classes = backups_data.get("backup_classes", {})
+    restore_rules = backups_data.get("restore_rules", {})
+    hosts = backups_data.get("hosts") or {}
+    if not isinstance(backup_classes, dict):
+        fail(errors, "backup_classes must be a mapping")
+        backup_classes = {}
+    if not isinstance(restore_rules, dict):
+        fail(errors, "restore_rules must be a mapping")
+        restore_rules = {}
+    if not isinstance(hosts, dict):
+        fail(errors, "hosts must be a mapping")
+        return
+
+    global_destinations = validate_destinations(backups_data, errors)
+
+    for host, cfg in hosts.items():
+        host = str(host)
+        validate_host_name(host, f"hosts.{host}", errors)
+        if not isinstance(cfg, dict):
+            fail(errors, f"hosts.{host} must be a mapping")
+            continue
+        validate_backup_sets(host, cfg, backup_classes, restore_rules, global_destinations, errors)
+
+
+def validate_all(services_data: dict[str, Any], backups_data: dict[str, Any]) -> list[str]:
+    errors: list[str] = []
+    validate_services(services_data, backups_data, errors)
+    validate_backup_inventory(backups_data, errors)
+    return errors
+
+
+def run_self_tests() -> None:
+    services_data = {
+        "services": {
+            "demo": {"backup": "appdata"},
+            "builder": {
+                "backup": "source-repo",
+                "source": {
+                    "type": "git",
+                    "local_path": "/srv/builder",
+                    "build_context": "/srv/builder",
+                    "dockerfile": "Dockerfile",
+                    "restore_note": "clone then build",
+                },
+            },
+        }
+    }
+    backups_data = {
+        "backup_classes": {
+            "appdata": {},
+            "source-repo": {},
+            "postgres-volume-and-logical-dumps": {},
+        },
+        "primary_target": {
+            "host": "jellybackup",
+            "lan_ip": "192.168.1.75",
+            "ssh_user": "jellybackup",
+            "address_policy": "use_lan_ip_not_fqdn",
+        },
+        "destinations": {
+            "primary": {
+                "enabled": True,
+                "type": "borg_ssh",
+                "host": "jellybackup",
+                "address": "192.168.1.75",
+                "ssh_user": "jellybackup",
+                "address_policy": "use_lan_ip_not_fqdn",
+            },
+            "secondary": {"enabled": False, "type": "borg_ssh", "purpose": "future"},
+        },
+        "hosts": {
+            "demo-host": {
+                "borg_enabled": True,
+                "host_type": "docker",
+                "repository_path": "/repos/demo",
+                "important_paths": ["/opt/docker"],
+                "destinations": {"primary": {"enabled": True, "repository_path": "/repos/demo"}},
+                "backup_sets": [
+                    {
+                        "id": "docker-root",
+                        "type": "path",
+                        "backup_class": "appdata",
+                        "paths": ["/opt/docker"],
+                        "destinations": ["primary"],
+                    },
+                    {
+                        "id": "pg-dumps",
+                        "type": "postgres_logical_dump",
+                        "backup_class": "postgres-volume-and-logical-dumps",
+                        "paths": ["/opt/docker/appdata/postgres/logical-dumps"],
+                        "output_path": "/opt/docker/appdata/postgres/logical-dumps",
+                        "database_hook": {"command": "/opt/docker/bin/postgres-logical-dump", "run_before_backup": True},
+                    },
+                ],
+            }
+        },
+        "restore_rules": {
+            "appdata": {},
+            "source-repo": {},
+            "postgres-volume-and-logical-dumps": {},
+        },
+    }
+
+    valid_errors = validate_all(services_data, backups_data)
+    if valid_errors:
+        print("self-test valid fixture failed:")
+        print("\n".join(valid_errors))
+        sys.exit(1)
+
+    invalid = copy.deepcopy(backups_data)
+    invalid["hosts"]["demo-host"]["backup_sets"][1]["output_path"] = "/var/lib/postgres-dumps"
+    invalid_errors = validate_all(services_data, invalid)
+    if not any("output_path is not covered" in error for error in invalid_errors):
+        print("self-test invalid fixture did not catch uncovered dump output path")
+        print("\n".join(invalid_errors))
+        sys.exit(1)
+
+    invalid = copy.deepcopy(backups_data)
+    invalid["hosts"]["demo-host"]["backup_sets"][0]["paths"] = ["relative/path"]
+    invalid_errors = validate_all(services_data, invalid)
+    if not any("path must be absolute" in error for error in invalid_errors):
+        print("self-test invalid fixture did not catch relative backup-set path")
+        print("\n".join(invalid_errors))
+        sys.exit(1)
+
+    print("good: self-test")
+
+
+if mode == "--self-test":
+    run_self_tests()
+    sys.exit(0)
+
+services_data = load_yaml(services_file)
+backups_data = load_yaml(backups_file)
+errors = validate_all(services_data, backups_data)
+if errors:
+    print("\n".join(errors))
     print("not good")
     sys.exit(1)
-
 print("good")
 PY
