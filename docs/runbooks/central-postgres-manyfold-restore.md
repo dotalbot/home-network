@@ -61,68 +61,45 @@ find /opt/docker/appdata/postgres/logical-dumps -maxdepth 3 -type f | sort | tai
 
 Expected useful artifacts include globals/roles and a `manyfold` database dump.
 
-3. Copy the selected latest dump files into the scratch directory.
+3. Copy the selected latest dump files into the scratch directory and make the scratch copies readable by the disposable container user. Do not loosen permissions on production dumps.
 
 ```bash
 cp /opt/docker/appdata/postgres/logical-dumps/latest/* "$DRILL"/
-find "$DRILL" -maxdepth 1 -type f -printf '%f\n' | sort
+chmod a+rx "$DRILL"
+chmod a+r "$DRILL"/*
+find "$DRILL" -maxdepth 1 -type f -printf '%f size=%s\n' | sort
 ```
 
-4. Start a scratch Postgres container with an isolated volume and a throwaway password.
+If `latest` is unreadable or absent for the operator account, pick the newest readable timestamped dump directory explicitly and record that permission caveat in the drill log.
+
+4. Restore and validate inside a one-shot scratch Postgres container. The container initializes its own temporary database directory, restores the copied dumps, prints only shape checks, shuts Postgres down internally, then exits. It does not bind ports and does not touch production containers or volumes.
 
 ```bash
-docker run --rm -d \
-  --name pg-restore-drill-"$STAMP" \
-  -e POSTGRES_PASSWORD=restore-drill-only \
-  postgres:17-alpine
-```
-
-5. Wait for readiness.
-
-```bash
-docker exec pg-restore-drill-"$STAMP" pg_isready -U postgres -d postgres
-```
-
-6. Restore globals/roles if the dump format supports it.
-
-```bash
-GLOBALS=$(find "$DRILL" -maxdepth 1 -type f \( -name '*globals*' -o -name '*roles*' \) | head -1)
-if [ -n "$GLOBALS" ]; then
-  docker cp "$GLOBALS" pg-restore-drill-"$STAMP":/tmp/globals.sql
-  docker exec pg-restore-drill-"$STAMP" psql -U postgres -d postgres -f /tmp/globals.sql
-fi
-```
-
-7. Restore the `manyfold` database dump into the scratch container.
-
-```bash
-MANYFOLD_DUMP=$(find "$DRILL" -maxdepth 1 -type f -iname '*manyfold*' | head -1)
-test -n "$MANYFOLD_DUMP"
-docker exec pg-restore-drill-"$STAMP" createdb -U postgres manyfold_restore || true
-docker cp "$MANYFOLD_DUMP" pg-restore-drill-"$STAMP":/tmp/manyfold.dump
-# Choose one based on dump type:
-docker exec pg-restore-drill-"$STAMP" sh -c 'pg_restore -U postgres -d manyfold_restore /tmp/manyfold.dump || psql -U postgres -d manyfold_restore -f /tmp/manyfold.dump'
-```
-
-8. Validate restored shape.
-
-```bash
-docker exec pg-restore-drill-"$STAMP" psql -U postgres -d manyfold_restore -Atc "SELECT count(*) FROM information_schema.tables WHERE table_schema='public';"
-docker exec pg-restore-drill-"$STAMP" psql -U postgres -d manyfold_restore -Atc "SELECT current_database();"
+docker run --rm \
+  --user postgres \
+  -v "$DRILL:/restore:ro" \
+  postgres:17-alpine \
+  sh -lc '
+    set -eu
+    initdb -D /tmp/pgdata >/tmp/initdb.log
+    pg_ctl -D /tmp/pgdata -o "-c listen_addresses=localhost" -w start >/tmp/pgstart.log
+    psql -U postgres -d postgres -f /restore/globals.sql >/tmp/globals.log
+    createdb -U postgres manyfold_restore
+    pg_restore -U postgres -d manyfold_restore /restore/manyfold.dump >/tmp/restore.log
+    printf "table_count=%s\n" "$(psql -U postgres -d manyfold_restore -Atc "SELECT count(*) FROM information_schema.tables WHERE table_schema='\''public'\'';")"
+    printf "database=%s\n" "$(psql -U postgres -d manyfold_restore -Atc "SELECT current_database();")"
+    printf "user_tables=%s\n" "$(psql -U postgres -d manyfold_restore -Atc "SELECT count(*) FROM pg_tables WHERE schemaname='\''public'\'';")"
+    pg_ctl -D /tmp/pgdata -m fast -w stop >/tmp/pgstop.log
+  '
 ```
 
 Expected:
 
 - table count is greater than zero
 - database reports `manyfold_restore`
+- `user_tables` is greater than zero for a populated Manyfold dump
 - no production containers were stopped
 - no production data paths were modified
-
-9. Stop the scratch container.
-
-```bash
-docker stop pg-restore-drill-"$STAMP"
-```
 
 Leave the scratch directory in place for the drill log. Manual cleanup can happen later after listing paths.
 
@@ -173,5 +150,6 @@ If old data was moved aside or archived first, restore that pre-restore copy und
 
 ## Drill log
 
-- Pending: first non-destructive logical-dump restore drill for `manyfold`.
+- Pending: first successful non-destructive logical-dump restore drill for `manyfold`.
 - 2026-05-28 precheck: `central-postgres` was healthy and logical dumps existed through `20260527T024501Z`, including `manyfold.dump`, `postgres.dump`, `globals.sql`, and `manifest.txt`. Drill execution was not completed because `/tmp/home-network-restore-drill` was not writable by the operator user, sudo was not cached, and the jellybase SSH session closed. Runbook updated to support a user-owned `$HOME/home-network-restore-drill` fallback for the next attempt.
+- 2026-05-30 attempt: `central-postgres` was still running healthy on `jellybase`. The operator could read/copy the older `20260527T024501Z` dump set into `/home/jellyfish/home-network-restore-drill/central-postgres-manyfold-20260530T090057Z`, but newer dump directories `20260529T023759Z` and `20260530T023754Z` returned `Permission denied` and `latest/` was not usable from the non-sudo shell. The scratch Postgres restore was not successful: first run mounted scratch files that were not readable by the container's `postgres` user, and a retry without `--user postgres` failed because `initdb` cannot run as root; the SSH/tmux session then closed. Production `central-postgres` was not stopped and production data paths were not overwritten. Fix captured above: make only the scratch copies world-readable before mounting them, run the one-shot container as `postgres`, and avoid `docker stop` by shutting down Postgres inside the container.

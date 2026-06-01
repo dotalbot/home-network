@@ -15,6 +15,7 @@ Initial restore coverage:
 - Prometheus, Alertmanager, Grafana, and Loki monitoring state on `jellybase`
 - Portfolio Mission Control on `jellyberry`
 - Central PostgreSQL / Manyfold database-aware restore validation
+- Manyfold app/library restore coverage and Calibre Web Automated pre-live media-library restore coverage
 
 This plan does not restore over production unless the operator explicitly approves a maintenance window.
 
@@ -47,7 +48,8 @@ This plan does not restore over production unless the operator explicitly approv
 - [x] Run Home Assistant config extraction drill on `jellybase`.
 - [x] Validate Home Assistant restored config shape and selected `.storage` JSON without touching production data.
 - [x] Draft central PostgreSQL / Manyfold database-aware restore runbook.
-- [ ] Run non-destructive logical-dump restore drill for Manyfold into a scratch PostgreSQL container. 2026-05-28 precheck passed, but execution needs a fresh `jellybase` operator session because `/tmp/home-network-restore-drill` was not writable and the SSH session closed; runbook now uses `$HOME/home-network-restore-drill` fallback.
+- [x] Draft app/library restore runbooks for Manyfold and planned Calibre Web Automated before either library becomes harder to rebuild.
+- [ ] Run non-destructive logical-dump restore drill for Manyfold into a scratch PostgreSQL container. 2026-05-28 and 2026-05-30 prechecks reached readable dump artifacts, but no successful restore yet: newer dump directories require sudo/root-readable permissions, and the 2026-05-30 scratch-container attempt exposed two command fixes now captured in `docs/runbooks/central-postgres-manyfold-restore.md` (`chmod` scratch copies for the `postgres` container user and run the one-shot container as `postgres`).
 
 ## Completed drills
 
@@ -64,7 +66,7 @@ Why Mosquitto was a good first target:
 
 Completed third drill: Home Assistant config on `jellybase`, recorded in `docs/runbooks/homeassistant-restore.md`.
 
-Next drill candidate: non-destructive logical-dump restore drill for Manyfold into a scratch PostgreSQL container, following `docs/runbooks/central-postgres-manyfold-restore.md`.
+Next drill candidate: non-destructive logical-dump restore drill for Manyfold into a scratch PostgreSQL container, following `docs/runbooks/central-postgres-manyfold-restore.md`. App/library restore sequencing for Manyfold is documented in `docs/runbooks/manyfold-library-restore.md`; Calibre Web Automated has a pre-live media-library restore template at `docs/runbooks/calibre-web-automated-restore.md`.
 
 ## Acceptance criteria
 

@@ -43,6 +43,9 @@ Unless stated otherwise, paths in this index are relative to the repository root
 - `docs/runbooks/mosquitto-restore.md` — restore/drill Mosquitto MQTT on jellyhome.
 - `docs/runbooks/monitoring-stack-restore.md` — restore/drill Prometheus, Alertmanager, Grafana, Loki, and Alloy config on jellybase.
 - `docs/runbooks/portfolio-mission-control-restore.md` — restore/drill Portfolio Mission Control V2 on jellyberry.
+- `docs/runbooks/central-postgres-manyfold-restore.md` — database-aware central PostgreSQL and Manyfold logical-dump restore drill.
+- `docs/runbooks/manyfold-library-restore.md` — restore/drill Manyfold app config, Valkey state, central database dependency, and 3D model library.
+- `docs/runbooks/calibre-web-automated-restore.md` — pre-live restore template for planned Calibre Web Automated appdata and media library.
 - `docs/runbooks/adopt-project-service-template.md` — checklist for adopting a cross-repo app into the `/opt/docker` deployment model.
 
 ## Plans

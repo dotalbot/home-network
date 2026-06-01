@@ -22,6 +22,13 @@ Host-local secrets that must be recreated outside Git:
 - `/opt/docker/.secrets/alertmanager/discord_webhook_url`
 - Grafana admin credentials in `/opt/docker/.env` if customized
 
+## Service-specific restore notes
+
+- Prometheus: restore `/opt/docker/appdata/prometheus/config` for source-managed configuration and `/opt/docker/appdata/prometheus/data` only when time-series continuity matters. Expected runtime owner for TSDB files is commonly `65534:65534`; verify actual ownership on the restored host before changing it.
+- Grafana: restore `/opt/docker/appdata/grafana` for local DB/session/plugin state and `/opt/docker/appdata/grafana-provisioning` for source-managed datasources/dashboards. Expected runtime owner is commonly `472:472`; preserve existing ownership where possible.
+- Alertmanager: restore config from Git/source-managed appdata and data only if silences/notification log continuity matters. Recreate the Discord webhook secret separately.
+- Loki: restore `/opt/docker/appdata/loki/config` for configuration and `/opt/docker/appdata/loki/data` only when log history continuity matters.
+
 ## Restore priority
 
 High. This stack provides observability, alerting, and logs for investigating all other restore work.
@@ -73,7 +80,7 @@ Restore monitoring before relying on dashboards/alerts for other services.
 
 ```bash
 hostname -s
-cd /home/jellyfish/home-network
+cd /home/jellybot/home-network
 git status --short --branch
 git pull --ff-only origin main
 ```
@@ -114,7 +121,7 @@ sudo test -s /opt/docker/.secrets/alertmanager/discord_webhook_url
 6. Re-sync source-managed config, then recreate services:
 
 ```bash
-cd /home/jellyfish/home-network
+cd /home/jellybot/home-network
 ./scripts/sync-docker-config
 cd /opt/docker
 docker compose --env-file .env -f docker-compose.yml -f hosts/jellybase.yaml up -d --force-recreate prometheus alertmanager-discord-bridge alertmanager grafana loki alloy
