@@ -1,7 +1,17 @@
 # Consolidated Borg Management Plan
 
-Status: research/planning draft
+Status: phase 0 architecture/operator docs drafted
 Date: 2026-06-01
+
+## Progress checklist
+
+- [x] Phase 0: inspect current repository backup artifacts plus local `jellyberry` runtime-facing backup status without changing live services.
+- [x] Phase 0: document current-state and target backup-management architecture in `docs/architecture/consolidated-borg-management.md`.
+- [x] Phase 0: document operator status, path-change, and scratch-restore workflows in `docs/guides/consolidated-backup-management-operator-guide.md`.
+- [ ] Phase 1: evolve `inventory/backups.yml` schema and validation for first-class destinations, backup sets, database hooks, and restore metadata.
+- [ ] Phase 2: split render-only Borgmatic config/systemd/restore-manifest generation from installer stages.
+- [ ] Phase 3: build a read-only management surface over inventory and telemetry.
+- [ ] Phase 4+: add controlled Git-reviewed edits, restore-drill automation, database pre-backup hooks, secondary destination rollout, and optional BorgWarehouse evaluation.
 
 ## Goal
 
