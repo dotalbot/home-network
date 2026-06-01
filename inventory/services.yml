@@ -496,7 +496,7 @@ services:
       firecrawl_fallback_candidate: true
       api_base_url: http://jellybase:11235
     backup: config-only
-    status: planned
+    status: active
     notes:
       - Docker image pinned to unclecode/crawl4ai:0.8.6.
       - Runtime config is mounted from /opt/docker/.secrets/crawl4ai/config.yml because it contains the API token used to mint JWTs.

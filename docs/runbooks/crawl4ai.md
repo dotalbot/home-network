@@ -1,6 +1,6 @@
 # Crawl4AI Runbook
 
-**Status:** Planned source-managed deployment  
+**Status:** Active source-managed deployment
 **Host:** `jellybase`  
 **Service:** `crawl4ai`  
 **Image:** `unclecode/crawl4ai:0.8.6`  
