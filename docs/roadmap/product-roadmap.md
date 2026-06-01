@@ -39,8 +39,11 @@ The platform should make the home lab understandable, reproducible, observable, 
 - [x] Complete Borg/Borgmatic setup and verification for `jellyhome`, `jellybase`, and `jellyberry`; remaining scope is future hosts such as `jellybackup` if they become backup clients.
 - [x] Add restore runbooks for Home Assistant, Mosquitto, Prometheus, Grafana, Portfolio Mission Control, and key stateful services.
 - [x] Run and document safe restore drills for Mosquitto on `jellyhome` and monitoring-stack config on `jellybase`.
+- [x] Complete phase 5 consolidated backup-management integration review: architecture, read-only UI/API design, restore-drill safety, database-hook design, and rollout gates are aligned in `docs/plans/012-consolidated-borg-management.md`.
+- [ ] Implement the approved first read-only Backup Management surface: generated `backup-management.json` plus a Network Map Backups view on `jellybase`, with no write routes and no shell execution.
 - [x] Document scratch-only restore-drill automation safety, operator approval gates, SQLite/PostgreSQL validators, and tmux/sudo handoff points in `docs/operations/backup-restore-drill-safety.md`.
 - [x] Document first-class database pre-backup hook design for PostgreSQL logical dumps and SQLite WAL/SHM constraints in `docs/plans/014-database-pre-backup-hooks.md`.
+- [ ] Implement restore-drill automation and database pre-backup hooks only after separate approval, keeping scratch-only defaults and production restore gates.
 
 
 ## V3.5 — Shared Database Platform and Manyfold Adoption
@@ -174,14 +177,15 @@ Do not build a Netdata streaming topology unless this decision is explicitly rev
 | Host firewall/UFW makeover | Staged UFW rollout and Docker-layer follow-up completed for Docker hosts with Tailscale SSH and LAN SSH fallbacks, explicit allowlists, rollback docs, and positive service/Prometheus checks | Maintain runbook evidence in `docs/operations/host-firewall-ufw-rollout.md` and `docs/operations/docker-user-firewall-hardening.md`; add persistence for Docker-layer rules |
 | Grafana/Loki observability | Loki, datasource provisioning, Borgmatic log hooks, Alloy host/container log shipping, Grafana dashboards, Alertmanager/Discord routing, and host log/metric/sensor correlation exist | keep Grafana dashboards source-managed and verify provisioning after changes |
 | Reverse proxy + TLS | Needed before safe broader access | proxy/TLS spec, Compose changes, rollback notes |
-| Metadata maturity | Inventory needs richer fields for automation | inventory schema notes and validation checks |
-| Database-aware backups | Databases need dump/restore discipline, not only volume backup | central Postgres runbook, logical dump automation, and service restore runbooks |
+| Metadata maturity | Inventory now has richer backup-management schema and validation; the next gap is using it in a read-only management surface without creating hidden state | `backup-management.json` generator, Network Map Backups view, validation checks |
+| Database-aware backups | Database hook and restore constraints are designed, but live Borgmatic pre-backup hook integration is not yet deployed | `docs/plans/014-database-pre-backup-hooks.md`, central Postgres runbook, logical dump automation, and service restore runbooks |
 | Hermes operational integration | Hermes should assist with checks/runbooks without becoming hidden state | Hermes operations doc and explicit scheduled jobs |
 | Full rebuild drills | Recovery is only real when tested | drill plan, drill report, fixes merged into docs |
 
 ## Immediate next actions
 
-1. Delete retired root-owned Netdata appdata from `jellyhome` and `jellybase` after sudo is available; containers are already retired from the managed path.
-2. Plan the unrelated `jellybase` OS reboot required after package updates.
-3. Add persistence/reapply mechanism for DOCKER-USER hardening after reboot or container recreation.
-4. Run the next recovery-confidence step: non-destructive logical-dump restore drill for Manyfold into a scratch PostgreSQL container, following `docs/runbooks/central-postgres-manyfold-restore.md`.
+1. Decide whether to approve the first backup-management implementation slice: read-only `backup-management.json` generator plus Network Map Backups view on `jellybase`; do not deploy or mutate live hosts before approval.
+2. Delete retired root-owned Netdata appdata from `jellyhome` and `jellybase` after sudo is available; containers are already retired from the managed path.
+3. Plan the unrelated `jellybase` OS reboot required after package updates.
+4. Add persistence/reapply mechanism for DOCKER-USER hardening after reboot or container recreation.
+5. Run the next recovery-confidence step: non-destructive logical-dump restore drill for Manyfold into a scratch PostgreSQL container, following `docs/runbooks/central-postgres-manyfold-restore.md`.

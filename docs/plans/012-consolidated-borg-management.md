@@ -1,6 +1,6 @@
 # Consolidated Borg Management Plan
 
-Status: phase 0 architecture/operator docs drafted
+Status: phase 5 integration review complete; live rollout approval pending
 Date: 2026-06-01
 
 ## Progress checklist
@@ -14,10 +14,13 @@ Date: 2026-06-01
 - [x] Phase 2: split render-only Borgmatic config/systemd/restore-manifest generation from installer stages.
   - [x] Add `scripts/borgmatic-render-generate` for generated Borgmatic config, systemd unit/timer/wrapper text, restore manifests, and validation report under `build/borgmatic-render/` or `/tmp`.
   - [x] Add `docs/guides/render-only-borgmatic-artifact-review.md` with review checklist and promotion boundary.
+- [x] Phase 3 design: document read-only Backup Management UI/API scope, data sources, Network Map hosting option, wireframe, API shape, and deployment approval gate.
+  - [x] Add `docs/specs/006-backup-management-read-only-ui-api.md`, `docs/plans/012-backup-management-read-only-ui-api.md`, and `docs/guides/backup-management-read-only-ui-guide.md`.
 - [x] Phase 4 design: document scratch-only restore-drill safety, database pre-backup hook integration, SQLite/PostgreSQL restore constraints, approval gates, and tmux/sudo handoff points.
   - [x] Add `docs/operations/backup-restore-drill-safety.md` as the canonical scratch restore safety guide.
   - [x] Add `docs/plans/014-database-pre-backup-hooks.md` for PostgreSQL/SQLite hook and validator design.
-- [ ] Phase 3: build a read-only management surface over inventory and telemetry.
+- [x] Phase 5 integration review: cross-check architecture, read-only UI, restore-drill, database-hook, roadmap, and operator-guide docs for consistency; record rollout gate below.
+- [ ] Phase 3 implementation: build the read-only management surface over inventory and telemetry.
 - [ ] Phase 4+: add controlled Git-reviewed edits, restore-drill automation, database pre-backup hooks, secondary destination rollout, and optional BorgWarehouse evaluation.
 
 ## Goal
@@ -432,6 +435,75 @@ Add destination schema, enable one low-risk host, verify, then expand.
 
 If desired, deploy BorgWarehouse on `jellybackup` for repo/quota/target-side visibility. Keep Git inventory canonical unless we explicitly build an API sync.
 
+## Phase 5 integration review and rollout decision
+
+Review date: 2026-06-01.
+
+### Consistency findings
+
+- Architecture, operator guide, read-only UI/API spec, restore-drill safety guide, database-hook plan, and roadmap now agree on the core boundary: `inventory/backups.yml` remains canonical, Borgmatic remains the execution layer, and early management workflows must produce reviewed Git diffs/artifacts instead of mutating live hosts directly.
+- The architecture diagrams correctly show the current flow through Borgmatic wrappers, sanitized status JSON/textfile metrics, Prometheus/Grafana/Loki/MQTT/Discord, and Network Map backup cards.
+- The read-only UI design is intentionally not deployed. Its first implementation should be a Network Map Backups view on `jellybase` using generated static JSON plus existing Prometheus/Alertmanager proxies.
+- Restore-drill and database-hook docs are design sources for later implementation. They require scratch-only defaults, production-path refusal, explicit approval gates, and no secret values in logs, generated JSON, Git, or chat.
+- Current completed work is documentation, schema validation, and render-only artifact generation. No new live `/etc/borgmatic`, systemd, Network Map, database hook, or restore automation deployment is approved by this review.
+
+### Rollout decision
+
+Proceed with the next implementation only after Dominic approves the target slice. Recommended first approved slice:
+
+1. implement the read-only `backup-management.json` generator and Network Map Backups view;
+2. verify it locally/render-only from repository inventory and mocked or existing Prometheus queries;
+3. deploy to the live Network Map on `jellybase` only after explicit approval.
+
+Do not enable write workflows, database pre-backup hooks, restore automation, secondary destinations, BorgWarehouse, or live Borgmatic/systemd changes in the same approval. Those need separate reviewed branches and separate operator gates.
+
+### Exact next tmux/sudo/live-host steps after approval
+
+Use existing tmux panes/sessions for host work when available. Capture the pane first, confirm the hostname, and stop if sudo prompts unexpectedly.
+
+```bash
+# Replace <target> with the operator-confirmed tmux target, for example 0:3.0.
+tmux capture-pane -t <target> -p -S -120
+tmux send-keys -t <target> 'hostname -s && pwd' C-m
+```
+
+Read-only preflight, no mutation:
+
+```bash
+# In the repo before any deploy
+git status --short --branch
+just backup-policy-check
+just borgmatic-render-generate
+git diff --check
+
+# On jellybase / dashboard host, via approved tmux pane
+hostname -s
+docker ps --filter name=network-map --format '{{.Names}} {{.Status}} {{.Ports}}'
+curl -fsS http://127.0.0.1:8788/ >/tmp/network-map-preflight.html
+```
+
+Approved read-only UI deployment shape, if Dominic approves that slice:
+
+```bash
+# repo side: generate/review static assets first
+just network-map-render
+git diff -- docker/appdata/network-map/site/ docs/
+
+# live host side: only after approval, run the established deploy/sync path
+# Existing recipe renders Homepage + Network Map, syncs /opt/docker, then deploys Compose.
+just homepage-deploy
+curl -fsS http://127.0.0.1:8788/data/backup-management.json | python3 -m json.tool >/tmp/backup-management-live.json
+curl -fsS http://127.0.0.1:8788/ >/tmp/network-map-post-deploy.html
+```
+
+Future restore-drill or database-hook implementation gates:
+
+- Generate scripts/artifacts in `build/` or `/tmp` first and review the diff.
+- Use tmux panes on the owning host for any Borgmatic, Docker, or PostgreSQL validation.
+- Require an explicit archive, host, service, scratch directory, and cleanup plan before running any restore drill.
+- Refuse production-looking destinations unless a separate production restore approval is granted.
+- Keep the standalone PostgreSQL logical dump timer active until Borgmatic pre-backup hook runs and restore validations have passed for at least one confidence cycle.
+
 ## Security boundaries
 
 - Backup UI is LAN/Tailnet-only.
@@ -451,11 +523,11 @@ If desired, deploy BorgWarehouse on `jellybackup` for repo/quota/target-side vis
 
 ## Recommended next step
 
-Start with Phase 0 and Phase 1:
+Ask Dominic to approve or reject the first implementation slice from the phase 5 rollout decision:
 
-1. Add a richer schema proposal to `inventory/backups.yml` without changing live behavior.
-2. Add `scripts/backup-inventory-check` to validate the new model.
-3. Keep existing Borgmatic timers/configs untouched.
-4. Produce a read-only backup-management data JSON that the Network Map or a future UI can consume.
+1. implement a generated read-only `backup-management.json` from `inventory/backups.yml`, `inventory/hosts.yml`, `inventory/services.yml`, and runbook paths;
+2. add a Network Map Backups view on `jellybase` that reads that JSON plus existing Prometheus/Alertmanager proxies;
+3. verify locally/render-only first;
+4. deploy with the existing `just homepage-deploy` path only after approval.
 
-This gets us closer to the requested management interface while preserving the working backup engine. No need to throw out the current setup; Borg we go again.
+Keep existing Borgmatic timers/configs untouched during this slice. Do not combine it with write workflows, restore automation, database hook rollout, secondary destinations, or BorgWarehouse. No need to throw out the current setup; Borg we go again.
