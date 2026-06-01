@@ -18,9 +18,9 @@ The first version must not mutate live systems. It can be a dedicated page insid
 - [x] Define beginner-friendly implementation guide.
 - [x] Implement the read-only API/static data collector: `scripts/backup-management-render` generates `docker/appdata/network-map/site/data/backup-management.json` from inventory and docs.
 - [x] Implement the Network Map Backups view: `docker/appdata/network-map/site/modules/backup-management.js` renders summary cards, host status, destinations, backup sets, path coverage, and service restore readiness.
-- [ ] Verify against live Prometheus/runbook links after deployment; Loki remains link/hint-only with no raw log fetch in v1.
-- [ ] Deploy the approved read-only slice via `just homepage-deploy` after an operator supplies sudo access or runs the deploy.
-- [ ] Implement future controlled add/remove workflow as Git-reviewed `inventory/backups.yml` patch proposals and rendered diffs only; no browser mutation route exists in v1.
+- [x] Verify against live Prometheus/runbook links after deployment; Loki remains link/hint-only with no raw log fetch in v1.
+- [x] Deploy the approved read-only slice on the live Network Map.
+- [x] Add a controlled add/remove proposal panel that generates review instructions for `inventory/backups.yml` patches and rendered diffs only; no browser mutation route exists in v1.
 
 ## Scope
 

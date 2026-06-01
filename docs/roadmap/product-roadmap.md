@@ -40,8 +40,8 @@ The platform should make the home lab understandable, reproducible, observable, 
 - [x] Add restore runbooks for Home Assistant, Mosquitto, Prometheus, Grafana, Portfolio Mission Control, and key stateful services.
 - [x] Run and document safe restore drills for Mosquitto on `jellyhome` and monitoring-stack config on `jellybase`.
 - [x] Complete phase 5 consolidated backup-management integration review: architecture, read-only UI/API design, restore-drill safety, database-hook design, and rollout gates are aligned in `docs/plans/012-consolidated-borg-management.md`.
-- [ ] Deploy and live-verify the approved first read-only Backup Management surface: generated `backup-management.json` plus a Network Map Backups view on `jellybase`, with no write routes and no shell execution. Implementation is staged in repo, but `just homepage-deploy` currently requires operator sudo.
-- [ ] Add controlled add/remove proposal workflow later: Git-reviewed `inventory/backups.yml` patches and rendered diffs only, with no direct UI mutation.
+- [x] Deploy and live-verify the approved first read-only Backup Management surface: generated `backup-management.json` plus a Network Map Backups view on `jellybase`, with no write routes and no shell execution.
+- [x] Add controlled add/remove proposal workflow: the live Backups view generates Git-reviewed `inventory/backups.yml` patch instructions and rendered-diff validation steps only, with no direct UI mutation.
 - [x] Document scratch-only restore-drill automation safety, operator approval gates, SQLite/PostgreSQL validators, and tmux/sudo handoff points in `docs/operations/backup-restore-drill-safety.md`.
 - [x] Document first-class database pre-backup hook design for PostgreSQL logical dumps and SQLite WAL/SHM constraints in `docs/plans/014-database-pre-backup-hooks.md`.
 - [ ] Implement restore-drill automation and database pre-backup hooks only after separate approval, keeping scratch-only defaults and production restore gates.

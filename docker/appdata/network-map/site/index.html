@@ -11,7 +11,7 @@
     <div>
       <p class="eyebrow">Home Network</p>
       <h1>Interactive Network Map</h1>
-      <p class="subtitle">LAN and Tailscale inventory generated from discovery data, with four visual layouts shown for comparison.</p>
+      <p class="subtitle">LAN and Tailscale inventory generated from discovery data, with a focused topology, backup status, and restore-readiness view.</p>
     </div>
     <div class="hero-actions">
       <button id="refreshData">Reload data</button>
@@ -50,33 +50,15 @@
       </label>
     </section>
 
-    <section class="inspiration-strip" aria-label="Presentation options">
-      <article>
-        <strong>1. Expanded topology</strong>
-        <span>Improves the current graph with a wider canvas, lighter links, and grouped LAN/Tailnet lanes.</span>
-      </article>
-      <article>
-        <strong>2. Zone lanes</strong>
-        <span>Swimlanes for LAN, Tailnet, management, and devices needing discovery cleanup.</span>
-      </article>
-      <article>
-        <strong>3. Service matrix</strong>
-        <span>A compact port exposure grid for quickly spotting what each device presents.</span>
-      </article>
-      <article>
-        <strong>4. Operations board</strong>
-        <span>Prioritised operational cards for service density, management surfaces, and confidence.</span>
-      </article>
-    </section>
 
     <section class="layout">
       <section>
         <div class="section-heading">
           <div>
-            <p class="eyebrow small">Design comparison</p>
-            <h2>Network views</h2>
+            <p class="eyebrow small">Network map</p>
+            <h2>Topology and backup operations</h2>
           </div>
-          <p class="muted">All options below honour the filters. Click any device in any view to inspect it. Links are inferred from discovery source and known services, not live LLDP/SNMP yet.</p>
+          <p class="muted">The topology honours the filters. Click any device to inspect it; backup sections below show live Borgmatic status and inventory-derived coverage.</p>
         </div>
         <div id="map" class="map topology-shell"></div>
       </section>

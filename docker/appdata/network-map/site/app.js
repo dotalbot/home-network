@@ -13,9 +13,6 @@ import {
   buildTopologyNodes,
   ensureTopologyPositions,
   redrawTopologyLinks,
-  renderZoneLanes,
-  renderServiceMatrix,
-  renderOperationsBoard,
   bindTopologyInteractions,
 } from './modules/topology.js';
 import { fetchHealthData, fetchBackupData, fetchBackupManagementData, fetchAlertmanagerAlerts } from './modules/api.js';
@@ -66,8 +63,6 @@ function renderSummary(items) {
 function renderMap(items) {
   const lan = items.filter(item => item.source === 'lan').sort(byName);
   const tailnet = items.filter(item => item.source === 'tailscale').sort(byName);
-  const management = items.filter(item => item.has_management).sort(byName);
-  const topServices = [...items].sort((a, b) => (b.service_count || 0) - (a.service_count || 0)).slice(0, 8);
   const nodes = buildTopologyNodes(lan, tailnet);
 
   // Update module-level topology state
@@ -84,41 +79,6 @@ function renderMap(items) {
         <p class="muted">Drag nodes to organise the map, then click any node for a movable properties pop-up. Links are still inferred from inventory, not live LLDP/SNMP.</p>
       </div>
       ${renderExpandedTopology(nodes, lan.length, tailnet.length)}
-    </section>
-
-    <section class="option-grid">
-      <article class="option-card" aria-labelledby="lanes-title">
-        <div class="option-heading compact">
-          <div>
-            <p class="eyebrow small">Option 2</p>
-            <h3 id="lanes-title">Zone lanes</h3>
-          </div>
-          <p class="muted">Grouped swimlanes for quick scanning by network zone and operational attention.</p>
-        </div>
-        ${renderZoneLanes(items)}
-      </article>
-
-      <article class="option-card" aria-labelledby="matrix-title">
-        <div class="option-heading compact">
-          <div>
-            <p class="eyebrow small">Option 3</p>
-            <h3 id="matrix-title">Service matrix</h3>
-          </div>
-          <p class="muted">Live operational matrix: health, backup, active alerts, service count, direct URL, and common exposed ports.</p>
-        </div>
-        ${renderServiceMatrix(items, {healthData: currentHealthData, backupData: currentBackupData, alerts: currentAlerts})}
-      </article>
-    </section>
-
-    <section class="option-card" aria-labelledby="ops-title">
-      <div class="option-heading">
-        <div>
-          <p class="eyebrow small">Option 4</p>
-          <h3 id="ops-title">Operations board</h3>
-        </div>
-        <p class="muted">Prioritised cards for management surfaces, service-dense hosts, and discovery confidence.</p>
-      </div>
-      ${renderOperationsBoard(items, management, topServices)}
     </section>
 
     <section class="option-card" aria-labelledby="backup-title">

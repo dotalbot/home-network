@@ -221,7 +221,7 @@
     }
   },
   "future_write_workflow": "Coming next only: propose Git-reviewed inventory/backups.yml patches and rendered diffs; no UI mutation in this slice.",
-  "generated_at": "2026-06-01T16:55:00.669054+00:00",
+  "generated_at": "2026-06-01T17:06:59.123774+00:00",
   "hosts": [
     {
       "backup_role": "secondary-monitoring-host",

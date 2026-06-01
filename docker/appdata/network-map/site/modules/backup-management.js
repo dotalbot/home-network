@@ -186,6 +186,103 @@ function renderServiceReadiness(data) {
   `;
 }
 
+
+function renderChangeProposal(data) {
+  const hosts = (data?.hosts || []).filter(host => host.enabled);
+  const hostOptions = hosts.map(host => `<option value="${escapeHtml(host.name)}">${escapeHtml(host.name)}</option>`).join('');
+  return `
+    <section class="backup-change-proposal" aria-labelledby="backup-change-title">
+      <div class="backup-card-head">
+        <div>
+          <h4 id="backup-change-title">Controlled add/remove proposal</h4>
+          <p class="muted">Builds a Git-reviewed inventory change request only. It does not write files, run shell commands, trigger backups, or touch live Borgmatic config.</p>
+        </div>
+        <span class="backup-status-pill backup-amber">proposal only</span>
+      </div>
+      <form id="backupChangeForm" class="backup-change-form">
+        <label>Host
+          <select id="backupChangeHost">${hostOptions}</select>
+        </label>
+        <label>Action
+          <select id="backupChangeAction">
+            <option value="add">Add path</option>
+            <option value="remove">Remove path</option>
+          </select>
+        </label>
+        <label>Path
+          <input id="backupChangePath" type="text" placeholder="/opt/docker/appdata/example" autocomplete="off" />
+        </label>
+        <label>Backup set id
+          <input id="backupChangeSet" type="text" placeholder="example-appdata" autocomplete="off" />
+        </label>
+        <label>Backup set type
+          <select id="backupChangeType">
+            <option value="path">path</option>
+            <option value="docker_appdata">docker_appdata</option>
+            <option value="sqlite">sqlite</option>
+            <option value="postgres_logical_dump">postgres_logical_dump</option>
+            <option value="media_library">media_library</option>
+            <option value="source_repo">source_repo</option>
+          </select>
+        </label>
+        <label>Reason / service
+          <input id="backupChangeReason" type="text" placeholder="why this should change" autocomplete="off" />
+        </label>
+        <button type="submit">Generate reviewed-change instructions</button>
+      </form>
+      <pre id="backupChangeOutput" class="backup-change-output">Choose a host/action and generate a proposal. Next step is a reviewed Git patch to inventory/backups.yml plus render-only diff validation.</pre>
+    </section>
+  `;
+}
+
+function bindBackupProposal(data) {
+  const form = document.getElementById('backupChangeForm');
+  if (!form || form.dataset.bound === 'true') return;
+  form.dataset.bound = 'true';
+  const output = document.getElementById('backupChangeOutput');
+  form.addEventListener('submit', (event) => {
+    event.preventDefault();
+    const hostName = document.getElementById('backupChangeHost')?.value || '';
+    const action = document.getElementById('backupChangeAction')?.value || 'add';
+    const path = (document.getElementById('backupChangePath')?.value || '').trim();
+    const setId = (document.getElementById('backupChangeSet')?.value || '').trim();
+    const type = document.getElementById('backupChangeType')?.value || 'path';
+    const reason = (document.getElementById('backupChangeReason')?.value || '').trim();
+    const host = (data?.hosts || []).find(item => item.name === hostName);
+    const problems = [];
+    if (!host) problems.push('Select a known backup host.');
+    if (!path.startsWith('/')) problems.push('Path must be absolute.');
+    if (path.includes('..')) problems.push('Path must not contain .. segments.');
+    if (!setId && action === 'add') problems.push('Backup set id is required for add proposals.');
+    if (path.includes('/.secrets') || path.endsWith('/.env')) problems.push('Secret paths are blocked from proposal output.');
+    if (problems.length) {
+      output.textContent = `Proposal blocked:\n- ${problems.join('\n- ')}`;
+      return;
+    }
+    const existingSets = (host.backup_sets || []).map(set => set.id).join(', ') || 'none recorded';
+    const existingPaths = (host.important_paths || []).join(', ') || 'none recorded';
+    const yaml = action === 'add'
+      ? `hosts:\n  ${hostName}:\n    important_paths:\n      - ${path}\n    backup_sets:\n      - id: ${setId}\n        type: ${type}\n        paths:\n          - ${path}\n        destinations: [primary]\n        restore_metadata:\n          restore_scope: ${reason || 'TBD'}\n          restore_runbook: docs/runbooks/service-restore-template.md`
+      : `hosts:\n  ${hostName}:\n    # Remove ${path} from important_paths and from any backup_sets[].paths that reference it.\n    # Keep a reviewed diff showing what changed; do not edit live Borgmatic config directly.`;
+    output.textContent = [
+      `Controlled ${action} proposal for ${hostName}`,
+      `Reason/service: ${reason || 'not provided'}`,
+      '',
+      `Current important paths: ${existingPaths}`,
+      `Current backup sets: ${existingSets}`,
+      '',
+      'Inventory patch target: inventory/backups.yml',
+      yaml,
+      '',
+      'Required validation before deploy:',
+      '1. ./scripts/backup-policy-check',
+      '2. just borgmatic-render-generate',
+      '3. Review rendered Borgmatic diff; do not mutate /etc/borgmatic here.',
+      '4. Commit the inventory change for operator review.',
+    ].join('\n');
+  });
+}
+
 export function renderBackupManagementView(data, liveBackupData, alerts) {
   if (!data) {
     return '<p class="muted">Backup Management data unavailable. Unknown is not healthy; rerun just backup-management-render and redeploy static data.</p>';
@@ -196,12 +293,13 @@ export function renderBackupManagementView(data, liveBackupData, alerts) {
     statesByHost[host.name] = state;
     return state;
   });
+  queueMicrotask(() => bindBackupProposal(data));
   return `
     <div class="backup-management-view">
       ${renderSummaryCards(data, states)}
       <div class="backup-management-guidance">
-        <strong>Read-only slice:</strong> this view links to monitoring and runbooks only. No add/remove, backup trigger, restore trigger, shell execution, or production-path mutation exists here.
-        <span>Coming next: controlled add/remove will propose Git-reviewed <code>inventory/backups.yml</code> patches and rendered diffs only.</span>
+        <strong>Read-only runtime:</strong> this view links to monitoring and runbooks only. No backup trigger, restore trigger, shell execution, or production-path mutation exists here.
+        <span>The add/remove panel below generates a reviewed change proposal only; it does not write to <code>inventory/backups.yml</code> or live hosts.</span>
       </div>
       <h4>Host backup status and destinations</h4>
       ${renderHostTable(data, liveBackupData, alerts, statesByHost)}
@@ -209,6 +307,7 @@ export function renderBackupManagementView(data, liveBackupData, alerts) {
       ${renderHostBreakdown(data)}
       <h4>Service restore readiness snapshot</h4>
       ${renderServiceReadiness(data)}
+      ${renderChangeProposal(data)}
     </div>
   `;
 }
