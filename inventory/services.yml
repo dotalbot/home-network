@@ -217,7 +217,8 @@ services:
       jellybase:
         - jellyfood-api
     urls:
-      primary: http://192.168.1.2:8794
+      primary: http://192.168.1.2:8794/api/health
+      api: http://192.168.1.2:8794
       local: http://127.0.0.1:8794
     description: REST API backend for Jellyfood | Node.js + better-sqlite3
     source:
@@ -299,6 +300,7 @@ services:
         - loki
     urls:
       primary: http://192.168.1.2:3100
+      health: http://192.168.1.2:3100/ready
     description: log history layer for Grafana; receives Borgmatic, host journal, and Docker container logs
     backup: appdata
     status: active
@@ -340,7 +342,10 @@ services:
       jellyberry:
         - alloy
     urls:
-      metrics: http://127.0.0.1:12345/metrics
+      primary: http://192.168.1.2:3001/d/explore/explore?left=%7B%22datasource%22:%22Loki%22%7D
+      metrics_jellyhome: http://192.168.1.1:12345/metrics
+      metrics_jellybase: http://192.168.1.2:12345/metrics
+      metrics_jellyberry: http://192.168.1.159:12345/metrics
     description: per-host Loki log shipper for selected systemd journal and Docker container logs
     backup: config-only
     status: active
@@ -349,6 +354,7 @@ services:
     display_name: Central PostgreSQL
     icon: postgres.png
     category: Data
+    homepage: false
     mode: single-primary
     hosts:
       - jellybase
@@ -409,6 +415,7 @@ services:
         - manyfold-valkey
     urls:
       primary: http://192.168.1.1:3214
+      health: http://192.168.1.1:3214/health
     description: 3D model library manager on jellyhome using central PostgreSQL on jellybase via FILE__DATABASE_URL; library mount is read-write because Manyfold validates local libraries as writable
     database:
       host: jellybase
@@ -560,7 +567,7 @@ services:
 
   mosquitto:
     display_name: Mosquitto MQTT
-    icon: eclipse-mosquitto.png
+    icon: mdi-lan-connect
     category: IoT
     mode: single-primary
     hosts:
@@ -570,6 +577,7 @@ services:
         - mqtt-mosquitto
     urls:
       primary: mqtt://192.168.1.1:1883
+      homepage: http://192.168.1.2:8788
       websocket: ws://192.168.1.1:9001
     description: MQTT broker | jellyhome
     backup: config-and-persistence

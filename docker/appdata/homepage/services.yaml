@@ -41,7 +41,7 @@
       description: log history layer for Grafana; receives Borgmatic, host journal,
         and Docker container logs
       icon: grafana.png
-      siteMonitor: http://192.168.1.2:3100
+      siteMonitor: http://192.168.1.2:3100/ready
   - MQTT Exporter:
       href: http://192.168.1.2:9000/metrics
       description: Bridges retained jellyoffice MQTT JSON telemetry into Prometheus
@@ -49,11 +49,11 @@
       icon: mdi-chart-line
       siteMonitor: http://192.168.1.2:9000/metrics
   - Alloy:
-      href: http://127.0.0.1:12345/metrics
+      href: http://192.168.1.2:3001/d/explore/explore?left=%7B%22datasource%22:%22Loki%22%7D
       description: per-host Loki log shipper for selected systemd journal and Docker
         container logs
       icon: grafana.png
-      siteMonitor: http://127.0.0.1:12345/metrics
+      siteMonitor: http://192.168.1.2:3001/d/explore/explore?left=%7B%22datasource%22:%22Loki%22%7D
 - IoT:
   - Home Assistant:
       href: http://192.168.1.2:8123
@@ -61,9 +61,10 @@
       icon: home-assistant.png
       siteMonitor: http://192.168.1.2:8123
   - Mosquitto MQTT:
-      href: mqtt://192.168.1.1:1883
+      href: http://192.168.1.2:8788
       description: MQTT broker | jellyhome
-      icon: eclipse-mosquitto.png
+      icon: mdi-lan-connect
+      siteMonitor: http://192.168.1.2:8788
   - Jellyoffice Enviro:
       href: http://192.168.1.2:9090/graph?g0.expr=mqtt_temperature%7Bmonitored_host%3D%22jellyoffice%22%7D&g0.tab=0
       description: 'Native Python/systemd publisher on Raspberry Pi Zero 2 W with
@@ -87,17 +88,17 @@
       icon: mdi-food-apple-outline
       siteMonitor: http://192.168.1.2:8793
   - Jellyfood API:
-      href: http://192.168.1.2:8794
+      href: http://192.168.1.2:8794/api/health
       description: REST API backend for Jellyfood | Node.js + better-sqlite3
       icon: mdi-food-apple-outline
-      siteMonitor: http://192.168.1.2:8794
+      siteMonitor: http://192.168.1.2:8794/api/health
   - 3D Print Loader:
       href: http://192.168.1.1:8793
       description: Cross-repo 3D model source resolver and previewer for MakerWorld,
         Printables, Thingiverse, and future Manyfold import; developed on jellyberry,
         runtime on jellyhome via home-network.
       icon: mdi-cube-scan
-      siteMonitor: http://192.168.1.1:8793
+      siteMonitor: http://192.168.1.1:8793/health
 - Study:
   - SC-401 Study Hub:
       href: http://192.168.1.159:8791
@@ -106,7 +107,8 @@
       siteMonitor: http://192.168.1.159:8791
   - MS-102 Study Hub:
       href: http://192.168.1.159:8794
-      description: Microsoft 365 Administrator study hub | home-network managed on jellyberry
+      description: Microsoft 365 Administrator study hub | home-network managed on
+        jellyberry
       icon: mdi-school-outline
       siteMonitor: http://192.168.1.159:8794
 - Tools:
@@ -123,7 +125,8 @@
       siteMonitor: http://192.168.1.1:9999
   - Crawl4AI:
       href: http://192.168.1.2:11235/playground
-      description: local open-source web crawler and markdown extraction API on jellybase; LAN-bound internal service
+      description: local open-source web crawler and markdown extraction API for Hermes/project
+        workflows; LAN-bound on jellybase, not a public scraper endpoint
       icon: mdi-spider-web
       siteMonitor: http://192.168.1.2:11235/health
 - Media:
@@ -133,16 +136,4 @@
         on jellybase via FILE__DATABASE_URL; library mount is read-write because Manyfold
         validates local libraries as writable
       icon: mdi-printer-3d
-      siteMonitor: http://192.168.1.1:3214
-- Data:
-  - Central PostgreSQL:
-      href: postgresql://192.168.1.2:5432
-      description: shared PostgreSQL platform service for home-network applications;
-        first target is Manyfold
-      icon: postgres.png
-- Remote Access:
-  - Seedit4.me Reverse Tunnel:
-      href: ssh://seedit4me@nl13.seedit4.me:2088
-      description: fallback reverse SSH tunnel for jellyberry when Tailscale is blocked;
-        remote port is loopback-only on seedit4.me
-      icon: mdi-tunnel
+      siteMonitor: http://192.168.1.1:3214/health

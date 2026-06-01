@@ -53,14 +53,30 @@ def host_summary(hosts):
     return "unknown host"
 
 
-def primary_or_first_url(urls):
-    primary_url = urls.get("primary")
-    if primary_url and primary_url != "pending":
-        return primary_url
+def is_browser_href(url):
+    return urlparse(url).scheme in ("http", "https")
+
+
+def first_usable_url(urls, preferred_keys=("homepage", "primary")):
+    for key in preferred_keys:
+        value = urls.get(key)
+        if value and value != "pending" and is_browser_href(value):
+            return value
 
     for value in urls.values():
-        if value and value != "pending":
+        if value and value != "pending" and is_browser_href(value):
             return value
+
+    return None
+
+
+def monitor_url_for(urls, href):
+    explicit_monitor = urls.get("siteMonitor") or urls.get("health")
+    if explicit_monitor and explicit_monitor != "pending":
+        return explicit_monitor
+
+    if should_site_monitor(href):
+        return href
 
     return None
 
@@ -94,13 +110,16 @@ def main():
         if status not in ("active", "planned"):
             continue
 
+        if svc.get("homepage") is False:
+            continue
+
         category = svc.get("category", "Other")
         display_name = svc.get("display_name", key)
         mode = svc.get("mode", "service")
         hosts = svc.get("hosts", [])
 
         urls = svc.get("urls", {})
-        primary_url = primary_or_first_url(urls)
+        primary_url = first_usable_url(urls)
 
         if not primary_url:
             continue
@@ -118,8 +137,9 @@ def main():
         if icon:
             service_config["icon"] = icon
 
-        if should_site_monitor(primary_url):
-            service_config["siteMonitor"] = primary_url
+        monitor_url = monitor_url_for(urls, primary_url)
+        if monitor_url:
+            service_config["siteMonitor"] = monitor_url
 
         groups.setdefault(category, [])
 
