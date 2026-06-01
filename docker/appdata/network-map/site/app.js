@@ -18,15 +18,17 @@ import {
   renderOperationsBoard,
   bindTopologyInteractions,
 } from './modules/topology.js';
-import { fetchHealthData, fetchBackupData, fetchAlertmanagerAlerts } from './modules/api.js';
+import { fetchHealthData, fetchBackupData, fetchBackupManagementData, fetchAlertmanagerAlerts } from './modules/api.js';
 import { attachHealthToNodes, findHealthForItem, renderHealthDetail } from './modules/node-health.js';
 import { renderBackupDetail, renderBackupStatusPanel } from './modules/backup-status.js';
+import { renderBackupManagementView } from './modules/backup-management.js';
 import { renderAlertFeed } from './modules/alerts.js';
 import { renderDrilldownLinks } from './modules/drilldown.js';
 
 let selected = null;
 let currentHealthData = null;
 let currentBackupData = null;
+let currentBackupManagementData = null;
 let currentAlerts = [];
 let healthRefreshTimer = null;
 
@@ -36,6 +38,7 @@ async function loadData() {
   const response = await fetch(`data/inventory.json?ts=${Date.now()}`);
   if (!response.ok) throw new Error(`Failed to load inventory: ${response.status}`);
   const inventory = await response.json();
+  currentBackupManagementData = await fetchBackupManagementData();
   setInventory(inventory);
   selected = null;
   populateFilters();
@@ -127,6 +130,17 @@ function renderMap(items) {
         <p class="muted">Borgmatic status from Prometheus textfile metrics: last run, success, repository reachability, and latest archive.</p>
       </div>
       <div id="backupStatus">${renderBackupStatusPanel(currentBackupData)}</div>
+    </section>
+
+    <section class="option-card backup-management-section" aria-labelledby="backup-management-title">
+      <div class="option-heading">
+        <div>
+          <p class="eyebrow small">Read-only Backup Management</p>
+          <h3 id="backup-management-title">Backups</h3>
+        </div>
+        <p class="muted">Generated from inventory and docs, overlaid with live Borgmatic metrics where available. Missing metrics render as unknown, never healthy.</p>
+      </div>
+      <div id="backupManagement">${renderBackupManagementView(currentBackupManagementData, currentBackupData, currentAlerts)}</div>
     </section>
 
     <section class="option-card alert-sidebar" aria-labelledby="alerts-title">

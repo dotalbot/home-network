@@ -1,6 +1,6 @@
 # Spec 006 — Read-only Backup Management UI/API
 
-Status: design only; not deployed
+Status: first read-only implementation built; deployment blocked on sudo credential
 Created: 2026-06-01
 Owner: home-network operators
 
@@ -16,10 +16,11 @@ The first version must not mutate live systems. It can be a dedicated page insid
 - [x] Define UI panels, API shape, and data-source mapping.
 - [x] Define architecture/wireframe and security boundary.
 - [x] Define beginner-friendly implementation guide.
-- [ ] Implement the read-only API/static data collector.
-- [ ] Implement the Network Map Backups view.
-- [ ] Verify against live Prometheus/Loki/runbook links.
-- [ ] Deploy only after Dominic explicitly approves deployment.
+- [x] Implement the read-only API/static data collector: `scripts/backup-management-render` generates `docker/appdata/network-map/site/data/backup-management.json` from inventory and docs.
+- [x] Implement the Network Map Backups view: `docker/appdata/network-map/site/modules/backup-management.js` renders summary cards, host status, destinations, backup sets, path coverage, and service restore readiness.
+- [ ] Verify against live Prometheus/runbook links after deployment; Loki remains link/hint-only with no raw log fetch in v1.
+- [ ] Deploy the approved read-only slice via `just homepage-deploy` after an operator supplies sudo access or runs the deploy.
+- [ ] Implement future controlled add/remove workflow as Git-reviewed `inventory/backups.yml` patch proposals and rendered diffs only; no browser mutation route exists in v1.
 
 ## Scope
 
@@ -120,7 +121,7 @@ docker/appdata/network-map/site/
 └── styles.css
 ```
 
-No deployment is approved by this spec. These paths describe the intended implementation shape only.
+The first read-only slice is implemented in these paths but still needs operator-assisted deployment because `just homepage-deploy` requires sudo in this environment. It remains static/read-only: no write routes, shell execution, backup trigger, restore trigger, or production-path mutation were added.
 
 ## Wireframe
 

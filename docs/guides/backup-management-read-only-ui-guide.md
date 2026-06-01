@@ -1,12 +1,12 @@
 # Read-only Backup Management UI Guide
 
-Status: design-only operator guide
+Status: implemented first read-only slice; deployment pending operator sudo
 Last updated: 2026-06-01
 Related spec: `docs/specs/006-backup-management-read-only-ui-api.md`
 
 ## What this is
 
-The future Backup Management UI is a read-only dashboard for backup health and restore readiness.
+The Backup Management UI is a read-only dashboard for backup health and restore readiness inside Network Map.
 
 It should help you answer four questions quickly:
 
@@ -34,7 +34,15 @@ Why:
 - The existing Network Map nginx proxy already demonstrates same-origin Prometheus/Alertmanager access.
 - It stays inside the trusted LAN/Tailnet boundary.
 
-Do not deploy this UI until Dominic explicitly approves deployment.
+The approved first slice is implemented for the normal Network Map/Homepage path. Deployment is pending an operator-assisted `just homepage-deploy` because syncing runtime config requires sudo in this environment. It remains read-only.
+
+## Implemented first slice
+
+- `scripts/backup-management-render` reads `inventory/backups.yml`, `inventory/hosts.yml`, `inventory/services.yml`, and docs/runbook paths, then writes `docker/appdata/network-map/site/data/backup-management.json`.
+- `just backup-management-render` regenerates the static JSON; `just network-map-render` and `just homepage-deploy` also regenerate it.
+- Network Map renders a visible `Backups` section with summary cards, per-host status/destination rows, backup set/path coverage, and a service restore readiness snapshot.
+- Live Borgmatic metrics are still read through the existing Prometheus proxy; missing live data is shown as unknown/attention, not healthy.
+- Add/remove is intentionally disabled. The next workflow should propose Git-reviewed `inventory/backups.yml` patches and rendered diffs only.
 
 ## What the dashboard should show
 

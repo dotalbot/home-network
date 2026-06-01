@@ -1,0 +1,1913 @@
+{
+  "backup_classes": [
+    {
+      "description": "Service has useful persistent appdata.",
+      "excludes": [
+        "cache",
+        "logs",
+        "temp files"
+      ],
+      "includes": [
+        "/opt/docker/appdata/SERVICE"
+      ],
+      "name": "appdata",
+      "restore_priority": "medium",
+      "restore_verification": null
+    },
+    {
+      "description": "Service has appdata and database state.",
+      "excludes": [
+        "cache",
+        "temp files"
+      ],
+      "includes": [
+        "/opt/docker/appdata/SERVICE",
+        "database dump or database volume"
+      ],
+      "name": "appdata-and-database",
+      "restore_priority": "high",
+      "restore_verification": null
+    },
+    {
+      "description": "Service has appdata plus media/library files.",
+      "excludes": [
+        "cache",
+        "temp files"
+      ],
+      "includes": [
+        "/opt/docker/appdata/SERVICE",
+        "library storage"
+      ],
+      "name": "appdata-and-library",
+      "restore_priority": "high",
+      "restore_verification": null
+    },
+    {
+      "description": "Service needs both its source repository and persistent appdata/runtime state.",
+      "excludes": [
+        "caches",
+        "logs",
+        "temporary files"
+      ],
+      "includes": [
+        "source repository remote and branch",
+        "/opt/docker/appdata/SERVICE",
+        "compose config",
+        "deployment notes"
+      ],
+      "name": "appdata-and-source-repo",
+      "restore_priority": "high",
+      "restore_verification": null
+    },
+    {
+      "description": "Config should be backed up, cache is optional.",
+      "excludes": [
+        "/opt/docker/appdata/SERVICE/cache"
+      ],
+      "includes": [
+        "/opt/docker/appdata/SERVICE/config"
+      ],
+      "name": "config-and-cache",
+      "restore_priority": "low",
+      "restore_verification": null
+    },
+    {
+      "description": "Service has config and small persistent runtime state.",
+      "excludes": [
+        "cache",
+        "logs"
+      ],
+      "includes": [
+        "/opt/docker/appdata/SERVICE/config",
+        "/opt/docker/appdata/SERVICE/data"
+      ],
+      "name": "config-and-persistence",
+      "restore_priority": "medium",
+      "restore_verification": null
+    },
+    {
+      "description": "Service can be rebuilt from Git/config only.",
+      "excludes": [
+        "cache",
+        "generated runtime data"
+      ],
+      "includes": [
+        "compose config",
+        "app config"
+      ],
+      "name": "config-only",
+      "restore_priority": "low",
+      "restore_verification": null
+    },
+    {
+      "description": "Manyfold appdata on jellyhome plus central Postgres database state and 3D model library.",
+      "excludes": [
+        "/opt/docker/.secrets",
+        "cache",
+        "temp files"
+      ],
+      "includes": [
+        "/opt/docker/appdata/manyfold",
+        "central PostgreSQL database manyfold via postgres-volume-and-logical-dumps",
+        "/home/jellyfish/media/Primary_5TB/3D_models"
+      ],
+      "name": "manyfold-appdata-central-postgres-and-library",
+      "restore_priority": "high",
+      "restore_verification": "post-index logical dump restore verified into scratch postgres:17-alpine container"
+    },
+    {
+      "description": "PostgreSQL service with Borg-covered data directory plus logical dump artifacts.",
+      "excludes": [
+        "/opt/docker/.secrets",
+        "temporary dump directories",
+        "partial dump files"
+      ],
+      "includes": [
+        "/opt/docker/appdata/postgres/data",
+        "/opt/docker/appdata/postgres/config",
+        "/opt/docker/appdata/postgres/logical-dumps"
+      ],
+      "name": "postgres-volume-and-logical-dumps",
+      "restore_priority": "critical",
+      "restore_verification": null
+    },
+    {
+      "description": "Service can be rebuilt from a separate source repository plus this repo's Compose/config metadata.",
+      "excludes": [
+        "generated build artifacts",
+        "caches"
+      ],
+      "includes": [
+        "source repository remote and branch",
+        "compose config",
+        "deployment notes"
+      ],
+      "name": "source-repo",
+      "restore_priority": "low",
+      "restore_verification": null
+    },
+    {
+      "description": "Service persists a local SQLite database under service appdata.",
+      "excludes": [
+        "cache",
+        "logs",
+        "temp files"
+      ],
+      "includes": [
+        "/opt/docker/appdata/SERVICE",
+        "SQLite database files and WAL/SHM sidecars"
+      ],
+      "name": "sqlite-data",
+      "restore_priority": "high",
+      "restore_verification": null
+    },
+    {
+      "description": "Ephemeral upload/helper service where app uploads are backed up only if the service becomes operationally important.",
+      "excludes": [
+        "temporary uploads",
+        "cache",
+        "logs"
+      ],
+      "includes": [
+        "/opt/docker/appdata/SERVICE/uploads when retention is required",
+        "compose config"
+      ],
+      "name": "uploads-if-needed",
+      "restore_priority": "low",
+      "restore_verification": null
+    }
+  ],
+  "backup_defaults": {
+    "checks": {
+      "archives_frequency": "2 weeks",
+      "repository": true
+    },
+    "notes": [
+      "Validation-only defaults for future render-only Borgmatic config generation.",
+      "Current live behavior still uses legacy host repository_path and important_paths fields."
+    ],
+    "retention": {
+      "keep_daily": 7,
+      "keep_monthly": 6,
+      "keep_weekly": 4
+    },
+    "schedule": {
+      "on_calendar": "*-*-* 03:00:00",
+      "randomized_delay_sec": "30m"
+    }
+  },
+  "destinations": {
+    "primary": {
+      "address": "192.168.1.75",
+      "address_policy": "use_lan_ip_not_fqdn",
+      "enabled": true,
+      "host": "jellybackup",
+      "purpose": "current LAN-only Borg destination",
+      "repository_path_template": "/home/jellybackup/externaldisk/borg_{host}",
+      "ssh_user": "jellybackup",
+      "transport": "ssh",
+      "type": "borg_ssh"
+    },
+    "secondary": {
+      "address": "TBD",
+      "address_policy": "use_lan_ip_not_fqdn",
+      "enabled": false,
+      "host": "TBD",
+      "purpose": "disabled future second/offsite destination placeholder; must stay disabled until a rollout card supplies concrete target details",
+      "repository_path_template": "TBD",
+      "ssh_user": "TBD",
+      "transport": "ssh",
+      "type": "borg_ssh"
+    }
+  },
+  "future_write_workflow": "Coming next only: propose Git-reviewed inventory/backups.yml patches and rendered diffs; no UI mutation in this slice.",
+  "generated_at": "2026-06-01T16:55:00.669054+00:00",
+  "hosts": [
+    {
+      "backup_role": "secondary-monitoring-host",
+      "backup_sets": [
+        {
+          "backup_class": {
+            "description": "Service has useful persistent appdata.",
+            "excludes": [
+              "cache",
+              "logs",
+              "temp files"
+            ],
+            "includes": [
+              "/opt/docker/appdata/SERVICE"
+            ],
+            "name": "appdata",
+            "restore_priority": "medium",
+            "restore_verification": null
+          },
+          "database_hook": {},
+          "destinations": [
+            "primary"
+          ],
+          "id": "docker-root",
+          "output_path": null,
+          "paths": [
+            "/opt/docker"
+          ],
+          "restore_metadata": {
+            "docker_host": true,
+            "restore_scope": "monitoring stack Docker config, appdata, and generated local state already covered by /opt/docker"
+          },
+          "restore_runbook": null,
+          "type": "path"
+        },
+        {
+          "backup_class": {
+            "description": "PostgreSQL service with Borg-covered data directory plus logical dump artifacts.",
+            "excludes": [
+              "/opt/docker/.secrets",
+              "temporary dump directories",
+              "partial dump files"
+            ],
+            "includes": [
+              "/opt/docker/appdata/postgres/data",
+              "/opt/docker/appdata/postgres/config",
+              "/opt/docker/appdata/postgres/logical-dumps"
+            ],
+            "name": "postgres-volume-and-logical-dumps",
+            "restore_priority": "critical",
+            "restore_verification": null
+          },
+          "database_hook": {
+            "command": "/opt/docker/bin/postgres-logical-dump",
+            "current_runtime": "standalone timer remains in place until a later hook rollout phase",
+            "failure_policy": "fail_backup",
+            "run_before_backup": true
+          },
+          "destinations": [
+            "primary"
+          ],
+          "id": "central-postgres-logical-dumps",
+          "output_path": "/opt/docker/appdata/postgres/logical-dumps",
+          "paths": [
+            "/opt/docker/appdata/postgres/logical-dumps"
+          ],
+          "restore_metadata": {
+            "restore_scope": "logical dumps for central PostgreSQL databases; scratch restores stay default"
+          },
+          "restore_runbook": {
+            "path": "docs/runbooks/central-postgres-manyfold-restore.md",
+            "url": "https://github.com/dotalbot/home-network/blob/main/docs/runbooks/central-postgres-manyfold-restore.md"
+          },
+          "type": "postgres_logical_dump"
+        },
+        {
+          "backup_class": {
+            "description": "Service can be rebuilt from a separate source repository plus this repo's Compose/config metadata.",
+            "excludes": [
+              "generated build artifacts",
+              "caches"
+            ],
+            "includes": [
+              "source repository remote and branch",
+              "compose config",
+              "deployment notes"
+            ],
+            "name": "source-repo",
+            "restore_priority": "low",
+            "restore_verification": null
+          },
+          "database_hook": {},
+          "destinations": [
+            "primary"
+          ],
+          "id": "dev-repos",
+          "output_path": null,
+          "paths": [
+            "/home/jellyfish/repo"
+          ],
+          "restore_metadata": {
+            "restore_scope": "developer checkout mirror; Git remotes remain authoritative for tracked repositories"
+          },
+          "restore_runbook": null,
+          "type": "source_repo"
+        }
+      ],
+      "borg_enabled": true,
+      "description": "Secondary Ubuntu Docker/monitoring server",
+      "destination_labels": [
+        "primary"
+      ],
+      "destinations": {
+        "primary": {
+          "enabled": true,
+          "repository_path": "/home/jellybackup/externaldisk/borg_jellybase"
+        }
+      },
+      "enabled": true,
+      "host_type": "docker",
+      "important_paths": [
+        "/opt/docker",
+        "/home/jellyfish/repo"
+      ],
+      "lan_ip": "192.168.1.2",
+      "links": {
+        "alertmanager": "http://192.168.1.2:9093/",
+        "grafana": "http://192.168.1.2:3001/",
+        "loki_explore_hint": "{job=\"borgmatic\", host=\"jellybase\"}",
+        "restore_runbook_index": {
+          "path": "docs/guides/consolidated-backup-management-operator-guide.md",
+          "url": "https://github.com/dotalbot/home-network/blob/main/docs/guides/consolidated-backup-management-operator-guide.md"
+        }
+      },
+      "name": "jellybase",
+      "notes": [
+        "Runs Prometheus and Grafana.",
+        "May hold synced dev mirror."
+      ],
+      "repository_path": "/home/jellybackup/externaldisk/borg_jellybase",
+      "roles": [
+        "docker-host",
+        "homepage-secondary",
+        "prometheus",
+        "database-host",
+        "postgres-primary",
+        "dozzle-agent",
+        "portainer-agent",
+        "dev-sync-mirror",
+        "borg-client",
+        "node-exporter-client",
+        "tailscale-node"
+      ],
+      "rollout_status": {
+        "check_status": "passed",
+        "config_status": "validated",
+        "latest_verified_archive": "jellybase-2026-05-25T03:12:03",
+        "loki_log_shipping_status": "verified",
+        "metrics_status": "verified",
+        "restore_test_status": "passed",
+        "timer_status": "managed timer enabled"
+      }
+    },
+    {
+      "backup_role": "raspberry-pi-lightweight-node",
+      "backup_sets": [
+        {
+          "backup_class": {
+            "description": "Service has useful persistent appdata.",
+            "excludes": [
+              "cache",
+              "logs",
+              "temp files"
+            ],
+            "includes": [
+              "/opt/docker/appdata/SERVICE"
+            ],
+            "name": "appdata",
+            "restore_priority": "medium",
+            "restore_verification": null
+          },
+          "database_hook": {},
+          "destinations": [
+            "primary"
+          ],
+          "id": "docker-root",
+          "output_path": null,
+          "paths": [
+            "/opt/docker"
+          ],
+          "restore_metadata": {
+            "docker_host": true,
+            "restore_scope": "lightweight node Docker config, appdata, backup status, and local runtime files under /opt/docker"
+          },
+          "restore_runbook": null,
+          "type": "path"
+        }
+      ],
+      "borg_enabled": true,
+      "description": "Raspberry Pi Docker host, current home of Hermes agent and lightweight local services",
+      "destination_labels": [
+        "primary"
+      ],
+      "destinations": {
+        "primary": {
+          "enabled": true,
+          "repository_path": "/home/jellybackup/externaldisk/borg_jellyberry"
+        }
+      },
+      "enabled": true,
+      "host_type": "docker",
+      "important_paths": [
+        "/opt/docker"
+      ],
+      "lan_ip": "192.168.1.159",
+      "links": {
+        "alertmanager": "http://192.168.1.2:9093/",
+        "grafana": "http://192.168.1.2:3001/",
+        "loki_explore_hint": "{job=\"borgmatic\", host=\"jellyberry\"}",
+        "restore_runbook_index": {
+          "path": "docs/guides/consolidated-backup-management-operator-guide.md",
+          "url": "https://github.com/dotalbot/home-network/blob/main/docs/guides/consolidated-backup-management-operator-guide.md"
+        }
+      },
+      "name": "jellyberry",
+      "notes": [
+        "Only back up if it has local state worth preserving."
+      ],
+      "repository_path": "/home/jellybackup/externaldisk/borg_jellyberry",
+      "roles": [
+        "pi",
+        "docker-host",
+        "network-map",
+        "lightweight-services",
+        "dozzle-agent",
+        "borg-client",
+        "node-exporter-client",
+        "tailscale-node"
+      ],
+      "rollout_status": {
+        "check_status": "passed",
+        "config_status": "validated",
+        "latest_verified_archive": "jellyberry-2026-05-23T09:23:49",
+        "loki_log_shipping_status": "verified",
+        "metrics_status": "verified",
+        "package_status": "installed",
+        "repository_status": "initialized",
+        "restore_test_status": "passed",
+        "root_ssh_status": "verified",
+        "timer_status": "enabled"
+      }
+    },
+    {
+      "backup_role": "primary-docker-dev-host",
+      "backup_sets": [
+        {
+          "backup_class": {
+            "description": "Service has useful persistent appdata.",
+            "excludes": [
+              "cache",
+              "logs",
+              "temp files"
+            ],
+            "includes": [
+              "/opt/docker/appdata/SERVICE"
+            ],
+            "name": "appdata",
+            "restore_priority": "medium",
+            "restore_verification": null
+          },
+          "database_hook": {},
+          "destinations": [
+            "primary"
+          ],
+          "id": "docker-root",
+          "output_path": null,
+          "paths": [
+            "/opt/docker"
+          ],
+          "restore_metadata": {
+            "docker_host": true,
+            "restore_scope": "host-level Docker config and appdata covered by existing Borgmatic source path"
+          },
+          "restore_runbook": null,
+          "type": "path"
+        },
+        {
+          "backup_class": {
+            "description": "Service can be rebuilt from a separate source repository plus this repo's Compose/config metadata.",
+            "excludes": [
+              "generated build artifacts",
+              "caches"
+            ],
+            "includes": [
+              "source repository remote and branch",
+              "compose config",
+              "deployment notes"
+            ],
+            "name": "source-repo",
+            "restore_priority": "low",
+            "restore_verification": null
+          },
+          "database_hook": {},
+          "destinations": [
+            "primary"
+          ],
+          "id": "dev-repos",
+          "output_path": null,
+          "paths": [
+            "/home/jellyfish/repo"
+          ],
+          "restore_metadata": {
+            "restore_scope": "developer checkout mirror; Git remotes remain the authoritative source for tracked repositories"
+          },
+          "restore_runbook": null,
+          "type": "source_repo"
+        },
+        {
+          "backup_class": {
+            "description": "Service has appdata plus media/library files.",
+            "excludes": [
+              "cache",
+              "temp files"
+            ],
+            "includes": [
+              "/opt/docker/appdata/SERVICE",
+              "library storage"
+            ],
+            "name": "appdata-and-library",
+            "restore_priority": "high",
+            "restore_verification": null
+          },
+          "database_hook": {},
+          "destinations": [
+            "primary"
+          ],
+          "id": "model-library-3d",
+          "output_path": null,
+          "paths": [
+            "/home/jellyfish/media/Primary_5TB/3D_models"
+          ],
+          "restore_metadata": {
+            "related_restore_runbook": "docs/runbooks/central-postgres-manyfold-restore.md",
+            "restore_scope": "Manyfold-visible 3D model library path"
+          },
+          "restore_runbook": {
+            "path": "docs/runbooks/central-postgres-manyfold-restore.md",
+            "url": "https://github.com/dotalbot/home-network/blob/main/docs/runbooks/central-postgres-manyfold-restore.md"
+          },
+          "type": "media_library"
+        }
+      ],
+      "borg_enabled": true,
+      "description": "Main Ubuntu Docker/dev server",
+      "destination_labels": [
+        "primary"
+      ],
+      "destinations": {
+        "primary": {
+          "enabled": true,
+          "repository_path": "/home/jellybackup/externaldisk/borg_jellyhome"
+        }
+      },
+      "enabled": true,
+      "host_type": "docker",
+      "important_paths": [
+        "/opt/docker",
+        "/home/jellyfish/repo",
+        "/home/jellyfish/media/Primary_5TB/3D_models"
+      ],
+      "lan_ip": "192.168.1.1",
+      "links": {
+        "alertmanager": "http://192.168.1.2:9093/",
+        "grafana": "http://192.168.1.2:3001/",
+        "loki_explore_hint": "{job=\"borgmatic\", host=\"jellyhome\"}",
+        "restore_runbook_index": {
+          "path": "docs/guides/consolidated-backup-management-operator-guide.md",
+          "url": "https://github.com/dotalbot/home-network/blob/main/docs/guides/consolidated-backup-management-operator-guide.md"
+        }
+      },
+      "name": "jellyhome",
+      "notes": [
+        "Runs core management UI.",
+        "Runs planned Calibre and Mosquitto.",
+        "Dev repos may also be synced elsewhere."
+      ],
+      "repository_path": "/home/jellybackup/externaldisk/borg_jellyhome",
+      "roles": [
+        "docker-host",
+        "homepage-primary",
+        "dozzle-ui",
+        "portainer-server",
+        "calibre",
+        "mqtt",
+        "dev-server",
+        "borg-client",
+        "node-exporter-client",
+        "tailscale-node"
+      ],
+      "rollout_status": {
+        "config_status": "validated",
+        "latest_verified_archive": "jellyhome-2026-05-23T09:40:36",
+        "loki_log_shipping_status": "verified",
+        "metrics_status": "verified"
+      }
+    },
+    {
+      "backup_role": "remote-sync-backup-helper",
+      "backup_sets": [
+        {
+          "backup_class": {
+            "description": "Service has useful persistent appdata.",
+            "excludes": [
+              "cache",
+              "logs",
+              "temp files"
+            ],
+            "includes": [
+              "/opt/docker/appdata/SERVICE"
+            ],
+            "name": "appdata",
+            "restore_priority": "medium",
+            "restore_verification": null
+          },
+          "database_hook": {},
+          "destinations": [
+            "primary"
+          ],
+          "id": "remote-docker-root",
+          "output_path": null,
+          "paths": [
+            "/opt/docker"
+          ],
+          "restore_metadata": {
+            "restore_scope": "future remote Docker payload; destination remains disabled until repo path and transport are confirmed"
+          },
+          "restore_runbook": null,
+          "type": "path"
+        },
+        {
+          "backup_class": {
+            "description": "Service has useful persistent appdata.",
+            "excludes": [
+              "cache",
+              "logs",
+              "temp files"
+            ],
+            "includes": [
+              "/opt/docker/appdata/SERVICE"
+            ],
+            "name": "appdata",
+            "restore_priority": "medium",
+            "restore_verification": null
+          },
+          "database_hook": {},
+          "destinations": [
+            "primary"
+          ],
+          "id": "remote-home",
+          "output_path": null,
+          "paths": [
+            "/home/jellyfish"
+          ],
+          "restore_metadata": {
+            "restore_scope": "future remote user data payload; destination remains disabled until repo path and transport are confirmed"
+          },
+          "restore_runbook": null,
+          "type": "path"
+        }
+      ],
+      "borg_enabled": true,
+      "description": "Remote seedbox / remote sync / backup helper",
+      "destination_labels": [],
+      "destinations": {
+        "primary": {
+          "enabled": false,
+          "status": "planned_repository_path_missing"
+        }
+      },
+      "enabled": false,
+      "host_type": "remote",
+      "important_paths": [
+        "/opt/docker",
+        "/home/jellyfish"
+      ],
+      "lan_ip": null,
+      "links": {
+        "alertmanager": "http://192.168.1.2:9093/",
+        "grafana": "http://192.168.1.2:3001/",
+        "loki_explore_hint": "{job=\"borgmatic\", host=\"seedbox\"}",
+        "restore_runbook_index": {
+          "path": "docs/guides/consolidated-backup-management-operator-guide.md",
+          "url": "https://github.com/dotalbot/home-network/blob/main/docs/guides/consolidated-backup-management-operator-guide.md"
+        }
+      },
+      "name": "seedbox",
+      "notes": [
+        "May act as offsite sync or backup relay."
+      ],
+      "repository_path": null,
+      "roles": [
+        "remote-server",
+        "remote-sync",
+        "remote-backup",
+        "tailscale-exit-node",
+        "borg-target"
+      ],
+      "rollout_status": {}
+    }
+  ],
+  "observability": {
+    "alertmanager_url": "http://192.168.1.2:9093/",
+    "grafana_url": "http://192.168.1.2:3001/",
+    "loki_labels": {
+      "backup_profile": "default",
+      "environment": "home-network",
+      "job": "borgmatic"
+    },
+    "loki_url": "http://192.168.1.2:3100/",
+    "metric_status": "live metrics are loaded separately by browser Prometheus queries; missing data must render as unknown",
+    "prometheus_url": "http://192.168.1.2:9090/"
+  },
+  "primary_target": {
+    "address_policy": "use_lan_ip_not_fqdn",
+    "host": "jellybackup",
+    "lan_ip": "192.168.1.75",
+    "reason": "FQDN resolves over Tailscale and is too taxing on the Raspberry Pi backup host.",
+    "repo_status": "destination repository directories already exist on jellybackup, one per server.",
+    "ssh_status": "ssh-copy-id has been completed from jellyhome, jellybase, and jellyberry.",
+    "ssh_user": "jellybackup",
+    "transport": "ssh"
+  },
+  "restore_rules": {
+    "appdata": {
+      "method": "restore_borg_then_deploy",
+      "steps": [
+        "bootstrap host",
+        "restore /opt/docker/appdata/SERVICE from Borg",
+        "sync docker config",
+        "deploy service"
+      ]
+    },
+    "appdata-and-database": {
+      "method": "restore_data_and_database",
+      "steps": [
+        "bootstrap host",
+        "restore appdata from Borg",
+        "restore database dump or volume",
+        "deploy service",
+        "verify application health"
+      ]
+    },
+    "appdata-and-library": {
+      "method": "restore_appdata_and_library",
+      "steps": [
+        "bootstrap host",
+        "restore appdata from Borg",
+        "restore library/media path",
+        "deploy service",
+        "verify application health"
+      ]
+    },
+    "appdata-and-source-repo": {
+      "method": "restore_source_and_appdata_then_deploy",
+      "steps": [
+        "bootstrap host",
+        "restore or clone source directory recorded in service metadata",
+        "restore /opt/docker/appdata/SERVICE from Borg",
+        "verify required host-local secrets exist",
+        "sync docker config",
+        "build and deploy service",
+        "verify service health"
+      ]
+    },
+    "config-and-cache": {
+      "method": "restore_config_ignore_cache",
+      "steps": [
+        "bootstrap host",
+        "restore config from Borg or redeploy config from Git",
+        "do not restore cache unless explicitly needed",
+        "deploy service",
+        "verify service health"
+      ]
+    },
+    "config-and-persistence": {
+      "method": "restore_config_and_persistent_state",
+      "steps": [
+        "bootstrap host",
+        "restore config and persistent data from Borg",
+        "deploy service",
+        "verify service health"
+      ]
+    },
+    "config-only": {
+      "method": "redeploy_from_git",
+      "steps": [
+        "bootstrap host",
+        "clone home-network",
+        "sync docker config",
+        "deploy service"
+      ]
+    },
+    "manyfold-appdata-central-postgres-and-library": {
+      "method": "restore_appdata_postgres_and_library",
+      "steps": [
+        "bootstrap jellyhome and jellybase",
+        "restore /opt/docker/appdata/manyfold on jellyhome from Borg",
+        "restore central PostgreSQL using postgres-volume-and-logical-dumps rules on jellybase",
+        "restore or verify /home/jellyfish/media/Primary_5TB/3D_models",
+        "recreate required secret files under /opt/docker/.secrets without printing values",
+        "sync docker config and deploy manyfold plus manyfold-valkey",
+        "verify Manyfold HTTP health, database connectivity, and restored library/model/model-file counts"
+      ]
+    },
+    "postgres-volume-and-logical-dumps": {
+      "method": "restore_postgres_volume_or_logical_dump",
+      "steps": [
+        "bootstrap host",
+        "restore /opt/docker/appdata/postgres from Borg",
+        "verify required secret files exist outside Git",
+        "deploy central-postgres",
+        "verify pg_isready",
+        "if volume restore is unusable, restore globals and per-database dumps from logical-dumps/latest"
+      ]
+    },
+    "source-repo": {
+      "method": "restore_source_then_deploy",
+      "steps": [
+        "bootstrap host",
+        "restore or clone source directory recorded in service metadata",
+        "verify build context and Dockerfile exist",
+        "sync docker config",
+        "build and deploy service",
+        "verify service health"
+      ]
+    },
+    "sqlite-data": {
+      "method": "restore_sqlite_appdata_then_deploy",
+      "steps": [
+        "bootstrap host",
+        "restore /opt/docker/appdata/SERVICE from Borg, including SQLite database and WAL/SHM sidecars when present",
+        "restore or clone source directory recorded in service metadata when the service is source-built",
+        "sync docker config",
+        "deploy service",
+        "verify HTTP/API health and expected database records"
+      ]
+    },
+    "uploads-if-needed": {
+      "method": "restore_uploads_if_retained_then_deploy",
+      "steps": [
+        "bootstrap host",
+        "restore or clone source directory recorded in service metadata",
+        "restore uploads from Borg only if retention is required",
+        "sync docker config",
+        "build and deploy service",
+        "verify service health"
+      ]
+    }
+  },
+  "runbooks": [
+    {
+      "path": "docs/runbooks/adopt-project-service-template.md",
+      "title": "Adopt Project Service Template",
+      "url": "https://github.com/dotalbot/home-network/blob/main/docs/runbooks/adopt-project-service-template.md"
+    },
+    {
+      "path": "docs/runbooks/calibre-web-automated-restore.md",
+      "title": "Calibre Web Automated Restore",
+      "url": "https://github.com/dotalbot/home-network/blob/main/docs/runbooks/calibre-web-automated-restore.md"
+    },
+    {
+      "path": "docs/runbooks/central-postgres-manyfold-restore.md",
+      "title": "Central Postgres Manyfold Restore",
+      "url": "https://github.com/dotalbot/home-network/blob/main/docs/runbooks/central-postgres-manyfold-restore.md"
+    },
+    {
+      "path": "docs/runbooks/crawl4ai.md",
+      "title": "Crawl4Ai",
+      "url": "https://github.com/dotalbot/home-network/blob/main/docs/runbooks/crawl4ai.md"
+    },
+    {
+      "path": "docs/runbooks/homeassistant-restore.md",
+      "title": "Homeassistant Restore",
+      "url": "https://github.com/dotalbot/home-network/blob/main/docs/runbooks/homeassistant-restore.md"
+    },
+    {
+      "path": "docs/runbooks/manyfold-library-restore.md",
+      "title": "Manyfold Library Restore",
+      "url": "https://github.com/dotalbot/home-network/blob/main/docs/runbooks/manyfold-library-restore.md"
+    },
+    {
+      "path": "docs/runbooks/monitoring-stack-restore.md",
+      "title": "Monitoring Stack Restore",
+      "url": "https://github.com/dotalbot/home-network/blob/main/docs/runbooks/monitoring-stack-restore.md"
+    },
+    {
+      "path": "docs/runbooks/mosquitto-restore.md",
+      "title": "Mosquitto Restore",
+      "url": "https://github.com/dotalbot/home-network/blob/main/docs/runbooks/mosquitto-restore.md"
+    },
+    {
+      "path": "docs/runbooks/portfolio-mission-control-restore.md",
+      "title": "Portfolio Mission Control Restore",
+      "url": "https://github.com/dotalbot/home-network/blob/main/docs/runbooks/portfolio-mission-control-restore.md"
+    },
+    {
+      "path": "docs/runbooks/rebuild-ubuntu-host.md",
+      "title": "Rebuild Ubuntu Host",
+      "url": "https://github.com/dotalbot/home-network/blob/main/docs/runbooks/rebuild-ubuntu-host.md"
+    },
+    {
+      "path": "docs/runbooks/service-restore-template.md",
+      "title": "Service Restore Template",
+      "url": "https://github.com/dotalbot/home-network/blob/main/docs/runbooks/service-restore-template.md"
+    },
+    {
+      "path": "docs/operations/3dprint-loader.md",
+      "title": "3Dprint Loader",
+      "url": "https://github.com/dotalbot/home-network/blob/main/docs/operations/3dprint-loader.md"
+    },
+    {
+      "path": "docs/operations/backup-restore-drill-safety.md",
+      "title": "Backup Restore Drill Safety",
+      "url": "https://github.com/dotalbot/home-network/blob/main/docs/operations/backup-restore-drill-safety.md"
+    },
+    {
+      "path": "docs/operations/borgmatic-host-rollout.md",
+      "title": "Borgmatic Host Rollout",
+      "url": "https://github.com/dotalbot/home-network/blob/main/docs/operations/borgmatic-host-rollout.md"
+    },
+    {
+      "path": "docs/operations/central-postgres.md",
+      "title": "Central Postgres",
+      "url": "https://github.com/dotalbot/home-network/blob/main/docs/operations/central-postgres.md"
+    },
+    {
+      "path": "docs/operations/cross-repo-app-deployment.md",
+      "title": "Cross Repo App Deployment",
+      "url": "https://github.com/dotalbot/home-network/blob/main/docs/operations/cross-repo-app-deployment.md"
+    },
+    {
+      "path": "docs/operations/docker-host-bootstrap.md",
+      "title": "Docker Host Bootstrap",
+      "url": "https://github.com/dotalbot/home-network/blob/main/docs/operations/docker-host-bootstrap.md"
+    },
+    {
+      "path": "docs/operations/docker-user-firewall-hardening.md",
+      "title": "Docker User Firewall Hardening",
+      "url": "https://github.com/dotalbot/home-network/blob/main/docs/operations/docker-user-firewall-hardening.md"
+    },
+    {
+      "path": "docs/operations/hindsight.md",
+      "title": "Hindsight",
+      "url": "https://github.com/dotalbot/home-network/blob/main/docs/operations/hindsight.md"
+    },
+    {
+      "path": "docs/operations/host-firewall-ufw-rollout.md",
+      "title": "Host Firewall Ufw Rollout",
+      "url": "https://github.com/dotalbot/home-network/blob/main/docs/operations/host-firewall-ufw-rollout.md"
+    },
+    {
+      "path": "docs/operations/image-pastebin.md",
+      "title": "Image Pastebin",
+      "url": "https://github.com/dotalbot/home-network/blob/main/docs/operations/image-pastebin.md"
+    },
+    {
+      "path": "docs/operations/jellyberry-docker-host-bootstrap.md",
+      "title": "Jellyberry Docker Host Bootstrap",
+      "url": "https://github.com/dotalbot/home-network/blob/main/docs/operations/jellyberry-docker-host-bootstrap.md"
+    },
+    {
+      "path": "docs/operations/jellybot-operator-bootstrap.md",
+      "title": "Jellybot Operator Bootstrap",
+      "url": "https://github.com/dotalbot/home-network/blob/main/docs/operations/jellybot-operator-bootstrap.md"
+    },
+    {
+      "path": "docs/operations/jellyfood-web.md",
+      "title": "Jellyfood Web",
+      "url": "https://github.com/dotalbot/home-network/blob/main/docs/operations/jellyfood-web.md"
+    },
+    {
+      "path": "docs/operations/jellyoffice-headless-wifi.md",
+      "title": "Jellyoffice Headless Wifi",
+      "url": "https://github.com/dotalbot/home-network/blob/main/docs/operations/jellyoffice-headless-wifi.md"
+    },
+    {
+      "path": "docs/operations/loki-grafana-observability.md",
+      "title": "Loki Grafana Observability",
+      "url": "https://github.com/dotalbot/home-network/blob/main/docs/operations/loki-grafana-observability.md"
+    },
+    {
+      "path": "docs/operations/network-map-dashboard.md",
+      "title": "Network Map Dashboard",
+      "url": "https://github.com/dotalbot/home-network/blob/main/docs/operations/network-map-dashboard.md"
+    },
+    {
+      "path": "docs/operations/node-exporter-disk-health.md",
+      "title": "Node Exporter Disk Health",
+      "url": "https://github.com/dotalbot/home-network/blob/main/docs/operations/node-exporter-disk-health.md"
+    },
+    {
+      "path": "docs/operations/portfolio-mission-control.md",
+      "title": "Portfolio Mission Control",
+      "url": "https://github.com/dotalbot/home-network/blob/main/docs/operations/portfolio-mission-control.md"
+    },
+    {
+      "path": "docs/operations/prometheus-alerting.md",
+      "title": "Prometheus Alerting",
+      "url": "https://github.com/dotalbot/home-network/blob/main/docs/operations/prometheus-alerting.md"
+    },
+    {
+      "path": "docs/operations/safe-network-discovery.md",
+      "title": "Safe Network Discovery",
+      "url": "https://github.com/dotalbot/home-network/blob/main/docs/operations/safe-network-discovery.md"
+    },
+    {
+      "path": "docs/operations/sc401-study-hub.md",
+      "title": "Sc401 Study Hub",
+      "url": "https://github.com/dotalbot/home-network/blob/main/docs/operations/sc401-study-hub.md"
+    },
+    {
+      "path": "docs/operations/scheduled-ops-checks.md",
+      "title": "Scheduled Ops Checks",
+      "url": "https://github.com/dotalbot/home-network/blob/main/docs/operations/scheduled-ops-checks.md"
+    },
+    {
+      "path": "docs/operations/seedit4me-reverse-tunnel.md",
+      "title": "Seedit4Me Reverse Tunnel",
+      "url": "https://github.com/dotalbot/home-network/blob/main/docs/operations/seedit4me-reverse-tunnel.md"
+    },
+    {
+      "path": "docs/guides/backup-management-read-only-ui-guide.md",
+      "title": "Backup Management Read Only Ui Guide",
+      "url": "https://github.com/dotalbot/home-network/blob/main/docs/guides/backup-management-read-only-ui-guide.md"
+    },
+    {
+      "path": "docs/guides/consolidated-backup-management-operator-guide.md",
+      "title": "Consolidated Backup Management Operator Guide",
+      "url": "https://github.com/dotalbot/home-network/blob/main/docs/guides/consolidated-backup-management-operator-guide.md"
+    },
+    {
+      "path": "docs/guides/render-only-borgmatic-artifact-review.md",
+      "title": "Render Only Borgmatic Artifact Review",
+      "url": "https://github.com/dotalbot/home-network/blob/main/docs/guides/render-only-borgmatic-artifact-review.md"
+    }
+  ],
+  "schema_version": 1,
+  "security_boundary": "Read-only static JSON generated from repo inventory/docs; no secret files read; no write actions or shell execution exposed.",
+  "services": [
+    {
+      "backup_class": {
+        "description": "Service needs both its source repository and persistent appdata/runtime state.",
+        "excludes": [
+          "caches",
+          "logs",
+          "temporary files"
+        ],
+        "includes": [
+          "source repository remote and branch",
+          "/opt/docker/appdata/SERVICE",
+          "compose config",
+          "deployment notes"
+        ],
+        "name": "appdata-and-source-repo",
+        "restore_priority": "high",
+        "restore_verification": null
+      },
+      "category": "Projects",
+      "display_name": "3D Print Loader",
+      "hosts": [
+        "jellyhome"
+      ],
+      "id": "3dprint-loader",
+      "restore_note": "Requires source checkout on jellyhome plus /opt/docker appdata/secrets; refresh with git fetch and git pull --ff-only before compose rebuild.",
+      "restore_runbook": null,
+      "source_metadata_status": "present",
+      "source_type": "git",
+      "status": "active",
+      "urls": {
+        "health": "http://192.168.1.1:8793/health",
+        "primary": "http://192.168.1.1:8793"
+      }
+    },
+    {
+      "backup_class": {
+        "description": "Service can be rebuilt from Git/config only.",
+        "excludes": [
+          "cache",
+          "generated runtime data"
+        ],
+        "includes": [
+          "compose config",
+          "app config"
+        ],
+        "name": "config-only",
+        "restore_priority": "low",
+        "restore_verification": null
+      },
+      "category": "Monitoring",
+      "display_name": "Alertmanager",
+      "hosts": [
+        "jellybase"
+      ],
+      "id": "alertmanager",
+      "restore_note": null,
+      "restore_runbook": null,
+      "source_metadata_status": "not-recorded",
+      "source_type": null,
+      "status": "active",
+      "urls": {
+        "bridge_health_internal": "http://alertmanager-discord-bridge:9094/healthz",
+        "primary": "http://192.168.1.2:9093"
+      }
+    },
+    {
+      "backup_class": {
+        "description": "Service can be rebuilt from Git/config only.",
+        "excludes": [
+          "cache",
+          "generated runtime data"
+        ],
+        "includes": [
+          "compose config",
+          "app config"
+        ],
+        "name": "config-only",
+        "restore_priority": "low",
+        "restore_verification": null
+      },
+      "category": "Monitoring",
+      "display_name": "Alloy",
+      "hosts": [
+        "jellybase",
+        "jellyhome",
+        "jellyberry"
+      ],
+      "id": "alloy",
+      "restore_note": null,
+      "restore_runbook": null,
+      "source_metadata_status": "not-recorded",
+      "source_type": null,
+      "status": "active",
+      "urls": {
+        "metrics": "http://127.0.0.1:12345/metrics"
+      }
+    },
+    {
+      "backup_class": {
+        "description": "Service has appdata plus media/library files.",
+        "excludes": [
+          "cache",
+          "temp files"
+        ],
+        "includes": [
+          "/opt/docker/appdata/SERVICE",
+          "library storage"
+        ],
+        "name": "appdata-and-library",
+        "restore_priority": "high",
+        "restore_verification": null
+      },
+      "category": "Media",
+      "display_name": "Calibre Web Automated",
+      "hosts": [
+        "jellyhome"
+      ],
+      "id": "calibre-web-automated",
+      "restore_note": null,
+      "restore_runbook": null,
+      "source_metadata_status": "not-recorded",
+      "source_type": null,
+      "status": "planned",
+      "urls": {
+        "primary": "pending"
+      }
+    },
+    {
+      "backup_class": {
+        "description": "PostgreSQL service with Borg-covered data directory plus logical dump artifacts.",
+        "excludes": [
+          "/opt/docker/.secrets",
+          "temporary dump directories",
+          "partial dump files"
+        ],
+        "includes": [
+          "/opt/docker/appdata/postgres/data",
+          "/opt/docker/appdata/postgres/config",
+          "/opt/docker/appdata/postgres/logical-dumps"
+        ],
+        "name": "postgres-volume-and-logical-dumps",
+        "restore_priority": "critical",
+        "restore_verification": null
+      },
+      "category": "Data",
+      "display_name": "Central PostgreSQL",
+      "hosts": [
+        "jellybase"
+      ],
+      "id": "central-postgres",
+      "restore_note": null,
+      "restore_runbook": null,
+      "source_metadata_status": "not-recorded",
+      "source_type": null,
+      "status": "active",
+      "urls": {
+        "primary": "postgresql://192.168.1.2:5432"
+      }
+    },
+    {
+      "backup_class": {
+        "description": "Service can be rebuilt from Git/config only.",
+        "excludes": [
+          "cache",
+          "generated runtime data"
+        ],
+        "includes": [
+          "compose config",
+          "app config"
+        ],
+        "name": "config-only",
+        "restore_priority": "low",
+        "restore_verification": null
+      },
+      "category": "Tools",
+      "display_name": "Crawl4AI",
+      "hosts": [
+        "jellybase"
+      ],
+      "id": "crawl4ai",
+      "restore_note": null,
+      "restore_runbook": null,
+      "source_metadata_status": "not-recorded",
+      "source_type": null,
+      "status": "planned",
+      "urls": {
+        "api": "http://192.168.1.2:11235",
+        "health": "http://192.168.1.2:11235/health",
+        "metrics": "http://192.168.1.2:11235/metrics",
+        "primary": "http://192.168.1.2:11235/playground"
+      }
+    },
+    {
+      "backup_class": {
+        "description": "Service can be rebuilt from Git/config only.",
+        "excludes": [
+          "cache",
+          "generated runtime data"
+        ],
+        "includes": [
+          "compose config",
+          "app config"
+        ],
+        "name": "config-only",
+        "restore_priority": "low",
+        "restore_verification": null
+      },
+      "category": "Core",
+      "display_name": "Dozzle",
+      "hosts": [
+        "jellybase",
+        "jellyberry",
+        "jellyhome"
+      ],
+      "id": "dozzle",
+      "restore_note": null,
+      "restore_runbook": null,
+      "source_metadata_status": "not-recorded",
+      "source_type": null,
+      "status": "active",
+      "urls": {
+        "primary": "http://192.168.1.1:8080"
+      }
+    },
+    {
+      "backup_class": {
+        "description": "Service has useful persistent appdata.",
+        "excludes": [
+          "cache",
+          "logs",
+          "temp files"
+        ],
+        "includes": [
+          "/opt/docker/appdata/SERVICE"
+        ],
+        "name": "appdata",
+        "restore_priority": "medium",
+        "restore_verification": null
+      },
+      "category": "Monitoring",
+      "display_name": "Grafana",
+      "hosts": [
+        "jellybase"
+      ],
+      "id": "grafana",
+      "restore_note": null,
+      "restore_runbook": null,
+      "source_metadata_status": "not-recorded",
+      "source_type": null,
+      "status": "active",
+      "urls": {
+        "primary": "http://192.168.1.2:3001"
+      }
+    },
+    {
+      "backup_class": {
+        "description": "Service has useful persistent appdata.",
+        "excludes": [
+          "cache",
+          "logs",
+          "temp files"
+        ],
+        "includes": [
+          "/opt/docker/appdata/SERVICE"
+        ],
+        "name": "appdata",
+        "restore_priority": "medium",
+        "restore_verification": null
+      },
+      "category": "Tools",
+      "display_name": "Hindsight",
+      "hosts": [
+        "jellyhome"
+      ],
+      "id": "hindsight",
+      "restore_note": null,
+      "restore_runbook": null,
+      "source_metadata_status": "not-recorded",
+      "source_type": null,
+      "status": "active",
+      "urls": {
+        "api": "http://192.168.1.1:18888",
+        "primary": "http://192.168.1.1:9999",
+        "tailscale_api": "http://100.90.175.59:18888",
+        "tailscale_ui": "http://100.90.175.59:9999"
+      }
+    },
+    {
+      "backup_class": {
+        "description": "Service has useful persistent appdata.",
+        "excludes": [
+          "cache",
+          "logs",
+          "temp files"
+        ],
+        "includes": [
+          "/opt/docker/appdata/SERVICE"
+        ],
+        "name": "appdata",
+        "restore_priority": "medium",
+        "restore_verification": null
+      },
+      "category": "IoT",
+      "display_name": "Home Assistant",
+      "hosts": [
+        "jellybase"
+      ],
+      "id": "homeassistant",
+      "restore_note": null,
+      "restore_runbook": null,
+      "source_metadata_status": "not-recorded",
+      "source_type": null,
+      "status": "active",
+      "urls": {
+        "primary": "http://192.168.1.2:8123"
+      }
+    },
+    {
+      "backup_class": {
+        "description": "Service can be rebuilt from Git/config only.",
+        "excludes": [
+          "cache",
+          "generated runtime data"
+        ],
+        "includes": [
+          "compose config",
+          "app config"
+        ],
+        "name": "config-only",
+        "restore_priority": "low",
+        "restore_verification": null
+      },
+      "category": "Core",
+      "display_name": "Homepage",
+      "hosts": [
+        "jellyhome",
+        "jellybase"
+      ],
+      "id": "homepage",
+      "restore_note": null,
+      "restore_runbook": null,
+      "source_metadata_status": "not-recorded",
+      "source_type": null,
+      "status": "active",
+      "urls": {
+        "jellybase_lan": "http://192.168.1.2",
+        "jellybase_magicdns": "http://jellybase.cheetah-iwato.ts.net",
+        "jellybase_tailscale": "http://100.125.86.118",
+        "jellyhome_lan": "http://192.168.1.1",
+        "jellyhome_magicdns": "http://jellyhome.cheetah-iwato.ts.net",
+        "jellyhome_tailscale": "http://100.90.175.59",
+        "primary": "http://192.168.1.1",
+        "secondary": "http://192.168.1.2"
+      }
+    },
+    {
+      "backup_class": {
+        "description": "Ephemeral upload/helper service where app uploads are backed up only if the service becomes operationally important.",
+        "excludes": [
+          "temporary uploads",
+          "cache",
+          "logs"
+        ],
+        "includes": [
+          "/opt/docker/appdata/SERVICE/uploads when retention is required",
+          "compose config"
+        ],
+        "name": "uploads-if-needed",
+        "restore_priority": "low",
+        "restore_verification": null
+      },
+      "category": "Tools",
+      "display_name": "Image Pastebin",
+      "hosts": [
+        "jellyberry"
+      ],
+      "id": "image-pastebin",
+      "restore_note": "Requires the image-pastebin source directory; uploads live under `/opt/docker/appdata/image-pastebin/uploads` if retention is needed.",
+      "restore_runbook": null,
+      "source_metadata_status": "present",
+      "source_type": "local-directory",
+      "status": "active",
+      "urls": {
+        "primary": "http://192.168.1.159:8792"
+      }
+    },
+    {
+      "backup_class": {
+        "description": "Service persists a local SQLite database under service appdata.",
+        "excludes": [
+          "cache",
+          "logs",
+          "temp files"
+        ],
+        "includes": [
+          "/opt/docker/appdata/SERVICE",
+          "SQLite database files and WAL/SHM sidecars"
+        ],
+        "name": "sqlite-data",
+        "restore_priority": "high",
+        "restore_verification": null
+      },
+      "category": "Projects",
+      "display_name": "Jellyfood API",
+      "hosts": [
+        "jellybase"
+      ],
+      "id": "jellyfood-api",
+      "restore_note": "Requires the Jellyfood source repository; API data stored in SQLite at /data/foods.db mapped to /opt/docker/appdata/jellyfood-api.",
+      "restore_runbook": null,
+      "source_metadata_status": "present",
+      "source_type": "git",
+      "status": "active",
+      "urls": {
+        "local": "http://127.0.0.1:8794",
+        "primary": "http://192.168.1.2:8794"
+      }
+    },
+    {
+      "backup_class": {
+        "description": "Service can be rebuilt from a separate source repository plus this repo's Compose/config metadata.",
+        "excludes": [
+          "generated build artifacts",
+          "caches"
+        ],
+        "includes": [
+          "source repository remote and branch",
+          "compose config",
+          "deployment notes"
+        ],
+        "name": "source-repo",
+        "restore_priority": "low",
+        "restore_verification": null
+      },
+      "category": "Projects",
+      "display_name": "Jellyfood",
+      "hosts": [
+        "jellybase"
+      ],
+      "id": "jellyfood-web",
+      "restore_note": "Requires the Jellyfood source repository at the recorded build context; app diary data is browser/device-local and is not stored on the server.",
+      "restore_runbook": null,
+      "source_metadata_status": "present",
+      "source_type": "git",
+      "status": "active",
+      "urls": {
+        "api": "http://192.168.1.2:8794",
+        "local": "http://127.0.0.1:8793",
+        "primary": "http://192.168.1.2:8793"
+      }
+    },
+    {
+      "backup_class": {
+        "description": "Service can be rebuilt from Git/config only.",
+        "excludes": [
+          "cache",
+          "generated runtime data"
+        ],
+        "includes": [
+          "compose config",
+          "app config"
+        ],
+        "name": "config-only",
+        "restore_priority": "low",
+        "restore_verification": null
+      },
+      "category": "IoT",
+      "display_name": "Jellyoffice Enviro",
+      "hosts": [
+        "jellyoffice"
+      ],
+      "id": "jellyoffice-enviro",
+      "restore_note": null,
+      "restore_runbook": null,
+      "source_metadata_status": "not-recorded",
+      "source_type": null,
+      "status": "active",
+      "urls": {
+        "home_assistant_discovery": "mqtt://192.168.1.1:1883/homeassistant/sensor/jellyoffice",
+        "mqtt_topic": "mqtt://192.168.1.1:1883/home/sensors/jellyoffice",
+        "network_map": "http://192.168.1.2:8788",
+        "primary": "http://192.168.1.2:9090/graph?g0.expr=mqtt_temperature%7Bmonitored_host%3D%22jellyoffice%22%7D&g0.tab=0",
+        "prometheus_query": "http://192.168.1.2:9090/graph?g0.expr=mqtt_temperature%7Bmonitored_host%3D%22jellyoffice%22%7D&g0.tab=0",
+        "tailscale_ssh": "ssh://jellyfish@100.120.3.77"
+      }
+    },
+    {
+      "backup_class": {
+        "description": "Service has useful persistent appdata.",
+        "excludes": [
+          "cache",
+          "logs",
+          "temp files"
+        ],
+        "includes": [
+          "/opt/docker/appdata/SERVICE"
+        ],
+        "name": "appdata",
+        "restore_priority": "medium",
+        "restore_verification": null
+      },
+      "category": "Monitoring",
+      "display_name": "Loki",
+      "hosts": [
+        "jellybase"
+      ],
+      "id": "loki",
+      "restore_note": null,
+      "restore_runbook": null,
+      "source_metadata_status": "not-recorded",
+      "source_type": null,
+      "status": "active",
+      "urls": {
+        "primary": "http://192.168.1.2:3100"
+      }
+    },
+    {
+      "backup_class": {
+        "description": "Manyfold appdata on jellyhome plus central Postgres database state and 3D model library.",
+        "excludes": [
+          "/opt/docker/.secrets",
+          "cache",
+          "temp files"
+        ],
+        "includes": [
+          "/opt/docker/appdata/manyfold",
+          "central PostgreSQL database manyfold via postgres-volume-and-logical-dumps",
+          "/home/jellyfish/media/Primary_5TB/3D_models"
+        ],
+        "name": "manyfold-appdata-central-postgres-and-library",
+        "restore_priority": "high",
+        "restore_verification": "post-index logical dump restore verified into scratch postgres:17-alpine container"
+      },
+      "category": "Media",
+      "display_name": "Manyfold",
+      "hosts": [
+        "jellyhome"
+      ],
+      "id": "manyfold",
+      "restore_note": null,
+      "restore_runbook": null,
+      "source_metadata_status": "not-recorded",
+      "source_type": null,
+      "status": "active",
+      "urls": {
+        "primary": "http://192.168.1.1:3214"
+      }
+    },
+    {
+      "backup_class": {
+        "description": "Service has config and small persistent runtime state.",
+        "excludes": [
+          "cache",
+          "logs"
+        ],
+        "includes": [
+          "/opt/docker/appdata/SERVICE/config",
+          "/opt/docker/appdata/SERVICE/data"
+        ],
+        "name": "config-and-persistence",
+        "restore_priority": "medium",
+        "restore_verification": null
+      },
+      "category": "IoT",
+      "display_name": "Mosquitto MQTT",
+      "hosts": [
+        "jellyhome"
+      ],
+      "id": "mosquitto",
+      "restore_note": null,
+      "restore_runbook": null,
+      "source_metadata_status": "not-recorded",
+      "source_type": null,
+      "status": "active",
+      "urls": {
+        "primary": "mqtt://192.168.1.1:1883",
+        "websocket": "ws://192.168.1.1:9001"
+      }
+    },
+    {
+      "backup_class": {
+        "description": "Service can be rebuilt from Git/config only.",
+        "excludes": [
+          "cache",
+          "generated runtime data"
+        ],
+        "includes": [
+          "compose config",
+          "app config"
+        ],
+        "name": "config-only",
+        "restore_priority": "low",
+        "restore_verification": null
+      },
+      "category": "Monitoring",
+      "display_name": "MQTT Exporter",
+      "hosts": [
+        "jellybase"
+      ],
+      "id": "mqtt-exporter",
+      "restore_note": null,
+      "restore_runbook": null,
+      "source_metadata_status": "not-recorded",
+      "source_type": null,
+      "status": "active",
+      "urls": {
+        "primary": "http://192.168.1.2:9000/metrics"
+      }
+    },
+    {
+      "backup_class": {
+        "description": "Config should be backed up, cache is optional.",
+        "excludes": [
+          "/opt/docker/appdata/SERVICE/cache"
+        ],
+        "includes": [
+          "/opt/docker/appdata/SERVICE/config"
+        ],
+        "name": "config-and-cache",
+        "restore_priority": "low",
+        "restore_verification": null
+      },
+      "category": "Retired",
+      "display_name": "Netdata",
+      "hosts": [],
+      "id": "netdata",
+      "restore_note": null,
+      "restore_runbook": null,
+      "source_metadata_status": "not-recorded",
+      "source_type": null,
+      "status": "retired-cleaned",
+      "urls": {}
+    },
+    {
+      "backup_class": {
+        "description": "Service can be rebuilt from Git/config only.",
+        "excludes": [
+          "cache",
+          "generated runtime data"
+        ],
+        "includes": [
+          "compose config",
+          "app config"
+        ],
+        "name": "config-only",
+        "restore_priority": "low",
+        "restore_verification": null
+      },
+      "category": "Core",
+      "display_name": "Network Map",
+      "hosts": [
+        "jellybase"
+      ],
+      "id": "network-map",
+      "restore_note": null,
+      "restore_runbook": null,
+      "source_metadata_status": "not-recorded",
+      "source_type": null,
+      "status": "active",
+      "urls": {
+        "jellybase_lan": "http://192.168.1.2:8788",
+        "jellybase_tailscale": "http://100.125.86.118:8788",
+        "primary": "http://192.168.1.2:8788"
+      }
+    },
+    {
+      "backup_class": {
+        "description": "Service has useful persistent appdata.",
+        "excludes": [
+          "cache",
+          "logs",
+          "temp files"
+        ],
+        "includes": [
+          "/opt/docker/appdata/SERVICE"
+        ],
+        "name": "appdata",
+        "restore_priority": "medium",
+        "restore_verification": null
+      },
+      "category": "Core",
+      "display_name": "Portainer",
+      "hosts": [
+        "jellybase",
+        "jellyhome"
+      ],
+      "id": "portainer",
+      "restore_note": null,
+      "restore_runbook": null,
+      "source_metadata_status": "not-recorded",
+      "source_type": null,
+      "status": "active",
+      "urls": {
+        "primary": "https://192.168.1.1:9443"
+      }
+    },
+    {
+      "backup_class": {
+        "description": "Service needs both its source repository and persistent appdata/runtime state.",
+        "excludes": [
+          "caches",
+          "logs",
+          "temporary files"
+        ],
+        "includes": [
+          "source repository remote and branch",
+          "/opt/docker/appdata/SERVICE",
+          "compose config",
+          "deployment notes"
+        ],
+        "name": "appdata-and-source-repo",
+        "restore_priority": "high",
+        "restore_verification": null
+      },
+      "category": "Projects",
+      "display_name": "Portfolio Mission Control",
+      "hosts": [
+        "jellyberry"
+      ],
+      "id": "portfolio-mission-control-v2",
+      "restore_note": "Requires the source repository plus `/opt/docker/appdata/portfolio-mission-control-v2/data` and `/home/jellybot/.hermes/.env` on the host.",
+      "restore_runbook": null,
+      "source_metadata_status": "present",
+      "source_type": "git",
+      "status": "active",
+      "urls": {
+        "primary": "http://192.168.1.159:8787"
+      }
+    },
+    {
+      "backup_class": {
+        "description": "Service has useful persistent appdata.",
+        "excludes": [
+          "cache",
+          "logs",
+          "temp files"
+        ],
+        "includes": [
+          "/opt/docker/appdata/SERVICE"
+        ],
+        "name": "appdata",
+        "restore_priority": "medium",
+        "restore_verification": null
+      },
+      "category": "Monitoring",
+      "display_name": "Prometheus",
+      "hosts": [
+        "jellybase"
+      ],
+      "id": "prometheus",
+      "restore_note": null,
+      "restore_runbook": null,
+      "source_metadata_status": "not-recorded",
+      "source_type": null,
+      "status": "active",
+      "urls": {
+        "primary": "http://192.168.1.2:9090"
+      }
+    },
+    {
+      "backup_class": {
+        "description": "Service can be rebuilt from a separate source repository plus this repo's Compose/config metadata.",
+        "excludes": [
+          "generated build artifacts",
+          "caches"
+        ],
+        "includes": [
+          "source repository remote and branch",
+          "compose config",
+          "deployment notes"
+        ],
+        "name": "source-repo",
+        "restore_priority": "low",
+        "restore_verification": null
+      },
+      "category": "Study",
+      "display_name": "SC-401 Study Hub",
+      "hosts": [
+        "jellyberry"
+      ],
+      "id": "sc401-study-hub",
+      "restore_note": "Requires the study-web source directory; no git remote is currently recorded in this repo.",
+      "restore_runbook": null,
+      "source_metadata_status": "present",
+      "source_type": "local-directory",
+      "status": "active",
+      "urls": {
+        "primary": "http://192.168.1.159:8791"
+      }
+    },
+    {
+      "backup_class": {
+        "description": "Service can be rebuilt from Git/config only.",
+        "excludes": [
+          "cache",
+          "generated runtime data"
+        ],
+        "includes": [
+          "compose config",
+          "app config"
+        ],
+        "name": "config-only",
+        "restore_priority": "low",
+        "restore_verification": null
+      },
+      "category": "Remote Access",
+      "display_name": "Seedit4.me Reverse Tunnel",
+      "hosts": [
+        "jellyberry"
+      ],
+      "id": "seedit4me-reverse-tunnel",
+      "restore_note": null,
+      "restore_runbook": null,
+      "source_metadata_status": "not-recorded",
+      "source_type": null,
+      "status": "active",
+      "urls": {
+        "remote_loopback": "ssh://127.0.0.1:22022",
+        "remote_ssh": "ssh://seedit4me@nl13.seedit4.me:2088"
+      }
+    }
+  ],
+  "source_files": [
+    "inventory/backups.yml",
+    "inventory/hosts.yml",
+    "inventory/services.yml",
+    "docs/runbooks/*.md",
+    "docs/operations/*.md",
+    "docs/guides/*.md"
+  ],
+  "summary": {
+    "backup_hosts_total": 4,
+    "backup_sets_total": 9,
+    "disabled_or_planned_hosts": 1,
+    "enabled_backup_hosts": 3,
+    "missing_metrics_policy": "unknown_not_healthy",
+    "runbook_docs": 37,
+    "services_with_backup_metadata": 26
+  }
+}

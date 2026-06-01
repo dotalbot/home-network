@@ -80,6 +80,20 @@ function metricLabelValue(results, labelName, metricKey = 'host') {
 }
 
 /**
+ * Fetch generated read-only backup policy/static management data.
+ */
+export async function fetchBackupManagementData() {
+  try {
+    const response = await fetch(`data/backup-management.json?ts=${Date.now()}`);
+    if (!response.ok) throw new Error(`Backup Management data ${response.status}`);
+    return await response.json();
+  } catch (err) {
+    console.warn('[api] Backup Management data fetch failed:', err);
+    return null;
+  }
+}
+
+/**
  * Fetch borgmatic backup status metrics from Prometheus.
  */
 export async function fetchBackupData() {

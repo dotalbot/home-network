@@ -51,10 +51,15 @@ homepage-render:
 
 network-map-render:
     ./scripts/network-map-render
+    python3 ./scripts/backup-management-render
+
+backup-management-render:
+    python3 ./scripts/backup-management-render
 
 homepage-deploy:
     ./scripts/homepage-render
     ./scripts/network-map-render
+    python3 ./scripts/backup-management-render
     ./scripts/sync-docker-config
     ./scripts/deploy
 

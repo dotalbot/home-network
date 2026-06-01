@@ -64,8 +64,8 @@ Unless stated otherwise, paths in this index are relative to the repository root
 - `docker/docker-compose.yml` — shared base Compose file.
 - `docker/hosts/*.yaml` — host-specific Compose overlays.
 - `docker/appdata/` — repo-managed config/static dashboard data.
-- `scripts/` — render, deploy, status, drift, and backup checks.
-- `justfile` — operator command entrypoint.
+- `scripts/` — render, deploy, status, drift, and backup checks. Key render targets include `scripts/network-map-render` and `scripts/backup-management-render`.
+- `justfile` — operator command entrypoint, including `just backup-management-render`, `just network-map-render`, and `just homepage-deploy`.
 
 ## Current documentation gaps
 

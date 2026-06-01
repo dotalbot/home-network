@@ -1,0 +1,237 @@
+#!/usr/bin/env python3
+"""Generate read-only Backup Management JSON for Network Map.
+
+This renderer only reads repo inventory/docs and writes a sanitized static JSON file.
+It does not read secret files, inspect production paths, run borg/borgmatic, or mutate
+runtime configuration.
+"""
+import json
+import sys
+from datetime import datetime, timezone
+from pathlib import Path
+from urllib.parse import quote
+
+try:
+    import yaml
+except ImportError:
+    print("not good: missing python3-yaml. Install with: sudo apt install python3-yaml")
+    sys.exit(1)
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+SITE_DIR = REPO_ROOT / "docker" / "appdata" / "network-map" / "site"
+DATA_DIR = SITE_DIR / "data"
+DATA_FILE = DATA_DIR / "backup-management.json"
+GITHUB_DOC_BASE = "https://github.com/dotalbot/home-network/blob/main/"
+
+SECRET_MARKERS = (
+    "password", "passphrase", "private_key", "secret", "token", "apikey", "api_key",
+    "credential", "credentials", ".env", "repo_key", "repokey",
+)
+
+
+def load_yaml(relative_path):
+    path = REPO_ROOT / relative_path
+    if not path.exists():
+        print(f"not good: missing {relative_path}")
+        sys.exit(1)
+    return yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+
+
+def clean_scalar(value):
+    if value is None:
+        return None
+    if isinstance(value, (bool, int, float)):
+        return value
+    # Inventory paths and labels can mention secret file locations (for example
+    # /opt/docker/.secrets) without exposing secret contents. This renderer never
+    # opens those files; key-based redaction below protects secret-valued fields.
+    return str(value)
+
+
+def clean_tree(value):
+    if isinstance(value, dict):
+        out = {}
+        for key, child in value.items():
+            key_text = str(key)
+            if any(marker in key_text.lower() for marker in SECRET_MARKERS):
+                out[key_text] = "[redacted secret reference]"
+            else:
+                out[key_text] = clean_tree(child)
+        return out
+    if isinstance(value, list):
+        return [clean_tree(item) for item in value]
+    return clean_scalar(value)
+
+
+def doc_link(path):
+    if not path:
+        return None
+    return {
+        "path": path,
+        "url": GITHUB_DOC_BASE + quote(path),
+    }
+
+
+def collect_docs():
+    docs = []
+    for folder in ("docs/runbooks", "docs/operations", "docs/guides"):
+        root = REPO_ROOT / folder
+        if not root.exists():
+            continue
+        for path in sorted(root.glob("*.md")):
+            relative = path.relative_to(REPO_ROOT).as_posix()
+            docs.append({"title": path.stem.replace("-", " ").title(), **doc_link(relative)})
+    return docs
+
+
+def host_list(value):
+    if not value:
+        return []
+    if isinstance(value, list):
+        return [str(v) for v in value]
+    if isinstance(value, dict):
+        hosts = []
+        for item in value.values():
+            if isinstance(item, list):
+                hosts.extend(str(v) for v in item)
+            elif item:
+                hosts.append(str(item))
+        return sorted(set(hosts))
+    return [str(value)]
+
+
+def class_summary(class_name, backup_classes):
+    backup_class = backup_classes.get(class_name) or {}
+    return {
+        "name": class_name,
+        "description": clean_scalar(backup_class.get("description")) or "No class description recorded.",
+        "includes": clean_tree(backup_class.get("includes") or []),
+        "excludes": clean_tree(backup_class.get("excludes") or []),
+        "restore_priority": clean_scalar(backup_class.get("restore_priority")) or "unknown",
+        "restore_verification": clean_scalar(backup_class.get("restore_verification")),
+    }
+
+
+def build_hosts(backups, hosts_inventory):
+    backup_classes = backups.get("backup_classes") or {}
+    destinations = backups.get("destinations") or {}
+    output = []
+    for name, config in sorted((backups.get("hosts") or {}).items()):
+        host_meta = (hosts_inventory.get("hosts") or {}).get(name, {})
+        host_destinations = clean_tree(config.get("destinations") or {})
+        backup_sets = []
+        for backup_set in config.get("backup_sets") or []:
+            class_name = backup_set.get("backup_class") or "unknown"
+            set_destinations = backup_set.get("destinations") or list(host_destinations.keys())
+            backup_sets.append({
+                "id": clean_scalar(backup_set.get("id")) or "unnamed",
+                "type": clean_scalar(backup_set.get("type")) or "unknown",
+                "backup_class": class_summary(class_name, backup_classes),
+                "paths": clean_tree(backup_set.get("paths") or []),
+                "destinations": clean_tree(set_destinations),
+                "output_path": clean_scalar(backup_set.get("output_path")),
+                "restore_runbook": doc_link(backup_set.get("restore_runbook") or (backup_set.get("restore_metadata") or {}).get("related_restore_runbook")),
+                "restore_metadata": clean_tree(backup_set.get("restore_metadata") or {}),
+                "database_hook": clean_tree(backup_set.get("database_hook") or {}),
+            })
+        enabled_destination_count = sum(1 for item in host_destinations.values() if isinstance(item, dict) and item.get("enabled") is True)
+        output.append({
+            "name": name,
+            "description": clean_scalar(host_meta.get("description")),
+            "lan_ip": clean_scalar(host_meta.get("lan_ip")),
+            "roles": clean_tree(host_meta.get("roles") or []),
+            "backup_role": clean_scalar(config.get("role")),
+            "host_type": clean_scalar(config.get("host_type")),
+            "borg_enabled": bool(config.get("borg_enabled")),
+            "enabled": bool(config.get("borg_enabled")) and enabled_destination_count > 0,
+            "repository_path": clean_scalar(config.get("repository_path")),
+            "destinations": host_destinations,
+            "destination_labels": [label for label, item in host_destinations.items() if isinstance(item, dict) and item.get("enabled") is True],
+            "important_paths": clean_tree(config.get("important_paths") or []),
+            "rollout_status": clean_tree(config.get("rollout_status") or {}),
+            "backup_sets": backup_sets,
+            "notes": clean_tree(config.get("notes") or []),
+            "links": {
+                "grafana": "http://192.168.1.2:3001/",
+                "alertmanager": "http://192.168.1.2:9093/",
+                "loki_explore_hint": f"{{job=\"borgmatic\", host=\"{name}\"}}",
+                "restore_runbook_index": doc_link("docs/guides/consolidated-backup-management-operator-guide.md"),
+            },
+        })
+    return output
+
+
+def build_services(services_inventory, backup_classes):
+    services = []
+    for key, service in sorted((services_inventory.get("services") or {}).items()):
+        backup_class_name = service.get("backup") or "unknown"
+        source = service.get("source") or {}
+        services.append({
+            "id": key,
+            "display_name": clean_scalar(service.get("display_name") or key),
+            "status": clean_scalar(service.get("status") or "unknown"),
+            "category": clean_scalar(service.get("category")),
+            "hosts": host_list(service.get("hosts")),
+            "backup_class": class_summary(backup_class_name, backup_classes),
+            "source_metadata_status": "present" if source else "not-recorded",
+            "source_type": clean_scalar(source.get("type")) if source else None,
+            "restore_note": clean_scalar(source.get("restore_note")) if source else None,
+            "urls": clean_tree(service.get("urls") or {}),
+            "restore_runbook": None,
+        })
+    return services
+
+
+def build_payload():
+    backups = load_yaml("inventory/backups.yml")
+    hosts_inventory = load_yaml("inventory/hosts.yml")
+    services_inventory = load_yaml("inventory/services.yml")
+    backup_classes = backups.get("backup_classes") or {}
+    hosts = build_hosts(backups, hosts_inventory)
+    docs = collect_docs()
+    services = build_services(services_inventory, backup_classes)
+    enabled_hosts = [host for host in hosts if host["enabled"]]
+    disabled_hosts = [host for host in hosts if not host["enabled"]]
+    return {
+        "schema_version": 1,
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "source_files": ["inventory/backups.yml", "inventory/hosts.yml", "inventory/services.yml", "docs/runbooks/*.md", "docs/operations/*.md", "docs/guides/*.md"],
+        "security_boundary": "Read-only static JSON generated from repo inventory/docs; no secret files read; no write actions or shell execution exposed.",
+        "future_write_workflow": "Coming next only: propose Git-reviewed inventory/backups.yml patches and rendered diffs; no UI mutation in this slice.",
+        "summary": {
+            "backup_hosts_total": len(hosts),
+            "enabled_backup_hosts": len(enabled_hosts),
+            "disabled_or_planned_hosts": len(disabled_hosts),
+            "backup_sets_total": sum(len(host["backup_sets"]) for host in hosts),
+            "services_with_backup_metadata": len([svc for svc in services if svc["backup_class"]["name"] != "unknown"]),
+            "runbook_docs": len(docs),
+            "missing_metrics_policy": "unknown_not_healthy",
+        },
+        "primary_target": clean_tree(backups.get("primary_target") or {}),
+        "destinations": clean_tree(backups.get("destinations") or {}),
+        "backup_defaults": clean_tree(backups.get("backup_defaults") or {}),
+        "observability": {
+            "grafana_url": "http://192.168.1.2:3001/",
+            "alertmanager_url": "http://192.168.1.2:9093/",
+            "prometheus_url": "http://192.168.1.2:9090/",
+            "loki_url": "http://192.168.1.2:3100/",
+            "loki_labels": clean_tree((backups.get("borgmatic_loki") or {}).get("labels") or {}),
+            "metric_status": "live metrics are loaded separately by browser Prometheus queries; missing data must render as unknown",
+        },
+        "hosts": hosts,
+        "backup_classes": [class_summary(name, backup_classes) for name in sorted(backup_classes)],
+        "restore_rules": clean_tree(backups.get("restore_rules") or {}),
+        "services": services,
+        "runbooks": docs,
+    }
+
+
+def main():
+    payload = build_payload()
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    DATA_FILE.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    print(f"good: wrote {DATA_FILE.relative_to(REPO_ROOT)}")
+
+
+if __name__ == "__main__":
+    main()
