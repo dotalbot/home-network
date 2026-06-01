@@ -11,7 +11,9 @@ Date: 2026-06-01
 - [x] Phase 1: evolve `inventory/backups.yml` schema and validation for first-class destinations, backup sets, database hooks, and restore metadata.
   - [x] Add validation-only `backup_defaults`, `destinations`, host destination mappings, `backup_sets`, database hook metadata, restore metadata, Docker/remote host typing, and disabled secondary destination placeholder.
   - [x] Extend `scripts/backup-policy-check` with additive schema validation plus self-test fixtures while keeping live Borgmatic rollout behavior unchanged.
-- [ ] Phase 2: split render-only Borgmatic config/systemd/restore-manifest generation from installer stages.
+- [x] Phase 2: split render-only Borgmatic config/systemd/restore-manifest generation from installer stages.
+  - [x] Add `scripts/borgmatic-render-generate` for generated Borgmatic config, systemd unit/timer/wrapper text, restore manifests, and validation report under `build/borgmatic-render/` or `/tmp`.
+  - [x] Add `docs/guides/render-only-borgmatic-artifact-review.md` with review checklist and promotion boundary.
 - [ ] Phase 3: build a read-only management surface over inventory and telemetry.
 - [ ] Phase 4+: add controlled Git-reviewed edits, restore-drill automation, database pre-backup hooks, secondary destination rollout, and optional BorgWarehouse evaluation.
 

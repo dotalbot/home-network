@@ -1,0 +1,543 @@
+#!/usr/bin/env python3
+"""Render inspectable Borgmatic artifacts from inventory/backups.yml.
+
+This is intentionally render-only. It writes configs, systemd unit text, restore
+manifests, and a validation report under a caller-controlled output directory.
+It never writes /etc/borgmatic, systemd locations, secrets, or live runtime
+state.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import re
+import stat
+import sys
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any
+
+try:
+    import yaml
+except ImportError:  # pragma: no cover - exercised by operator environment
+    print("not good: missing python3-yaml", file=sys.stderr)
+    raise SystemExit(1)
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+DEFAULT_INVENTORY = REPO_ROOT / "inventory" / "backups.yml"
+DEFAULT_OUTPUT_DIR = REPO_ROOT / "build" / "borgmatic-render"
+SAFE_TMP_ROOT = Path("/tmp")
+
+SAFE_HOST_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9-]{0,62}$")
+SAFE_USER_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_-]{0,63}$")
+SAFE_TARGET_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:-]{0,252}$")
+SAFE_ABSOLUTE_PATH_RE = re.compile(r"^/[A-Za-z0-9._+/@:-]+$")
+SAFE_LABEL_KEY_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]{0,62}$")
+SAFE_LABEL_VALUE_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$")
+SAFE_MQTT_TOPIC_PREFIX_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_/-]{0,127}$")
+SAFE_SYSTEMD_CALENDAR_RE = re.compile(r"^[A-Za-z0-9*:,./ _-]{1,128}$")
+SAFE_SYSTEMD_DELAY_RE = re.compile(r"^[A-Za-z0-9 ._-]{1,64}$")
+
+SECRET_FIELD_RE = re.compile(r"(passphrase|password|secret|token|private[_-]?key)", re.IGNORECASE)
+SECRET_VALUE_RE = re.compile(r"(BEGIN (?:OPENSSH|RSA|EC|PRIVATE) KEY|BORG_PASSPHRASE=|password\s*[:=]\s*[^/\s])", re.IGNORECASE)
+
+
+def validate_host_name(value: str) -> None:
+    if not SAFE_HOST_RE.fullmatch(value):
+        raise ValueError(f"invalid host name {value!r}; use DNS-safe letters, numbers, and dashes")
+
+
+def validate_user(value: str, field: str) -> None:
+    if not SAFE_USER_RE.fullmatch(value):
+        raise ValueError(f"invalid {field} {value!r}; use a safe local SSH username")
+
+
+def validate_target(value: str, field: str) -> None:
+    if not SAFE_TARGET_RE.fullmatch(value):
+        raise ValueError(f"invalid {field} {value!r}; use a LAN IP or DNS-safe host name")
+
+
+def validate_absolute_path(value: str, field: str) -> None:
+    if not value.startswith("/"):
+        raise ValueError(f"{field} must be absolute: {value}")
+    if not SAFE_ABSOLUTE_PATH_RE.fullmatch(value):
+        raise ValueError(
+            f"{field} contains unsafe characters: {value!r}; "
+            "allowed characters are letters, numbers, '/', '.', '_', '+', '@', ':', and '-'"
+        )
+
+
+def validate_label(value: str, field: str) -> None:
+    if not SAFE_LABEL_VALUE_RE.fullmatch(value):
+        raise ValueError(f"invalid {field} value {value!r}; keep generated labels low-cardinality and secret-free")
+
+
+def load_inventory(path: Path) -> dict[str, Any]:
+    with path.open("r", encoding="utf-8") as f:
+        data = yaml.safe_load(f) or {}
+    if not isinstance(data, dict):
+        raise ValueError(f"inventory root must be a mapping: {path}")
+    return data
+
+
+def resolved_path(path: Path) -> Path:
+    """Resolve symlinks in existing parents while allowing the final path to be new."""
+
+    return path.expanduser().resolve(strict=False)
+
+
+def validate_output_dir(output_dir: Path) -> Path:
+    """Return a resolved output dir after enforcing render-only safety boundaries."""
+
+    resolved = resolved_path(output_dir)
+    safe_build = resolved_path(DEFAULT_OUTPUT_DIR)
+    safe_tmp = resolved_path(SAFE_TMP_ROOT)
+    if resolved == safe_build or safe_build in resolved.parents:
+        return resolved
+    if resolved == safe_tmp or safe_tmp in resolved.parents:
+        return resolved
+    raise ValueError(
+        "--output-dir must be under build/borgmatic-render/ or /tmp for render-only safety; "
+        f"refusing {output_dir} resolved to {resolved}"
+    )
+
+
+def primary_destination(inventory: dict[str, Any]) -> dict[str, str]:
+    destinations = inventory.get("destinations") or {}
+    primary = destinations.get("primary") if isinstance(destinations, dict) else None
+    legacy = inventory.get("primary_target") or {}
+    if primary and not isinstance(primary, dict):
+        raise ValueError("destinations.primary must be a mapping")
+    primary = primary or {}
+    ssh_user = str(primary.get("ssh_user") or legacy.get("ssh_user") or "")
+    address = str(primary.get("address") or legacy.get("lan_ip") or legacy.get("host") or "")
+    target_host = str(primary.get("host") or legacy.get("host") or address)
+    if not ssh_user or not address:
+        raise ValueError("primary destination needs ssh_user and address/lan_ip")
+    validate_user(ssh_user, "destinations.primary.ssh_user")
+    validate_target(address, "destinations.primary.address")
+    validate_target(target_host, "destinations.primary.host")
+    return {"ssh_user": ssh_user, "address": address, "host": target_host}
+
+
+def host_items(inventory: dict[str, Any], requested_hosts: set[str] | None = None) -> tuple[list[tuple[str, dict[str, Any]]], list[str]]:
+    raw_hosts = inventory.get("hosts") or {}
+    if not isinstance(raw_hosts, dict):
+        raise ValueError("hosts must be a mapping")
+    selected: list[tuple[str, dict[str, Any]]] = []
+    warnings: list[str] = []
+    for host, cfg in sorted(raw_hosts.items()):
+        host_name = str(host)
+        validate_host_name(host_name)
+        if requested_hosts and host_name not in requested_hosts:
+            continue
+        if not isinstance(cfg, dict):
+            warnings.append(f"skipping {host_name}: host config is not a mapping")
+            continue
+        if not cfg.get("borg_enabled", False):
+            continue
+        destinations = cfg.get("destinations") or {}
+        primary = destinations.get("primary") if isinstance(destinations, dict) else None
+        if primary and isinstance(primary, dict) and primary.get("enabled") is False:
+            warnings.append(f"skipping {host_name}: primary destination is disabled")
+            continue
+        repo_path = str((primary or {}).get("repository_path") or cfg.get("repository_path") or "")
+        if not repo_path:
+            warnings.append(f"skipping {host_name}: repository_path is missing")
+            continue
+        validate_absolute_path(repo_path, f"hosts.{host_name}.repository_path")
+        selected.append((host_name, cfg))
+    if requested_hosts:
+        found = {host for host, _ in selected}
+        missing = sorted(requested_hosts - found)
+        if missing:
+            warnings.append(f"requested hosts not rendered because they are missing, disabled, or incomplete: {', '.join(missing)}")
+    return selected, warnings
+
+
+def unique_paths(raw_paths: Any, field: str) -> list[str]:
+    if raw_paths is None:
+        return []
+    if not isinstance(raw_paths, list):
+        raise ValueError(f"{field} must be a list")
+    paths: list[str] = []
+    for item in raw_paths:
+        path = str(item)
+        validate_absolute_path(path, field)
+        if path not in paths:
+            paths.append(path)
+    return paths
+
+
+def host_source_paths(host: str, cfg: dict[str, Any]) -> list[str]:
+    paths = unique_paths(cfg.get("important_paths") or ["/opt/docker"], f"hosts.{host}.important_paths")
+    if "/opt/docker" in paths:
+        paths = ["/opt/docker"] + [p for p in paths if p != "/opt/docker"]
+    return paths
+
+
+def backup_set_summary(host: str, cfg: dict[str, Any]) -> list[dict[str, Any]]:
+    raw_sets = cfg.get("backup_sets") or []
+    if not isinstance(raw_sets, list):
+        raise ValueError(f"hosts.{host}.backup_sets must be a list")
+    summary: list[dict[str, Any]] = []
+    for index, item in enumerate(raw_sets):
+        if not isinstance(item, dict):
+            raise ValueError(f"hosts.{host}.backup_sets[{index}] must be a mapping")
+        set_id = str(item.get("id") or f"set-{index}")
+        set_type = str(item.get("type") or "path")
+        paths = unique_paths(item.get("paths") or [], f"hosts.{host}.backup_sets[{set_id}].paths")
+        entry: dict[str, Any] = {
+            "id": set_id,
+            "type": set_type,
+            "backup_class": item.get("backup_class"),
+            "paths": paths,
+            "destinations": item.get("destinations") or ["primary"],
+        }
+        if item.get("restore_runbook"):
+            entry["restore_runbook"] = str(item["restore_runbook"])
+        if item.get("restore_metadata"):
+            entry["restore_metadata"] = item["restore_metadata"]
+        if item.get("database_hook"):
+            entry["database_hook"] = summarize_database_hook(host, set_id, item["database_hook"])
+        if item.get("output_path"):
+            output_path = str(item["output_path"])
+            validate_absolute_path(output_path, f"hosts.{host}.backup_sets[{set_id}].output_path")
+            entry["output_path"] = output_path
+        summary.append(entry)
+    return summary
+
+
+def summarize_database_hook(host: str, set_id: str, hook: Any) -> dict[str, Any]:
+    if not isinstance(hook, dict):
+        raise ValueError(f"hosts.{host}.backup_sets[{set_id}].database_hook must be a mapping")
+    command = str(hook.get("command") or "")
+    if command:
+        validate_absolute_path(command.split()[0], f"hosts.{host}.backup_sets[{set_id}].database_hook.command")
+    return {
+        "command": command,
+        "run_before_backup": bool(hook.get("run_before_backup", False)),
+        "failure_policy": str(hook.get("failure_policy") or "fail_backup"),
+        "current_runtime": hook.get("current_runtime"),
+    }
+
+
+def repository_url(destination: dict[str, str], repo_path: str) -> str:
+    return f"ssh://{destination['ssh_user']}@{destination['address']}{repo_path}"
+
+
+def retention_config(inventory: dict[str, Any]) -> dict[str, Any]:
+    defaults = inventory.get("backup_defaults") or {}
+    retention = defaults.get("retention") if isinstance(defaults, dict) else None
+    if not isinstance(retention, dict):
+        retention = {"keep_daily": 7, "keep_weekly": 4, "keep_monthly": 6}
+    return retention
+
+
+def consistency_config(inventory: dict[str, Any]) -> dict[str, Any]:
+    defaults = inventory.get("backup_defaults") or {}
+    checks = defaults.get("checks") if isinstance(defaults, dict) else None
+    if not isinstance(checks, dict):
+        checks = {"repository": True, "archives_frequency": "2 weeks"}
+    check_entries: list[dict[str, str]] = []
+    if checks.get("repository", True):
+        check_entries.append({"name": "repository"})
+    check_entries.append({"name": "archives", "frequency": str(checks.get("archives_frequency") or "2 weeks")})
+    return {"checks": check_entries}
+
+
+def loki_config(inventory: dict[str, Any], host: str) -> dict[str, Any] | None:
+    cfg = inventory.get("borgmatic_loki") or {}
+    if not isinstance(cfg, dict):
+        raise ValueError("borgmatic_loki must be a mapping")
+    enabled_hosts = [str(item) for item in cfg.get("enabled_hosts") or []]
+    if host not in enabled_hosts:
+        return None
+    url = str(cfg.get("url") or "")
+    if not url.startswith(("http://", "https://")) or not url.endswith("/loki/api/v1/push"):
+        raise ValueError("borgmatic_loki.url must be http(s)://host[:port]/loki/api/v1/push")
+    raw_labels = cfg.get("labels") or {}
+    if not isinstance(raw_labels, dict):
+        raise ValueError("borgmatic_loki.labels must be a mapping")
+    labels = {"job": "borgmatic", "environment": "home-network", "backup_profile": "default", "host": host, "instance": host}
+    for key, value in raw_labels.items():
+        key_text = str(key)
+        value_text = str(value)
+        if not SAFE_LABEL_KEY_RE.fullmatch(key_text):
+            raise ValueError(f"invalid borgmatic_loki label key {key_text!r}")
+        validate_label(value_text, f"borgmatic_loki.labels.{key_text}")
+        labels[key_text] = value_text
+    labels["host"] = host
+    labels["instance"] = host
+    return {"url": url, "labels": dict(sorted(labels.items()))}
+
+
+def mqtt_manifest(inventory: dict[str, Any], host: str) -> dict[str, Any] | None:
+    cfg = inventory.get("borgmatic_mqtt") or {}
+    if not isinstance(cfg, dict):
+        raise ValueError("borgmatic_mqtt must be a mapping")
+    enabled_hosts = [str(item) for item in cfg.get("enabled_hosts") or []]
+    if host not in enabled_hosts:
+        return None
+    broker_host = str(cfg.get("broker_host") or "jellyhome")
+    topic_prefix = str(cfg.get("topic_prefix") or "home-network").rstrip("/")
+    if not SAFE_TARGET_RE.fullmatch(broker_host):
+        raise ValueError("borgmatic_mqtt.broker_host must be a safe host name")
+    if not SAFE_MQTT_TOPIC_PREFIX_RE.fullmatch(topic_prefix):
+        raise ValueError("borgmatic_mqtt.topic_prefix must be a safe MQTT topic prefix")
+    password_file = str(cfg.get("password_file") or "")
+    if password_file:
+        validate_absolute_path(password_file, "borgmatic_mqtt.password_file")
+    return {
+        "enabled": True,
+        "broker_host": broker_host,
+        "broker_port": int(cfg.get("broker_port") or 1883),
+        "username": str(cfg.get("username") or ""),
+        "password_file": password_file,
+        "topic_prefix": topic_prefix,
+        "state_topic": f"{topic_prefix}/backups/{host}/borgmatic/state",
+        "event_topic": f"{topic_prefix}/backups/{host}/borgmatic/event",
+        "retain_state": bool(cfg.get("retain_state", True)),
+    }
+
+
+def render_borgmatic_config(host: str, cfg: dict[str, Any], inventory: dict[str, Any], destination: dict[str, str]) -> dict[str, Any]:
+    destinations = cfg.get("destinations") or {}
+    primary = destinations.get("primary") if isinstance(destinations, dict) else None
+    repo_path = str((primary or {}).get("repository_path") or cfg.get("repository_path"))
+    validate_absolute_path(repo_path, f"hosts.{host}.repository_path")
+    paths = host_source_paths(host, cfg)
+    exclude_patterns = [
+        "/opt/docker/.secrets",
+        "/opt/docker/.secrets/**",
+        "/opt/docker/appdata/*/cache",
+        "/opt/docker/appdata/*/logs",
+        "/opt/docker/appdata/*/tmp",
+        "/opt/docker/appdata/*/temp",
+        "/opt/docker/**/.cache",
+        "/opt/docker/**/node_modules",
+        "/opt/docker/**/.venv",
+    ]
+    config: dict[str, Any] = {
+        "source_directories": paths,
+        "repositories": [{"path": repository_url(destination, repo_path), "label": "primary"}],
+        "exclude_patterns": exclude_patterns,
+        "archive_name_format": f"{host}-{{now:%Y-%m-%dT%H:%M:%S}}",
+        "encryption_passcommand": "cat /opt/docker/.secrets/borgmatic-passphrase",
+        "retention": retention_config(inventory),
+        "consistency": consistency_config(inventory),
+    }
+    loki = loki_config(inventory, host)
+    if loki:
+        config["loki"] = loki
+    return config
+
+
+def render_systemd(host: str, inventory: dict[str, Any]) -> dict[str, str]:
+    defaults = inventory.get("backup_defaults") or {}
+    schedule = defaults.get("schedule") if isinstance(defaults, dict) else None
+    if not isinstance(schedule, dict):
+        schedule = {}
+    on_calendar = str(schedule.get("on_calendar") or "*-*-* 03:00:00")
+    randomized_delay = str(schedule.get("randomized_delay_sec") or "30m")
+    if not SAFE_SYSTEMD_CALENDAR_RE.fullmatch(on_calendar):
+        raise ValueError("backup_defaults.schedule.on_calendar contains unsafe characters")
+    if not SAFE_SYSTEMD_DELAY_RE.fullmatch(randomized_delay):
+        raise ValueError("backup_defaults.schedule.randomized_delay_sec contains unsafe characters")
+    wrapper = f"/opt/docker/bin/home-network-borgmatic-{host}"
+    service = f"""[Unit]
+Description=Home Network Borgmatic backup for {host}
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart={wrapper}
+"""
+    timer = f"""[Unit]
+Description=Daily Home Network Borgmatic backup for {host}
+
+[Timer]
+OnCalendar={on_calendar}
+RandomizedDelaySec={randomized_delay}
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+"""
+    wrapper_text = f"""#!/usr/bin/env bash
+set -euo pipefail
+if [ "$(hostname -s)" != "{host}" ]; then
+  echo "not good: this wrapper is for {host}, current host is $(hostname -s)" >&2
+  exit 1
+fi
+exec borgmatic --config /etc/borgmatic/config.yaml "$@"
+"""
+    return {"service": service, "timer": timer, "wrapper": wrapper_text}
+
+
+def render_restore_manifest(host: str, cfg: dict[str, Any], inventory: dict[str, Any], destination: dict[str, str]) -> dict[str, Any]:
+    destinations = cfg.get("destinations") or {}
+    primary = destinations.get("primary") if isinstance(destinations, dict) else None
+    repo_path = str((primary or {}).get("repository_path") or cfg.get("repository_path"))
+    sets = backup_set_summary(host, cfg)
+    restore_rules = inventory.get("restore_rules") or {}
+    classes = inventory.get("backup_classes") or {}
+    return {
+        "schema_version": 1,
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "host": host,
+        "host_type": cfg.get("host_type"),
+        "role": cfg.get("role"),
+        "repository": {"label": "primary", "url": repository_url(destination, repo_path), "path": repo_path},
+        "source_directories": host_source_paths(host, cfg),
+        "backup_sets": sets,
+        "restore_rules_referenced": sorted({str(item.get("backup_class")) for item in sets if item.get("backup_class") in restore_rules}),
+        "backup_classes_referenced": sorted({str(item.get("backup_class")) for item in sets if item.get("backup_class") in classes}),
+        "mqtt": mqtt_manifest(inventory, host),
+        "operator_notes": [
+            "Render-only manifest; review before copying any generated config to a host.",
+            "Do not paste passphrases, exported repo keys, private keys, or root logs into tickets/chat.",
+            "Production restores should remain scratch-first unless a human explicitly approves a live restore.",
+        ],
+    }
+
+
+def contains_secret_text(path: Path) -> bool:
+    text = path.read_text(encoding="utf-8")
+    if SECRET_VALUE_RE.search(text):
+        return True
+    parsed: Any | None = None
+    if path.suffix in {".yml", ".yaml", ".json"}:
+        try:
+            parsed = yaml.safe_load(text) if path.suffix in {".yml", ".yaml"} else json.loads(text)
+        except Exception:
+            parsed = None
+    return parsed_contains_inline_secret(parsed)
+
+
+def parsed_contains_inline_secret(value: Any, key: str = "") -> bool:
+    if isinstance(value, dict):
+        for child_key, child_value in value.items():
+            child_key_text = str(child_key)
+            if SECRET_FIELD_RE.search(child_key_text):
+                if isinstance(child_value, str) and child_value and not child_value.startswith("/"):
+                    return True
+            if parsed_contains_inline_secret(child_value, child_key_text):
+                return True
+    elif isinstance(value, list):
+        return any(parsed_contains_inline_secret(item, key) for item in value)
+    return False
+
+
+def write_yaml(path: Path, data: Any) -> None:
+    path.write_text(yaml.safe_dump(data, sort_keys=False, explicit_start=True), encoding="utf-8")
+
+
+def write_text(path: Path, text: str, executable: bool = False) -> None:
+    path.write_text(text, encoding="utf-8")
+    if executable:
+        path.chmod(path.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+
+
+def render_host(host: str, cfg: dict[str, Any], inventory: dict[str, Any], destination: dict[str, str], output_dir: Path) -> dict[str, Any]:
+    host_dir = output_dir / host
+    host_dir.mkdir(parents=True, exist_ok=True)
+    borgmatic_config = render_borgmatic_config(host, cfg, inventory, destination)
+    systemd = render_systemd(host, inventory)
+    manifest = render_restore_manifest(host, cfg, inventory, destination)
+
+    files = {
+        "borgmatic_config": host_dir / "borgmatic-config.yaml",
+        "systemd_service": host_dir / f"home-network-borgmatic-{host}.service",
+        "systemd_timer": host_dir / f"home-network-borgmatic-{host}.timer",
+        "wrapper": host_dir / f"home-network-borgmatic-{host}",
+        "restore_manifest": host_dir / "restore-manifest.yaml",
+    }
+    write_yaml(files["borgmatic_config"], borgmatic_config)
+    write_text(files["systemd_service"], systemd["service"])
+    write_text(files["systemd_timer"], systemd["timer"])
+    write_text(files["wrapper"], systemd["wrapper"], executable=True)
+    write_yaml(files["restore_manifest"], manifest)
+
+    yaml_validated = []
+    for key in ("borgmatic_config", "restore_manifest"):
+        yaml.safe_load(files[key].read_text(encoding="utf-8"))
+        yaml_validated.append(str(files[key].relative_to(output_dir)))
+    secret_findings = [str(path.relative_to(output_dir)) for path in files.values() if contains_secret_text(path)]
+    return {
+        "host": host,
+        "output_dir": str(host_dir),
+        "files": {key: str(path) for key, path in files.items()},
+        "yaml_validated": yaml_validated,
+        "secret_findings": secret_findings,
+    }
+
+
+def render_all(inventory_path: Path, output_dir: Path, requested_hosts: set[str] | None = None, clean: bool = False) -> dict[str, Any]:
+    output_dir = validate_output_dir(output_dir)
+    inventory = load_inventory(inventory_path)
+    destination = primary_destination(inventory)
+    hosts, warnings = host_items(inventory, requested_hosts)
+    if not hosts:
+        raise ValueError("no renderable borg_enabled hosts with an enabled primary destination and repository path")
+    if clean and output_dir.exists():
+        for item in output_dir.iterdir():
+            if item.is_file() or item.is_symlink():
+                item.unlink()
+            elif item.is_dir():
+                import shutil
+
+                shutil.rmtree(item)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    host_reports = [render_host(host, cfg, inventory, destination, output_dir) for host, cfg in hosts]
+    secret_findings = [finding for report in host_reports for finding in report["secret_findings"]]
+    report = {
+        "schema_version": 1,
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "inventory": str(inventory_path),
+        "output_dir": str(output_dir),
+        "rendered_hosts": [report["host"] for report in host_reports],
+        "warnings": warnings,
+        "hosts": host_reports,
+        "checks": {
+            "yaml_parsed": True,
+            "secret_scan_passed": not secret_findings,
+            "live_paths_mutated": False,
+        },
+    }
+    report_path = output_dir / "validation-report.json"
+    report_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    if contains_secret_text(report_path):
+        report["checks"]["secret_scan_passed"] = False
+        report.setdefault("warnings", []).append("validation report secret scan failed")
+        report_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    return report
+
+
+def parse_args(argv: list[str]) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Render inspectable Borgmatic artifacts without installing them")
+    parser.add_argument("--inventory", type=Path, default=DEFAULT_INVENTORY)
+    parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR)
+    parser.add_argument("--host", action="append", dest="hosts", help="Render only this host; repeatable")
+    parser.add_argument("--clean", action="store_true", help="Remove previous rendered output under --output-dir first")
+    return parser.parse_args(argv)
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = parse_args(argv or sys.argv[1:])
+    requested_hosts = set(args.hosts) if args.hosts else None
+    report = render_all(args.inventory, args.output_dir, requested_hosts, args.clean)
+    for warning in report["warnings"]:
+        print(f"warning: {warning}", file=sys.stderr)
+    print(json.dumps({"output_dir": report["output_dir"], "rendered_hosts": report["rendered_hosts"], "checks": report["checks"]}, sort_keys=True))
+    return 0 if report["checks"]["secret_scan_passed"] else 1
+
+
+if __name__ == "__main__":
+    try:
+        raise SystemExit(main())
+    except ValueError as exc:
+        print(f"not good: {exc}", file=sys.stderr)
+        raise SystemExit(1)
