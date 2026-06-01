@@ -299,7 +299,8 @@ services:
       jellybase:
         - loki
     urls:
-      primary: http://192.168.1.2:3100
+      primary: http://192.168.1.2:3001/d/explore/explore?left=%7B%22datasource%22:%22Loki%22%7D
+      api: http://192.168.1.2:3100
       health: http://192.168.1.2:3100/ready
     description: log history layer for Grafana; receives Borgmatic, host journal, and Docker container logs
     backup: appdata
@@ -316,7 +317,8 @@ services:
       jellybase:
         - mqtt-exporter
     urls:
-      primary: http://192.168.1.2:9000/metrics
+      primary: http://192.168.1.2:9090/graph?g0.expr=mqtt_temperature%7Bmonitored_host%3D%22jellyoffice%22%7D&g0.tab=0
+      metrics: http://192.168.1.2:9000/metrics
     description: Bridges retained jellyoffice MQTT JSON telemetry into Prometheus metrics on jellybase
     backup: config-only
     status: active
@@ -414,7 +416,8 @@ services:
         - manyfold
         - manyfold-valkey
     urls:
-      primary: http://192.168.1.1:3214
+      primary: http://192.168.1.1:3214/health
+      app: http://192.168.1.1:3214
       health: http://192.168.1.1:3214/health
     description: 3D model library manager on jellyhome using central PostgreSQL on jellybase via FILE__DATABASE_URL; library mount is read-write because Manyfold validates local libraries as writable
     database:

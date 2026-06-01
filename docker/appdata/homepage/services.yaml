@@ -37,17 +37,17 @@
       icon: grafana.png
       siteMonitor: http://192.168.1.2:3001
   - Loki:
-      href: http://192.168.1.2:3100
+      href: http://192.168.1.2:3001/d/explore/explore?left=%7B%22datasource%22:%22Loki%22%7D
       description: log history layer for Grafana; receives Borgmatic, host journal,
         and Docker container logs
       icon: grafana.png
       siteMonitor: http://192.168.1.2:3100/ready
   - MQTT Exporter:
-      href: http://192.168.1.2:9000/metrics
+      href: http://192.168.1.2:9090/graph?g0.expr=mqtt_temperature%7Bmonitored_host%3D%22jellyoffice%22%7D&g0.tab=0
       description: Bridges retained jellyoffice MQTT JSON telemetry into Prometheus
         metrics on jellybase
       icon: mdi-chart-line
-      siteMonitor: http://192.168.1.2:9000/metrics
+      siteMonitor: http://192.168.1.2:9090/graph?g0.expr=mqtt_temperature%7Bmonitored_host%3D%22jellyoffice%22%7D&g0.tab=0
   - Alloy:
       href: http://192.168.1.2:3001/d/explore/explore?left=%7B%22datasource%22:%22Loki%22%7D
       description: per-host Loki log shipper for selected systemd journal and Docker
@@ -131,7 +131,7 @@
       siteMonitor: http://192.168.1.2:11235/health
 - Media:
   - Manyfold:
-      href: http://192.168.1.1:3214
+      href: http://192.168.1.1:3214/health
       description: 3D model library manager on jellyhome using central PostgreSQL
         on jellybase via FILE__DATABASE_URL; library mount is read-write because Manyfold
         validates local libraries as writable
