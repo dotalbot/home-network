@@ -258,10 +258,14 @@ if [ -d "$SRC_STORAGE_MONITORING" ]; then
   # breaks non-root dockerops operators.
   run_privileged rsync "${RSYNC_OPTS[@]}" --exclude "/reports/" --exclude "/duc/" "$SRC_STORAGE_MONITORING"/ "$DEST_STORAGE_MONITORING"/
   set_managed_perms "$DEST_STORAGE_MONITORING"
+  # Only chmod source-managed top-level scripts here. Generated reports/indexes
+  # may be root-owned after systemd runs and should not make sync fail.
   if [ "$needs_sudo" -eq 1 ] || [ "$(id -u)" -eq 0 ]; then
-    run_privileged chmod -R 775 "$DEST_STORAGE_MONITORING"
-  elif [ -O "$DEST_STORAGE_MONITORING" ]; then
-    chmod -R 775 "$DEST_STORAGE_MONITORING"
+    run_privileged chmod 775 "$DEST_STORAGE_MONITORING"
+    run_privileged chmod 775 "$DEST_STORAGE_MONITORING"/*.sh 2>/dev/null || true
+  else
+    [ -O "$DEST_STORAGE_MONITORING" ] && chmod 775 "$DEST_STORAGE_MONITORING"
+    chmod 775 "$DEST_STORAGE_MONITORING"/*.sh 2>/dev/null || true
   fi
 fi
 

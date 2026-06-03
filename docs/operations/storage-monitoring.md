@@ -102,7 +102,7 @@ Runtime indexes/state:
 /opt/docker/appdata/storage-monitoring/duc
 ```
 
-Both runtime paths are intentionally excluded from `scripts/sync-docker-config` deletion so source syncs do not remove root-owned generated reports or indexes.
+Both runtime paths are intentionally excluded from `scripts/sync-docker-config` deletion and recursive chmod so source syncs do not remove or trip over root-owned generated reports or indexes.
 
 Source-managed scripts should live in the repo first, then sync to runtime.
 
