@@ -111,13 +111,13 @@ Existing runtime context:
 - [x] Initial jellybase non-sudo discovery completed.
 - [x] Storage-monitoring runbook exists.
 - [x] Source-managed scan scripts exist.
-- [ ] Runtime report directory exists under `/opt/docker/appdata/storage-monitoring/reports`.
-- [ ] Daily capacity scan can be run manually and produces reports.
-- [ ] Weekly duplicate scan can be run manually or is explicitly deferred because `czkawka_cli` is missing.
-- [ ] Systemd timer/service units exist and are enabled, or blocked on sudo with exact commands documented.
+- [x] Runtime report directory exists under `/opt/docker/appdata/storage-monitoring/reports`.
+- [x] Daily capacity scan can be run manually and produces reports.
+- [x] Weekly duplicate scan can be run manually or is explicitly deferred because `czkawka_cli` is missing.
+- [x] Systemd timer/service units exist and are enabled, or blocked on sudo with exact commands documented.
 - [ ] SMART/Scrutiny deployment decision is based on privileged `smartctl` output.
-- [ ] Prometheus textfile metrics are emitted and scraped, if textfile collector exists.
-- [ ] No destructive cleanup actions are enabled.
+- [x] Prometheus textfile metrics are emitted and scraped, if textfile collector exists.
+- [x] No destructive cleanup actions are enabled.
 
 ## Next steps
 

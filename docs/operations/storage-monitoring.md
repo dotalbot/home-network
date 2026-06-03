@@ -1,6 +1,6 @@
 # Storage Monitoring Runbook
 
-Status: jellybase discovery complete; initial implementation in progress.
+Status: jellybase initial rollout active; daily capacity scan/timer and Prometheus metrics verified.
 
 ## Purpose
 
@@ -163,6 +163,10 @@ Candidate devices based on `lsblk`:
 Current blocker:
 
 - SMART checks need sudo/root access.
+
+Current deferred item:
+
+- `czkawka_cli` is not available from the checked Ubuntu apt package names on jellybase. The weekly duplicate timer is installed, but currently writes a clear "not installed" report until a package/source is chosen.
 
 ## Current recommendation
 
