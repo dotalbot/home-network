@@ -253,7 +253,10 @@ fi
 
 if [ -d "$SRC_STORAGE_MONITORING" ]; then
   run_privileged mkdir -p "$DEST_STORAGE_MONITORING"
-  run_privileged rsync "${RSYNC_OPTS[@]}" "$SRC_STORAGE_MONITORING"/ "$DEST_STORAGE_MONITORING"/
+  # Keep generated reports and duc indexes as runtime state. The source tree only
+  # manages scripts/templates; deleting root-owned reports during routine sync
+  # breaks non-root dockerops operators.
+  run_privileged rsync "${RSYNC_OPTS[@]}" --exclude "/reports/" --exclude "/duc/" "$SRC_STORAGE_MONITORING"/ "$DEST_STORAGE_MONITORING"/
   set_managed_perms "$DEST_STORAGE_MONITORING"
   if [ "$needs_sudo" -eq 1 ] || [ "$(id -u)" -eq 0 ]; then
     run_privileged chmod -R 775 "$DEST_STORAGE_MONITORING"
