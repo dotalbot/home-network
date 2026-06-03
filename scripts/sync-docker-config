@@ -104,6 +104,8 @@ DEST_POSTGRES_CONFIG="${DOCKER_DIR}/appdata/postgres/config"
 DEST_POSTGRES_DUMPS="${DOCKER_DIR}/appdata/postgres/logical-dumps"
 SRC_CRAWL4AI_CONFIG="${REPO_ROOT}/docker/appdata/crawl4ai"
 DEST_CRAWL4AI_CONFIG="${DOCKER_DIR}/appdata/crawl4ai"
+SRC_STORAGE_MONITORING="${REPO_ROOT}/docker/appdata/storage-monitoring"
+DEST_STORAGE_MONITORING="${DOCKER_DIR}/appdata/storage-monitoring"
 DEST_BIN="${DOCKER_DIR}/bin"
 RSYNC_OPTS=(-rtD --delete --omit-dir-times --no-perms --no-owner --no-group)
 
@@ -246,6 +248,17 @@ if [ -d "$SRC_CRAWL4AI_CONFIG" ]; then
     run_privileged chmod -R 775 "$DEST_CRAWL4AI_CONFIG"
   elif [ -O "$DEST_CRAWL4AI_CONFIG" ]; then
     chmod -R 775 "$DEST_CRAWL4AI_CONFIG"
+  fi
+fi
+
+if [ -d "$SRC_STORAGE_MONITORING" ]; then
+  run_privileged mkdir -p "$DEST_STORAGE_MONITORING"
+  run_privileged rsync "${RSYNC_OPTS[@]}" "$SRC_STORAGE_MONITORING"/ "$DEST_STORAGE_MONITORING"/
+  set_managed_perms "$DEST_STORAGE_MONITORING"
+  if [ "$needs_sudo" -eq 1 ] || [ "$(id -u)" -eq 0 ]; then
+    run_privileged chmod -R 775 "$DEST_STORAGE_MONITORING"
+  elif [ -O "$DEST_STORAGE_MONITORING" ]; then
+    chmod -R 775 "$DEST_STORAGE_MONITORING"
   fi
 fi
 
