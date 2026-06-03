@@ -6,7 +6,16 @@ REPORTS="$BASE/reports"
 OUT="${NODE_EXPORTER_TEXTFILE_DIR:-/var/lib/node_exporter/textfile_collector}/storage_monitoring.prom"
 TMP="${OUT}.tmp"
 
-mkdir -p "$(dirname "$OUT")"
+OUT_DIR="$(dirname "$OUT")"
+if [ ! -d "$OUT_DIR" ]; then
+  echo "Prometheus textfile collector dir not present, skipped: $OUT_DIR"
+  exit 0
+fi
+
+if [ ! -w "$OUT_DIR" ]; then
+  echo "Prometheus textfile collector dir not writable, skipped: $OUT_DIR" >&2
+  exit 0
+fi
 
 scan_success=0
 if [ -s "$REPORTS/summary-latest.txt" ]; then

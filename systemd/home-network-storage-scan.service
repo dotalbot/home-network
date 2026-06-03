@@ -1,0 +1,14 @@
+[Unit]
+Description=Home Network lightweight storage scan
+Documentation=file:/home/jellyfish/repo/home-network/docs/operations/storage-monitoring.md
+Wants=network-online.target
+After=network-online.target
+RequiresMountsFor=/mnt/2TB /mnt/4TB /opt/docker
+
+[Service]
+Type=oneshot
+ExecStart=/opt/docker/appdata/storage-monitoring/run-storage-scan.sh
+ExecStartPost=/opt/docker/appdata/storage-monitoring/export-prometheus-metrics.sh
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7

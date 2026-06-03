@@ -39,7 +39,7 @@ Host:
 
 Disks from `lsblk`:
 
-- `/dev/sda`, 3.6T disk, model `ST4000DM000-1F21`, no mounted partition observed.
+- `/dev/sda`, 3.6T disk, model `ST4000DM000-1F21`; `/dev/sda1` ext4 mounted at `/mnt/4TB` after clean reformat for reuse.
 - `/dev/sdb`, 1.8T disk, model `Hitachi HDS72202`; `/dev/sdb1` ext4 mounted at `/mnt/2TB`.
 - `/dev/nvme0n1`, 931.5G disk, model `CT1000P310SSD8`; boot partitions plus LVM root.
 
@@ -47,17 +47,20 @@ Filesystems from `df -hT`:
 
 - `/`: ext4, 98G size, 62G used, 31G free, 67% used.
 - `/mnt/2TB`: ext4, 1.8T size, 1.6T used, 189G free, 90% used.
+- `/mnt/4TB`: ext4, 3.6T size, 28K used, 3.4T free, 1% used.
 - `/boot`: ext4, 2.0G size, 17% used.
 - `/boot/efi`: vfat, 1.1G size, 1% used.
 
 Mounted storage:
 
 - `/dev/sdb1` on `/mnt/2TB`.
+- `/dev/sda1` on `/mnt/4TB`, UUID `85f9285f-fa1d-4b65-830d-40bea4036aee`.
 - No NFS/CIFS mounts observed in the discovery command output.
 
 Candidate scan paths:
 
 - `/mnt/2TB`
+- `/mnt/4TB`
 - `/opt/docker`
 - limited OS-level reporting for `/`, `/boot`, `/boot/efi`
 
@@ -106,8 +109,8 @@ Existing runtime context:
 ## Acceptance criteria
 
 - [x] Initial jellybase non-sudo discovery completed.
-- [ ] Storage-monitoring runbook exists.
-- [ ] Source-managed scan scripts exist.
+- [x] Storage-monitoring runbook exists.
+- [x] Source-managed scan scripts exist.
 - [ ] Runtime report directory exists under `/opt/docker/appdata/storage-monitoring/reports`.
 - [ ] Daily capacity scan can be run manually and produces reports.
 - [ ] Weekly duplicate scan can be run manually or is explicitly deferred because `czkawka_cli` is missing.

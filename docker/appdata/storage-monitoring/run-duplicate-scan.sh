@@ -5,8 +5,8 @@ BASE="${STORAGE_MONITORING_BASE:-/opt/docker/appdata/storage-monitoring}"
 REPORTS="$BASE/reports/czkawka"
 STAMP="$(date +%Y-%m-%d_%H-%M-%S)"
 
-SCAN_PATHS=(/mnt/2TB /opt/docker)
-EXCLUDED_DIRS=(/mnt/2TB/lost+found)
+SCAN_PATHS=(/mnt/2TB /mnt/4TB /opt/docker)
+EXCLUDED_DIRS=(/mnt/2TB/lost+found /mnt/4TB/lost+found)
 
 mkdir -p "$REPORTS/archive"
 
@@ -20,6 +20,9 @@ fi
 
 existing_args=()
 for path in "${SCAN_PATHS[@]}"; do
+  if [[ "$path" == /mnt/* ]] && ! mountpoint -q "$path"; then
+    continue
+  fi
   if [ -e "$path" ]; then
     existing_args+=("-d" "$path")
   fi

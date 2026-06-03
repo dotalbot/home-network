@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily Home Network lightweight storage scan
+
+[Timer]
+OnCalendar=*-*-* 03:20:00
+Persistent=true
+RandomizedDelaySec=10m
+Unit=home-network-storage-scan.service
+
+[Install]
+WantedBy=timers.target

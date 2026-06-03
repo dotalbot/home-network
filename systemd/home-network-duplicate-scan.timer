@@ -1,0 +1,11 @@
+[Unit]
+Description=Weekly Home Network duplicate report scan
+
+[Timer]
+OnCalendar=Sun *-*-* 04:15:00
+Persistent=true
+RandomizedDelaySec=30m
+Unit=home-network-duplicate-scan.service
+
+[Install]
+WantedBy=timers.target

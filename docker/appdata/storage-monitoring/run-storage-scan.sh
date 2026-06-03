@@ -6,12 +6,15 @@ REPORTS="$BASE/reports"
 DUC_DIR="$BASE/duc"
 STAMP="$(date +%Y-%m-%d_%H-%M-%S)"
 
-SCAN_PATHS=(/mnt/2TB /opt/docker)
+SCAN_PATHS=(/mnt/2TB /mnt/4TB /opt/docker)
 
 mkdir -p "$REPORTS/archive" "$DUC_DIR"
 
 existing_scan_paths=()
 for path in "${SCAN_PATHS[@]}"; do
+  if [[ "$path" == /mnt/* ]] && ! mountpoint -q "$path"; then
+    continue
+  fi
   if [ -e "$path" ]; then
     existing_scan_paths+=("$path")
   fi

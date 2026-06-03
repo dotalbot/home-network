@@ -1,6 +1,6 @@
 # Storage Monitoring Runbook
 
-Status: draft, jellybase discovery complete; implementation pending.
+Status: jellybase discovery complete; initial implementation in progress.
 
 ## Purpose
 
@@ -33,7 +33,7 @@ Discovery method: non-sudo commands in tmux window `0:3`, SSH session to `jellyb
 
 | Device | Size | Type | Model | Mount/use |
 |---|---:|---|---|---|
-| `/dev/sda` | 3.6T | disk | `ST4000DM000-1F21` | no mounted partition observed |
+| `/dev/sda` | 3.6T | disk | `ST4000DM000-1F21` | `/dev/sda1` ext4 mounted at `/mnt/4TB` |
 | `/dev/sdb` | 1.8T | disk | `Hitachi HDS72202` | `/dev/sdb1` mounted at `/mnt/2TB` |
 | `/dev/nvme0n1` | 931.5G | disk | `CT1000P310SSD8` | boot + LVM root |
 
@@ -43,12 +43,14 @@ Discovery method: non-sudo commands in tmux window `0:3`, SSH session to `jellyb
 |---|---|---:|---:|---:|---:|
 | `/` | ext4 | 98G | 62G | 31G | 67% |
 | `/mnt/2TB` | ext4 | 1.8T | 1.6T | 189G | 90% |
+| `/mnt/4TB` | ext4 | 3.6T | 28K | 3.4T | 1% |
 | `/boot` | ext4 | 2.0G | 297M | 1.5G | 17% |
 | `/boot/efi` | vfat | 1.1G | 6.2M | 1.1G | 1% |
 
 ### Candidate scan paths
 
 - `/mnt/2TB`
+- `/mnt/4TB`
 - `/opt/docker`
 - root filesystem summary only for `/`
 
@@ -62,6 +64,7 @@ Top-level `/mnt/2TB` directories seen:
 Suggested exclusions:
 
 - `/mnt/2TB/lost+found`
+- `/mnt/4TB/lost+found`
 - any confirmed Borg repository paths
 - any transient/cache folders discovered later
 
@@ -109,13 +112,20 @@ Daily light scan:
 03:20 daily
 ```
 
+Source-managed units:
+
+```text
+systemd/home-network-storage-scan.service
+systemd/home-network-storage-scan.timer
+```
+
 Contents:
 
 - `df -hT`
 - `lsblk`
 - `duc` index/report if installed
 - report freshness metadata
-- optional Prometheus textfile metrics
+- optional Prometheus textfile metrics, written only when the node_exporter textfile directory already exists and is writable
 
 Weekly duplicate scan:
 
@@ -123,10 +133,19 @@ Weekly duplicate scan:
 04:15 Sunday
 ```
 
+Source-managed units:
+
+```text
+systemd/home-network-duplicate-scan.service
+systemd/home-network-duplicate-scan.timer
+```
+
 Contents:
 
-- `czkawka_cli dup` against selected scan paths if installed
+- `czkawka_cli dup` against selected mounted scan paths if installed
 - report only; no deletions
+
+The scan scripts require `/mnt/*` scan paths to be real mountpoints before scanning them, so a missing disk does not cause the root filesystem mount directory to be scanned by mistake.
 
 ## Scrutiny / SMART status
 
