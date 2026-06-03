@@ -126,6 +126,7 @@ Contents:
 - `duc` index/report if installed
 - report freshness metadata
 - optional Prometheus textfile metrics, written only when the node_exporter textfile directory already exists and is writable
+- filesystem usage metrics for durable filesystems only; pseudo/container filesystems such as `overlay`, `tmpfs`, and `efivarfs` are omitted to keep labels low-cardinality
 
 Weekly duplicate scan:
 

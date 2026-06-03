@@ -51,6 +51,9 @@ fi
     filesystem=$1;
     fstype=$2;
     mountpoint=$7;
+    # Keep custom storage metrics low-cardinality. node_exporter already exposes
+    # detailed pseudo/container filesystems; this report is for durable storage.
+    if (fstype == "overlay" || fstype == "tmpfs" || fstype == "efivarfs") next;
     used=$6;
     gsub("%", "", used);
     gsub(/\\/, "\\\\", filesystem);
