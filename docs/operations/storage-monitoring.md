@@ -1,6 +1,6 @@
 # Storage Monitoring Runbook
 
-Status: jellybase initial rollout active; daily capacity scan/timer and Prometheus metrics verified.
+Status: jellybase rollout active; daily capacity scan/timer, Czkawka duplicate reporting, SMART textfile metrics, and Prometheus filesystem metrics verified.
 
 ## Purpose
 
@@ -153,7 +153,7 @@ The scan scripts require `/mnt/*` scan paths to be real mountpoints before scann
 
 ## Scrutiny / SMART status
 
-Scrutiny should not be deployed until a privileged `smartctl` probe confirms which devices are useful.
+Scrutiny is not necessary for the first pass. Privileged `smartctl` output confirms all three jellybase devices expose useful health data, so the lightweight default is sanitized node_exporter textfile metrics plus Grafana/alerts.
 
 Candidate devices based on `lsblk`:
 
@@ -163,7 +163,13 @@ Candidate devices based on `lsblk`:
 
 Current blocker:
 
-- SMART checks need sudo/root access; sudo is available in the current operator pane for the next probing step.
+- None for jellybase SMART telemetry; sudo was used in tmux `0:3` to verify `/dev/sda`, `/dev/sdb`, and `/dev/nvme0`.
+
+Privileged SMART summary, sanitized:
+
+- `/dev/sda`: health passed, temperature 34C, 31,490 power-on hours, 0 reallocated, 0 pending, 0 offline uncorrectable.
+- `/dev/sdb`: health passed, temperature 41C, 52,760 power-on hours, 4 reallocated sectors/events, 0 pending, 0 offline uncorrectable.
+- `/dev/nvme0`: health passed, critical warning 0, temperature 35C, 3% used, 0 media/data integrity errors.
 
 Current duplicate-scan source:
 

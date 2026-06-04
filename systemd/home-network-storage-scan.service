@@ -9,6 +9,7 @@ RequiresMountsFor=/mnt/2TB /mnt/4TB /opt/docker
 Type=oneshot
 ExecStart=/opt/docker/appdata/storage-monitoring/run-storage-scan.sh
 ExecStartPost=/opt/docker/appdata/storage-monitoring/export-prometheus-metrics.sh
+ExecStartPost=/opt/docker/appdata/storage-monitoring/export-smart-metrics.sh
 Nice=10
 IOSchedulingClass=best-effort
 IOSchedulingPriority=7

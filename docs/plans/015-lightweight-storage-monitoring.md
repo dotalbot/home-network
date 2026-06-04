@@ -15,6 +15,7 @@ Initial capabilities:
 - lightweight folder-usage reports with `duc` where available;
 - weekly duplicate reports with `czkawka_cli` where available;
 - SMART/Scrutiny planning for locally attached disks;
+- sanitized SMART health metrics for locally attached disks;
 - Prometheus textfile metrics where node_exporter textfile collector is already present;
 - operator runbook and report locations.
 
@@ -116,8 +117,9 @@ Existing runtime context:
 - [x] Weekly duplicate scan can be run manually or is explicitly deferred because `czkawka_cli` is missing.
 - [x] Systemd timer/service units exist and are enabled.
 - [x] Pinned `czkawka_cli` installer exists and verifies the GitHub release binary before installation.
-- [ ] First Czkawka duplicate report with the pinned binary is verified on jellybase.
-- [ ] SMART/Scrutiny deployment decision is based on privileged `smartctl` output.
+- [x] First Czkawka duplicate report with the pinned binary is verified on jellybase.
+- [x] SMART/Scrutiny deployment decision is based on privileged `smartctl` output.
+- [x] Sanitized SMART metrics are emitted for jellybase disks without serial/model labels.
 - [x] Prometheus textfile metrics are emitted and scraped, if textfile collector exists.
 - [x] No destructive cleanup actions are enabled.
 
