@@ -114,17 +114,17 @@ Existing runtime context:
 - [x] Runtime report directory exists under `/opt/docker/appdata/storage-monitoring/reports`.
 - [x] Daily capacity scan can be run manually and produces reports.
 - [x] Weekly duplicate scan can be run manually or is explicitly deferred because `czkawka_cli` is missing.
-- [x] Systemd timer/service units exist and are enabled, or blocked on sudo with exact commands documented.
+- [x] Systemd timer/service units exist and are enabled.
+- [x] Pinned `czkawka_cli` installer exists and verifies the GitHub release binary before installation.
+- [ ] First Czkawka duplicate report with the pinned binary is verified on jellybase.
 - [ ] SMART/Scrutiny deployment decision is based on privileged `smartctl` output.
 - [x] Prometheus textfile metrics are emitted and scraped, if textfile collector exists.
 - [x] No destructive cleanup actions are enabled.
 
 ## Next steps
 
-1. Confirm whether to use interactive sudo in tmux window `0:3` for package installation and SMART probing.
-2. If approved, install or verify `duc` and `czkawka_cli` availability.
-3. Add source-managed scripts under the repo, likely `scripts/storage-monitoring/`.
-4. Patch `scripts/sync-docker-config` to copy those scripts/appdata templates into `/opt/docker`.
-5. Add systemd service/timer templates or an installer script.
-6. Run manual daily scan.
-7. Review whether `/mnt/2TB` at 90% needs an immediate alert threshold or cleanup planning.
+1. Install pinned `czkawka_cli` on jellybase with `scripts/install-czkawka-cli`.
+2. Run and verify the first non-destructive duplicate report, starting with mounted paths only.
+3. Use sudo in tmux window `0:3` for privileged `smartctl --scan` and per-device SMART probes.
+4. Decide whether simple SMART textfile metrics are enough or whether Scrutiny is worth deploying.
+5. Review whether `/mnt/2TB` at 90% needs an immediate alert threshold or cleanup planning.

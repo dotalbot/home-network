@@ -270,7 +270,7 @@ if [ -d "$SRC_STORAGE_MONITORING" ]; then
 fi
 
 run_privileged mkdir -p "$DEST_BIN"
-for helper in postgres-logical-dump postgres-bootstrap-manyfold postgres-firewall-docker-user; do
+for helper in postgres-logical-dump postgres-bootstrap-manyfold postgres-firewall-docker-user install-czkawka-cli; do
   if [ -f "${REPO_ROOT}/scripts/${helper}" ]; then
     dest_helper="${DEST_BIN}/${helper}"
     if [ "$needs_sudo" -eq 1 ] || [ "$(id -u)" -eq 0 ] || [ -w "$dest_helper" ] || { [ ! -e "$dest_helper" ] && [ -w "$DEST_BIN" ]; }; then

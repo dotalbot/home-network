@@ -79,8 +79,8 @@ The command found application `data` and `config` directories under `/opt/docker
 - `smartctl`: installed, but requires elevated permissions for device checks.
 - `borg`: installed.
 - `borgmatic`: installed.
-- `duc`: not installed.
-- `czkawka_cli`: not installed.
+- `duc`: installed for daily capacity/folder reports.
+- `czkawka_cli`: installed from pinned GitHub release `11.0.1` via source-managed `scripts/install-czkawka-cli`.
 
 ### Permission notes
 
@@ -162,11 +162,12 @@ Candidate devices based on `lsblk`:
 
 Current blocker:
 
-- SMART checks need sudo/root access.
+- SMART checks need sudo/root access; sudo is available in the current operator pane for the next probing step.
 
-Current deferred item:
+Current duplicate-scan source:
 
-- `czkawka_cli` is not available from the checked Ubuntu apt package names on jellybase. The weekly duplicate timer is installed, but currently writes a clear "not installed" report until a package/source is chosen.
+- `czkawka_cli` is installed from the pinned upstream GitHub release `11.0.1` using `scripts/install-czkawka-cli`.
+- The installer verifies SHA256 before installing `/usr/local/bin/czkawka_cli`.
 
 ## Current recommendation
 

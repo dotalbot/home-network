@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+VERSION="${CZKAWKA_VERSION:-11.0.1}"
+INSTALL_DIR="${INSTALL_DIR:-/usr/local/bin}"
+INSTALL_PATH="${INSTALL_PATH:-${INSTALL_DIR}/czkawka_cli}"
+BASE_URL="https://github.com/qarmin/czkawka/releases/download/${VERSION}"
+
+case "$(uname -m)" in
+  x86_64|amd64)
+    ASSET="linux_czkawka_cli_x86_64"
+    SHA256="2f81d63f79047294629253f4232c47cf5a2c6e55b9e34f23d11c2c810cfcbc09"
+    ;;
+  aarch64|arm64)
+    ASSET="linux_czkawka_cli_arm64"
+    SHA256="eb333e3b29d576db6d2365cd9deff454cfc9e7bc9b8b6dfefb4ab82b14db7dc8"
+    ;;
+  *)
+    echo "unsupported architecture: $(uname -m)" >&2
+    exit 1
+    ;;
+esac
+
+URL="${BASE_URL}/${ASSET}"
+TMP_DIR="$(mktemp -d)"
+cleanup() {
+  rm -rf "$TMP_DIR"
+}
+trap cleanup EXIT
+
+curl -fsSL "$URL" -o "$TMP_DIR/czkawka_cli"
+printf '%s  %s\n' "$SHA256" "$TMP_DIR/czkawka_cli" | sha256sum -c -
+chmod 0755 "$TMP_DIR/czkawka_cli"
+
+if [ "$(id -u)" -eq 0 ]; then
+  mkdir -p "$INSTALL_DIR"
+  install -m 0755 "$TMP_DIR/czkawka_cli" "$INSTALL_PATH"
+elif command -v sudo >/dev/null 2>&1; then
+  sudo mkdir -p "$INSTALL_DIR"
+  sudo install -m 0755 "$TMP_DIR/czkawka_cli" "$INSTALL_PATH"
+else
+  echo "not root and sudo is unavailable; cannot install to $INSTALL_PATH" >&2
+  exit 1
+fi
+
+"$INSTALL_PATH" --version
+printf 'Installed czkawka_cli %s at %s from %s\n' "$VERSION" "$INSTALL_PATH" "$URL"
