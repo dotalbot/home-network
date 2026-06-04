@@ -6,7 +6,7 @@ Add a lightweight storage monitoring setup for homelab disks and backup/storage 
 
 ## Scope
 
-First target: `jellybase`.
+First target: `jellybase`; second rollout target: `jellyhome`.
 
 Initial capabilities:
 
@@ -97,6 +97,44 @@ Existing runtime context:
 - Existing monitoring stack is already present: Prometheus, Grafana, Loki, Alloy, Alertmanager, MQTT exporter, Homepage, Network Map.
 - A second Compose project exists from `/home/jellylady/repo/home-network/docker/hosts/jellybase.yaml` for at least one running service; keep this in mind when avoiding drift.
 
+## jellyhome rollout status
+
+Discovery and rollout ran via tmux window `0:2` connected to `jellyhome` as `jellyfish` with sudo available.
+
+Host:
+
+- Hostname: `jellyhome`.
+- LAN IP observed in login banner: `192.168.1.1`.
+- OS: Ubuntu 24.04.4 LTS.
+- Reboot currently required according to login banner after package/kernel updates.
+
+Disks from `lsblk`/`smartctl --scan`:
+
+- `/dev/sda`, 931.5G disk, model `CT1000BX500SSD1`; boot partitions plus LVM root.
+- `/dev/sdb`, 4.5T disk, model `ST5000DM000-1FK1`; `/dev/sdb1` ext4, not mounted during rollout.
+- `/dev/sdc`, 4.5T disk, model `ST5000DM000-1FK1`; `/dev/sdc1` ext4, not mounted during rollout.
+
+Mounted storage observed:
+
+- `/` on `/dev/mapper/ubuntu--vg-ubuntu--lv`.
+- No `/mnt/*` or separate `/opt/docker` mount observed during rollout.
+
+Verified runtime state:
+
+- `duc` installed from Ubuntu packages.
+- `czkawka_cli` 11.0.1 installed from the pinned repo-managed installer.
+- Storage scan and duplicate scan units installed under `/etc/systemd/system`.
+- `home-network-storage-scan.timer` and `home-network-duplicate-scan.timer` enabled.
+- Manual storage scan succeeded and wrote `storage_monitoring.prom` plus `storage_smart.prom` into `/var/lib/node_exporter/textfile_collector`.
+- Central Prometheus on jellybase scrapes jellyhome storage metrics.
+- Bounded duplicate scan of `/opt/docker` succeeded and generated a report; it was report-only.
+
+SMART metrics verified for jellyhome:
+
+- SMART health: `sda=1`, `sdb=1`, `sdc=1`.
+- Temperatures: `sda=27C`, `sdb=34C`, `sdc=30C` at verification time.
+- Filesystem usage: `/=38%`, `/boot/efi=1%`, `/boot=11%` at verification time.
+
 ## Proposed implementation shape
 
 1. Source-manage scripts and docs in `/home/jellybot/home-network`.
@@ -122,13 +160,15 @@ Existing runtime context:
 - [x] Sanitized SMART metrics are emitted for jellybase disks without serial/model labels.
 - [x] Storage Prometheus alert rules exist for SMART failures, sector-risk counters, disk temperature, and `/mnt/2TB` capacity thresholds.
 - [x] Grafana Host Observability has storage panels for SMART health, temperature, risk counters, filesystem usage, and NVMe wear.
+- [x] jellyhome storage scan and duplicate scan timers are installed and enabled.
+- [x] jellyhome SMART and filesystem metrics are emitted locally and scraped centrally by jellybase Prometheus.
+- [x] jellyhome first bounded duplicate report is verified against `/opt/docker`.
 - [x] Prometheus textfile metrics are emitted and scraped, if textfile collector exists.
 - [x] No destructive cleanup actions are enabled.
 
 ## Next steps
 
-1. Install pinned `czkawka_cli` on jellybase with `scripts/install-czkawka-cli`.
-2. Run and verify the first non-destructive duplicate report, starting with mounted paths only.
-3. Use sudo in tmux window `0:3` for privileged `smartctl --scan` and per-device SMART probes.
-4. Decide whether simple SMART textfile metrics are enough or whether Scrutiny is worth deploying.
-5. Review whether `/mnt/2TB` at 90% needs an immediate alert threshold or cleanup planning.
+1. Observe the real Alertmanager/Discord delivery path for the existing `/mnt/2TB` warning on jellybase.
+2. Decide whether jellyhome's two unmounted 4.5T disks should be mounted, inventoried, or left as SMART-only monitored devices.
+3. Add report retention if `/opt/docker/appdata/storage-monitoring/reports` starts growing materially.
+4. Keep `/mnt/2TB` cleanup planning separate from this monitoring rollout.

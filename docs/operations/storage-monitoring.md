@@ -1,6 +1,6 @@
 # Storage Monitoring Runbook
 
-Status: jellybase rollout active; daily capacity scan/timer, Czkawka duplicate reporting, SMART textfile metrics, Prometheus filesystem metrics, storage alerts, and Host Observability dashboard panels verified.
+Status: jellybase and jellyhome rollout active; daily capacity scan/timer, Czkawka duplicate reporting, SMART textfile metrics, Prometheus filesystem metrics, storage alerts, and Host Observability dashboard panels verified.
 
 ## Purpose
 
@@ -85,8 +85,7 @@ The command found application `data` and `config` directories under `/opt/docker
 ### Permission notes
 
 - Active operator user: `jellyfish`.
-- Non-interactive sudo is not available in the pane: `sudo -n true` requires a password.
-- SMART probes failed with `Permission denied` for `/dev/sda`, `/dev/sdb`, and `/dev/nvme0n1`.
+- SMART telemetry was verified with sudo in tmux `0:3` for `/dev/sda`, `/dev/sdb`, and `/dev/nvme0n1`.
 
 ## Proposed report locations
 
@@ -151,6 +150,54 @@ Contents:
 - The first manual verification can limit scope with `DUPLICATE_SCAN_PATHS=/mnt/4TB` before allowing the weekly timer to scan the default mounted paths.
 
 The scan scripts require `/mnt/*` scan paths to be real mountpoints before scanning them, so a missing disk does not cause the root filesystem mount directory to be scanned by mistake.
+
+## jellyhome inventory and rollout
+
+Discovery/rollout date: 2026-06-04
+Discovery method: sudo-capable tmux window `0:2`, SSH session to `jellyhome` as `jellyfish`.
+
+### Host
+
+- Hostname: `jellyhome`
+- LAN IP observed: `192.168.1.1`
+- OS observed: Ubuntu 24.04.4 LTS
+- Reboot required after package/kernel updates according to login banner and `needrestart`.
+
+### Disks
+
+| Device | Size | Type | Model | Mount/use |
+|---|---:|---|---|---|
+| `/dev/sda` | 931.5G | disk | `CT1000BX500SSD1` | boot + LVM root |
+| `/dev/sdb` | 4.5T | disk | `ST5000DM000-1FK1` | `/dev/sdb1` ext4, not mounted during rollout |
+| `/dev/sdc` | 4.5T | disk | `ST5000DM000-1FK1` | `/dev/sdc1` ext4, not mounted during rollout |
+
+### Filesystems
+
+Verified central Prometheus filesystem usage from jellyhome:
+
+| Mount | Use |
+|---|---:|
+| `/` | 38% |
+| `/boot/efi` | 1% |
+| `/boot` | 11% |
+
+No `/mnt/*` or separate `/opt/docker` mount was observed during rollout, so the default scan scripts currently scan `/opt/docker` plus report system filesystem usage. The unmounted 4.5T disks are SMART-monitored only until they are deliberately mounted/inventoried.
+
+### Tooling and timers
+
+- `smartctl`: installed.
+- `duc`: installed from Ubuntu packages.
+- `czkawka_cli`: installed from pinned GitHub release `11.0.1` via source-managed `scripts/install-czkawka-cli`.
+- `home-network-storage-scan.timer`: enabled; next run was scheduled for `2026-06-05 03:26:06 BST` at verification time.
+- `home-network-duplicate-scan.timer`: enabled; next run was scheduled for `2026-06-07 04:36:04 BST` at verification time.
+- Manual storage scan succeeded and wrote `/var/lib/node_exporter/textfile_collector/storage_monitoring.prom` plus `/var/lib/node_exporter/textfile_collector/storage_smart.prom`.
+- Bounded report-only duplicate scan against `/opt/docker` succeeded.
+
+### SMART summary, sanitized
+
+- `/dev/sda`: health passed, temperature 27C at verification time.
+- `/dev/sdb`: health passed, temperature 34C at verification time.
+- `/dev/sdc`: health passed, temperature 30C at verification time.
 
 ## Scrutiny / SMART status
 
