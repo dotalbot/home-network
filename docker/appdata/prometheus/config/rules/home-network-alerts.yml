@@ -203,6 +203,87 @@ groups:
           summary: "Alloy is down on {{ $labels.monitored_host }}"
           description: "Alloy log shipping agent {{ $labels.monitored_host }} has been unreachable for more than 5 minutes."
 
+
+      - alert: StorageMonitoringSmartHealthFailed
+        expr: storage_monitoring_disk_smart_health{job="node_exporter"} != 1
+        for: 10m
+        labels:
+          severity: critical
+          category: disk
+        annotations:
+          summary: "SMART health failed on {{ $labels.host }} {{ $labels.device }}"
+          description: "The storage monitoring SMART exporter reports a failed or unknown SMART health value. Check smartctl on the host before trusting the disk."
+
+      - alert: StorageMonitoringSmartProbeFailed
+        expr: storage_monitoring_disk_smart_probe_success{job="node_exporter"} == 0
+        for: 15m
+        labels:
+          severity: warning
+          category: disk
+        annotations:
+          summary: "SMART probe failed on {{ $labels.host }} {{ $labels.device }}"
+          description: "The storage monitoring SMART exporter could not probe this disk. Check smartctl access, device names, and the storage scan service journal."
+
+      - alert: StorageMonitoringPendingSectors
+        expr: storage_monitoring_disk_current_pending_sectors{job="node_exporter"} > 0
+        for: 10m
+        labels:
+          severity: critical
+          category: disk
+        annotations:
+          summary: "Pending disk sectors on {{ $labels.host }} {{ $labels.device }}"
+          description: "SMART reports current pending sectors. Back up/verify important data and plan disk replacement if the count persists or grows."
+
+      - alert: StorageMonitoringOfflineUncorrectable
+        expr: storage_monitoring_disk_offline_uncorrectable{job="node_exporter"} > 0
+        for: 10m
+        labels:
+          severity: critical
+          category: disk
+        annotations:
+          summary: "Offline uncorrectable sectors on {{ $labels.host }} {{ $labels.device }}"
+          description: "SMART reports offline uncorrectable sectors. Treat this as disk degradation and verify backups before further heavy disk activity."
+
+      - alert: StorageMonitoringReallocatedSectorsIncreasing
+        expr: increase(storage_monitoring_disk_reallocated_sectors{job="node_exporter"}[7d]) > 0
+        for: 30m
+        labels:
+          severity: warning
+          category: disk
+        annotations:
+          summary: "Reallocated sector count increased on {{ $labels.host }} {{ $labels.device }}"
+          description: "SMART reallocated sector count increased over the last 7 days. Existing historical reallocations can be monitored, but growth should trigger replacement planning."
+
+      - alert: StorageMonitoringDiskTemperatureHigh
+        expr: storage_monitoring_disk_temperature_celsius{job="node_exporter"} > 55
+        for: 15m
+        labels:
+          severity: warning
+          category: disk
+        annotations:
+          summary: "High disk temperature on {{ $labels.host }} {{ $labels.device }}"
+          description: "SMART disk temperature has been above 55C for 15 minutes. Check airflow, workload, and enclosure cooling."
+
+      - alert: JellybaseStorageMount2TBCritical
+        expr: storage_monitoring_filesystem_used_percent{job="node_exporter",host="jellybase",mountpoint="/mnt/2TB"} >= 95
+        for: 15m
+        labels:
+          severity: critical
+          category: disk
+        annotations:
+          summary: "jellybase /mnt/2TB is critically full"
+          description: "The custom storage monitor reports /mnt/2TB at or above 95% used. Review Czkawka/Duc reports and cleanup/migration options."
+
+      - alert: JellybaseStorageMount2TBWarning
+        expr: storage_monitoring_filesystem_used_percent{job="node_exporter",host="jellybase",mountpoint="/mnt/2TB"} >= 90
+        for: 30m
+        labels:
+          severity: warning
+          category: disk
+        annotations:
+          summary: "jellybase /mnt/2TB is above 90% used"
+          description: "The custom storage monitor reports /mnt/2TB at or above 90% used. This is expected initially but should remain visible until cleanup or migration reduces usage."
+
       - alert: Seedit4meReverseTunnelDown
         expr: home_network_seedit4me_tunnel_success{job="node_exporter",host="jellyberry"} == 0
         for: 2m

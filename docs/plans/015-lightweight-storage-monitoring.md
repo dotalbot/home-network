@@ -120,6 +120,8 @@ Existing runtime context:
 - [x] First Czkawka duplicate report with the pinned binary is verified on jellybase.
 - [x] SMART/Scrutiny deployment decision is based on privileged `smartctl` output.
 - [x] Sanitized SMART metrics are emitted for jellybase disks without serial/model labels.
+- [x] Storage Prometheus alert rules exist for SMART failures, sector-risk counters, disk temperature, and `/mnt/2TB` capacity thresholds.
+- [x] Grafana Host Observability has storage panels for SMART health, temperature, risk counters, filesystem usage, and NVMe wear.
 - [x] Prometheus textfile metrics are emitted and scraped, if textfile collector exists.
 - [x] No destructive cleanup actions are enabled.
 

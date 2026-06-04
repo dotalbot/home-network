@@ -1,6 +1,6 @@
 # Storage Monitoring Runbook
 
-Status: jellybase rollout active; daily capacity scan/timer, Czkawka duplicate reporting, SMART textfile metrics, and Prometheus filesystem metrics verified.
+Status: jellybase rollout active; daily capacity scan/timer, Czkawka duplicate reporting, SMART textfile metrics, Prometheus filesystem metrics, storage alerts, and Host Observability dashboard panels verified.
 
 ## Purpose
 
@@ -128,6 +128,7 @@ Contents:
 - `duc` index/report if installed
 - report freshness metadata
 - optional Prometheus textfile metrics, written only when the node_exporter textfile directory already exists and is writable
+- sanitized SMART metrics for health, probe success, temperature, sector counters, and NVMe wear/media errors
 - filesystem usage metrics for durable filesystems only; pseudo/container filesystems such as `overlay`, `tmpfs`, and `efivarfs` are omitted to keep labels low-cardinality
 
 Weekly duplicate scan:
@@ -175,6 +176,31 @@ Current duplicate-scan source:
 
 - `czkawka_cli` is installed from the pinned upstream GitHub release `11.0.1` using `scripts/install-czkawka-cli`.
 - The installer verifies SHA256 before installing `/usr/local/bin/czkawka_cli`.
+
+## Alerts and dashboard panels
+
+Prometheus alert rules are source-managed in:
+
+```text
+docker/appdata/prometheus/config/rules/home-network-alerts.yml
+```
+
+Storage-monitoring-specific alerts cover:
+
+- SMART health failure or probe failure.
+- pending sectors greater than 0.
+- offline uncorrectable sectors greater than 0.
+- reallocated sector count increases over 7 days.
+- disk temperature above 55C for 15 minutes.
+- `/mnt/2TB` warning at 90% and critical at 95% used.
+
+Grafana Host Observability includes storage panels for:
+
+- SMART health.
+- disk temperature.
+- sector/media-error counters.
+- storage filesystem usage.
+- NVMe wear percentage.
 
 ## Current recommendation
 
