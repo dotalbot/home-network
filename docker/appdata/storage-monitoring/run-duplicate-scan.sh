@@ -7,8 +7,8 @@ STAMP="$(date +%Y-%m-%d_%H-%M-%S)"
 
 CZKAWKA_BIN="${CZKAWKA_BIN:-czkawka_cli}"
 
-SCAN_PATHS=(/mnt/2TB /mnt/4TB /opt/docker)
-EXCLUDED_DIRS=(/mnt/2TB/lost+found /mnt/4TB/lost+found)
+IFS=: read -r -a SCAN_PATHS <<< "${DUPLICATE_SCAN_PATHS:-/mnt/2TB:/mnt/4TB:/opt/docker}"
+IFS=: read -r -a EXCLUDED_DIRS <<< "${DUPLICATE_EXCLUDED_DIRS:-/mnt/2TB/lost+found:/mnt/4TB/lost+found}"
 
 mkdir -p "$REPORTS/archive"
 

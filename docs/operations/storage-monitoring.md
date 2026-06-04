@@ -147,6 +147,7 @@ Contents:
 
 - `czkawka_cli dup` against selected mounted scan paths if installed
 - report only; no deletions
+- The first manual verification can limit scope with `DUPLICATE_SCAN_PATHS=/mnt/4TB` before allowing the weekly timer to scan the default mounted paths.
 
 The scan scripts require `/mnt/*` scan paths to be real mountpoints before scanning them, so a missing disk does not cause the root filesystem mount directory to be scanned by mistake.
 
