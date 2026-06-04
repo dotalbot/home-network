@@ -104,14 +104,17 @@ groups:
           description: "The sanitized disk-health probe reports failure. Check the host directly; dashboards intentionally avoid exposing serials/raw SMART JSON."
 
       - alert: DiskHealthUnknown
-        expr: home_network_disk_health_status{job="node_exporter"} == -1
+        expr: |
+          home_network_disk_health_status{job="node_exporter"} == -1
+          unless on(host, device)
+          home_network_disk_health_status{job="node_exporter",host="jellyberry",device=~"/dev/(zram0|mmcblk0)"}
         for: 24h
         labels:
           severity: info
           category: disk
         annotations:
           summary: "Disk health unknown on {{ $labels.host }} {{ $labels.device }}"
-          description: "Disk-health status has remained unknown for 24h. This can be expected for unsupported Pi/USB/microSD paths, but should stay explicit."
+          description: "Disk-health status has remained unknown for 24h. This can be expected for unsupported devices; jellyberry zram0 and mmcblk0 are intentionally suppressed because the NVMe system disk has explicit health coverage."
 
       - alert: UnexpectedUnknownDiskDeviceChange
         expr: home_network_disk_health_unknown_devices{job="node_exporter"} > 0 and changes(home_network_disk_health_unknown_devices{job="node_exporter"}[24h]) > 0
