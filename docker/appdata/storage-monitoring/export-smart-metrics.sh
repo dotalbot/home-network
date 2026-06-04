@@ -105,7 +105,7 @@ parse_nvme() {
     kind="${dtype:-auto}"
     kind="${kind#,}"
     probe="$(mktemp)"
-    if "$SMARTCTL" -H -A "$dev" > "$probe" 2>/dev/null; then
+    if "$SMARTCTL" -H -A "$dev" > "$probe" 2>/dev/null || [ -s "$probe" ]; then
       printf 'storage_monitoring_disk_smart_probe_success{%s} 1\n' "$(metric_labels "$dev" "$kind")"
       if [ "$kind" = "nvme" ]; then
         parse_nvme "$dev" "$kind" "$probe"
