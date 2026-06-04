@@ -52,8 +52,9 @@ Initial deployment intentionally uses a hardened profile:
 
 - `HARDEN_DESKTOP=true`
 - `START_DOCKER=false`
-- no host Docker socket mount
-- no `privileged: true`
+- `SELKIES_USE_BROWSER_CURSORS=true` to reduce pointer lag by using the browser's native cursor
+- no Docker socket is mounted
+- no privileged mode is used
 - no GPU passthrough
 - no `seccomp=unconfined`
 - bind ports only to LAN and Tailscale host IPs, not `0.0.0.0`

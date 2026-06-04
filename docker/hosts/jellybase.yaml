@@ -285,6 +285,7 @@ services:
       TITLE: Jellybase Webtop
       HARDEN_DESKTOP: "true"
       START_DOCKER: "false"
+      SELKIES_USE_BROWSER_CURSORS: "true"
     secrets:
       - source: webtop_jellybase_password
         target: webtop_password
