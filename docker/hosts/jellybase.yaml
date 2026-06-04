@@ -268,6 +268,31 @@ services:
       - prometheus
       - alertmanager
 
+  webtop-jellybase:
+    image: lscr.io/linuxserver/webtop:latest
+    container_name: webtop-jellybase
+    restart: unless-stopped
+    shm_size: "1gb"
+    ports:
+      - "192.168.1.2:${WEBTOP_JELLYBASE_PORT:-30301}:3001"
+      - "100.125.86.118:${WEBTOP_JELLYBASE_PORT:-30301}:3001"
+    environment:
+      PUID: "1000"
+      PGID: "1000"
+      TZ: ${TZ}
+      CUSTOM_USER: ${WEBTOP_USER:-dominic}
+      FILE__PASSWORD: /run/secrets/webtop_password
+      TITLE: Jellybase Webtop
+      HARDEN_DESKTOP: "true"
+      START_DOCKER: "false"
+    secrets:
+      - source: webtop_jellybase_password
+        target: webtop_password
+    volumes:
+      - /opt/docker/appdata/webtop-jellybase/config:/config
+    security_opt:
+      - no-new-privileges:true
+
   alloy:
     image: grafana/alloy:latest
     container_name: alloy
@@ -298,3 +323,5 @@ secrets:
     file: /opt/docker/.secrets/alertmanager/discord_webhook_url
   mqtt_exporter_password:
     file: /opt/docker/.secrets/mqtt-exporter/password
+  webtop_jellybase_password:
+    file: /opt/docker/.secrets/webtop-jellybase/password

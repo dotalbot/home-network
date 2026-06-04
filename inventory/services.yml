@@ -616,6 +616,50 @@ services:
       - Home Assistant discovery topics are retained under homeassistant/sensor/jellyoffice/#.
       - ADS1015 is detected at 0x23, but noise channel reads currently return I/O errors; noise is not published yet.
 
+  webtop-jellybase:
+    display_name: Webtop jellybase
+    icon: mdi-monitor-dashboard
+    category: Tools
+    mode: host-local-desktop
+    hosts:
+      - jellybase
+    containers:
+      jellybase:
+        - webtop-jellybase
+    urls:
+      primary: https://192.168.1.2:30301
+      lan: https://192.168.1.2:30301
+      tailscale: https://100.125.86.118:30301
+    description: Browser-accessible LinuxServer Webtop desktop on jellybase | LAN/Tailscale only | basic auth | hardened desktop profile
+    backup: appdata
+    status: active
+    notes:
+      - Persistent config lives at /opt/docker/appdata/webtop-jellybase/config.
+      - Password secret lives at /opt/docker/.secrets/webtop-jellybase/password and is not stored in Git.
+      - Initial deployment uses HARDEN_DESKTOP=true, START_DOCKER=false, no Docker socket, no privileged mode, and no GPU passthrough.
+
+  webtop-jellyhome:
+    display_name: Webtop jellyhome
+    icon: mdi-monitor-dashboard
+    category: Tools
+    mode: host-local-desktop
+    hosts:
+      - jellyhome
+    containers:
+      jellyhome:
+        - webtop-jellyhome
+    urls:
+      primary: https://192.168.1.1:30301
+      lan: https://192.168.1.1:30301
+      tailscale: https://100.90.175.59:30301
+    description: Browser-accessible LinuxServer Webtop desktop on jellyhome | LAN/Tailscale only | basic auth | hardened desktop profile
+    backup: appdata
+    status: active
+    notes:
+      - Persistent config lives at /opt/docker/appdata/webtop-jellyhome/config.
+      - Password secret lives at /opt/docker/.secrets/webtop-jellyhome/password and is not stored in Git.
+      - Initial deployment uses HARDEN_DESKTOP=true, START_DOCKER=false, no Docker socket, no privileged mode, and no GPU passthrough.
+
 drift:
   ignored_containers:
     jellybase:

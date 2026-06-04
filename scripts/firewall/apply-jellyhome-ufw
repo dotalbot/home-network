@@ -59,6 +59,7 @@ cat <<'NOTE'
 #   - 8888/8889 temporary package delivery/dev ports
 #   - 18888 Hindsight API
 #   - 9999 Hindsight UI/control plane
+#   - 30301 Webtop HTTPS
 # Restrict monitoring ports where UFW can enforce host-input traffic:
 #   - 9100 node_exporter from jellybase only
 #   - 12345 Alloy metrics from jellybase only
@@ -83,7 +84,7 @@ run_sudo ufw allow in on tailscale0 comment 'Tailnet emergency/operator access'
 run_sudo ufw allow from 192.168.1.0/24 to any port 22 proto tcp comment 'LAN SSH admin'
 
 # LAN/Tailnet service access.
-for port in 80 8080 9443 1883 9001 3214 8793 8888 8889 18888 9999; do
+for port in 80 8080 9443 1883 9001 3214 8793 8888 8889 18888 9999 30301; do
   run_sudo ufw allow from 192.168.1.0/24 to any port "$port" proto tcp comment "LAN service ${port}"
   run_sudo ufw allow in on tailscale0 to any port "$port" proto tcp comment "Tailnet service ${port}"
 done

@@ -129,6 +129,16 @@
         workflows; LAN-bound on jellybase, not a public scraper endpoint
       icon: mdi-spider-web
       siteMonitor: http://192.168.1.2:11235/health
+  - Webtop jellybase:
+      href: https://192.168.1.2:30301
+      description: Browser-accessible LinuxServer Webtop desktop on jellybase | LAN/Tailscale
+        only | basic auth | hardened desktop profile
+      icon: mdi-monitor-dashboard
+  - Webtop jellyhome:
+      href: https://192.168.1.1:30301
+      description: Browser-accessible LinuxServer Webtop desktop on jellyhome | LAN/Tailscale
+        only | basic auth | hardened desktop profile
+      icon: mdi-monitor-dashboard
 - Media:
   - Manyfold:
       href: http://192.168.1.1:3214/health

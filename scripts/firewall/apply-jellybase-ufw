@@ -57,6 +57,7 @@ cat <<'NOTE'
 #   - 8793 Jellyfood web
 #   - 8794 Jellyfood API
 #   - 8123 Home Assistant (host networking)
+#   - 30301 Webtop HTTPS
 # Restrict service-peer/monitoring ports where UFW can enforce host-input traffic:
 #   - 5432 central Postgres from jellyhome only
 #   - 7007 Dozzle agent from jellyhome only
@@ -85,7 +86,7 @@ run_sudo ufw allow in on tailscale0 comment 'Tailnet emergency/operator access'
 run_sudo ufw allow from 192.168.1.0/24 to any port 22 proto tcp comment 'LAN SSH admin'
 
 # LAN/Tailnet operator and app access.
-for port in 80 3001 9090 9093 8788 8793 8794 8123; do
+for port in 80 3001 9090 9093 8788 8793 8794 8123 30301; do
   run_sudo ufw allow from 192.168.1.0/24 to any port "$port" proto tcp comment "LAN service ${port}"
   run_sudo ufw allow in on tailscale0 to any port "$port" proto tcp comment "Tailnet service ${port}"
 done

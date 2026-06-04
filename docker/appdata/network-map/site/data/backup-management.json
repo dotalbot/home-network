@@ -221,7 +221,7 @@
     }
   },
   "future_write_workflow": "Coming next only: propose Git-reviewed inventory/backups.yml patches and rendered diffs; no UI mutation in this slice.",
-  "generated_at": "2026-06-01T17:06:59.123774+00:00",
+  "generated_at": "2026-06-04T15:57:44.827953+00:00",
   "hosts": [
     {
       "backup_role": "secondary-monitoring-host",
@@ -1013,6 +1013,11 @@
       "url": "https://github.com/dotalbot/home-network/blob/main/docs/operations/loki-grafana-observability.md"
     },
     {
+      "path": "docs/operations/ms102-study-hub.md",
+      "title": "Ms102 Study Hub",
+      "url": "https://github.com/dotalbot/home-network/blob/main/docs/operations/ms102-study-hub.md"
+    },
+    {
       "path": "docs/operations/network-map-dashboard.md",
       "title": "Network Map Dashboard",
       "url": "https://github.com/dotalbot/home-network/blob/main/docs/operations/network-map-dashboard.md"
@@ -1051,6 +1056,16 @@
       "path": "docs/operations/seedit4me-reverse-tunnel.md",
       "title": "Seedit4Me Reverse Tunnel",
       "url": "https://github.com/dotalbot/home-network/blob/main/docs/operations/seedit4me-reverse-tunnel.md"
+    },
+    {
+      "path": "docs/operations/storage-monitoring.md",
+      "title": "Storage Monitoring",
+      "url": "https://github.com/dotalbot/home-network/blob/main/docs/operations/storage-monitoring.md"
+    },
+    {
+      "path": "docs/operations/webtop.md",
+      "title": "Webtop",
+      "url": "https://github.com/dotalbot/home-network/blob/main/docs/operations/webtop.md"
     },
     {
       "path": "docs/guides/backup-management-read-only-ui-guide.md",
@@ -1165,7 +1180,10 @@
       "source_type": null,
       "status": "active",
       "urls": {
-        "metrics": "http://127.0.0.1:12345/metrics"
+        "metrics_jellybase": "http://192.168.1.2:12345/metrics",
+        "metrics_jellyberry": "http://192.168.1.159:12345/metrics",
+        "metrics_jellyhome": "http://192.168.1.1:12345/metrics",
+        "primary": "http://192.168.1.2:3001/d/explore/explore?left=%7B%22datasource%22:%22Loki%22%7D"
       }
     },
     {
@@ -1255,7 +1273,7 @@
       "restore_runbook": null,
       "source_metadata_status": "not-recorded",
       "source_type": null,
-      "status": "planned",
+      "status": "active",
       "urls": {
         "api": "http://192.168.1.2:11235",
         "health": "http://192.168.1.2:11235/health",
@@ -1485,8 +1503,9 @@
       "source_type": "git",
       "status": "active",
       "urls": {
+        "api": "http://192.168.1.2:8794",
         "local": "http://127.0.0.1:8794",
-        "primary": "http://192.168.1.2:8794"
+        "primary": "http://192.168.1.2:8794/api/health"
       }
     },
     {
@@ -1584,7 +1603,9 @@
       "source_type": null,
       "status": "active",
       "urls": {
-        "primary": "http://192.168.1.2:3100"
+        "api": "http://192.168.1.2:3100",
+        "health": "http://192.168.1.2:3100/ready",
+        "primary": "http://192.168.1.2:3001/d/explore/explore?left=%7B%22datasource%22:%22Loki%22%7D"
       }
     },
     {
@@ -1616,7 +1637,9 @@
       "source_type": null,
       "status": "active",
       "urls": {
-        "primary": "http://192.168.1.1:3214"
+        "app": "http://192.168.1.1:3214",
+        "health": "http://192.168.1.1:3214/health",
+        "primary": "http://192.168.1.1:3214/health"
       }
     },
     {
@@ -1646,6 +1669,7 @@
       "source_type": null,
       "status": "active",
       "urls": {
+        "homepage": "http://192.168.1.2:8788",
         "primary": "mqtt://192.168.1.1:1883",
         "websocket": "ws://192.168.1.1:9001"
       }
@@ -1677,7 +1701,39 @@
       "source_type": null,
       "status": "active",
       "urls": {
-        "primary": "http://192.168.1.2:9000/metrics"
+        "metrics": "http://192.168.1.2:9000/metrics",
+        "primary": "http://192.168.1.2:9090/graph?g0.expr=mqtt_temperature%7Bmonitored_host%3D%22jellyoffice%22%7D&g0.tab=0"
+      }
+    },
+    {
+      "backup_class": {
+        "description": "Service can be rebuilt from a separate source repository plus this repo's Compose/config metadata.",
+        "excludes": [
+          "generated build artifacts",
+          "caches"
+        ],
+        "includes": [
+          "source repository remote and branch",
+          "compose config",
+          "deployment notes"
+        ],
+        "name": "source-repo",
+        "restore_priority": "low",
+        "restore_verification": null
+      },
+      "category": "Study",
+      "display_name": "MS-102 Study Hub",
+      "hosts": [
+        "jellyberry"
+      ],
+      "id": "ms102-study-hub",
+      "restore_note": "Requires the MS-102 study-web source directory; no git remote is currently recorded in this repo.",
+      "restore_runbook": null,
+      "source_metadata_status": "present",
+      "source_type": "local-directory",
+      "status": "active",
+      "urls": {
+        "primary": "http://192.168.1.159:8794"
       }
     },
     {
@@ -1891,6 +1947,70 @@
         "remote_loopback": "ssh://127.0.0.1:22022",
         "remote_ssh": "ssh://seedit4me@nl13.seedit4.me:2088"
       }
+    },
+    {
+      "backup_class": {
+        "description": "Service has useful persistent appdata.",
+        "excludes": [
+          "cache",
+          "logs",
+          "temp files"
+        ],
+        "includes": [
+          "/opt/docker/appdata/SERVICE"
+        ],
+        "name": "appdata",
+        "restore_priority": "medium",
+        "restore_verification": null
+      },
+      "category": "Tools",
+      "display_name": "Webtop jellybase",
+      "hosts": [
+        "jellybase"
+      ],
+      "id": "webtop-jellybase",
+      "restore_note": null,
+      "restore_runbook": null,
+      "source_metadata_status": "not-recorded",
+      "source_type": null,
+      "status": "active",
+      "urls": {
+        "lan": "https://192.168.1.2:30301",
+        "primary": "https://192.168.1.2:30301",
+        "tailscale": "https://100.125.86.118:30301"
+      }
+    },
+    {
+      "backup_class": {
+        "description": "Service has useful persistent appdata.",
+        "excludes": [
+          "cache",
+          "logs",
+          "temp files"
+        ],
+        "includes": [
+          "/opt/docker/appdata/SERVICE"
+        ],
+        "name": "appdata",
+        "restore_priority": "medium",
+        "restore_verification": null
+      },
+      "category": "Tools",
+      "display_name": "Webtop jellyhome",
+      "hosts": [
+        "jellyhome"
+      ],
+      "id": "webtop-jellyhome",
+      "restore_note": null,
+      "restore_runbook": null,
+      "source_metadata_status": "not-recorded",
+      "source_type": null,
+      "status": "active",
+      "urls": {
+        "lan": "https://192.168.1.1:30301",
+        "primary": "https://192.168.1.1:30301",
+        "tailscale": "https://100.90.175.59:30301"
+      }
     }
   ],
   "source_files": [
@@ -1907,7 +2027,7 @@
     "disabled_or_planned_hosts": 1,
     "enabled_backup_hosts": 3,
     "missing_metrics_policy": "unknown_not_healthy",
-    "runbook_docs": 37,
-    "services_with_backup_metadata": 26
+    "runbook_docs": 40,
+    "services_with_backup_metadata": 29
   }
 }
