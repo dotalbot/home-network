@@ -111,13 +111,16 @@ Host:
 Disks from `lsblk`/`smartctl --scan`:
 
 - `/dev/sda`, 931.5G disk, model `CT1000BX500SSD1`; boot partitions plus LVM root.
-- `/dev/sdb`, 4.5T disk, model `ST5000DM000-1FK1`; `/dev/sdb1` ext4, not mounted during rollout.
-- `/dev/sdc`, 4.5T disk, model `ST5000DM000-1FK1`; `/dev/sdc1` ext4, not mounted during rollout.
+- `/dev/sdb`, 4.5T disk, model `ST5000DM000-1FK1`; `/dev/sdb1` ext4 mounted at `/home/jellyfish/media/Primary_5TB`.
+- `/dev/sdc`, 4.5T disk, model `ST5000DM000-1FK1`; `/dev/sdc1` ext4 mounted at `/home/jellyfish/media/Backup_5TB`.
 
 Mounted storage observed:
 
 - `/` on `/dev/mapper/ubuntu--vg-ubuntu--lv`.
+- `/home/jellyfish/media/Primary_5TB` on `/dev/sdb1`, 72% used after scan refresh.
+- `/home/jellyfish/media/Backup_5TB` on `/dev/sdc1`, 96% used after scan refresh.
 - No `/mnt/*` or separate `/opt/docker` mount observed during rollout.
+- The 5TB media mounts are configured in `/etc/fstab` by UUID with `nofail,x-systemd.device-timeout=10s`; root directories are owned by `jellyfish:jellyfish`, and write tests as `jellyfish` passed.
 
 Verified runtime state:
 
@@ -125,7 +128,7 @@ Verified runtime state:
 - `czkawka_cli` 11.0.1 installed from the pinned repo-managed installer.
 - Storage scan and duplicate scan units installed under `/etc/systemd/system`.
 - `home-network-storage-scan.timer` and `home-network-duplicate-scan.timer` enabled.
-- Manual storage scan succeeded and wrote `storage_monitoring.prom` plus `storage_smart.prom` into `/var/lib/node_exporter/textfile_collector`.
+- Manual storage scan succeeded and wrote `storage_monitoring.prom` plus `storage_smart.prom` into `/var/lib/node_exporter/textfile_collector`; after the media mounts, central Prometheus reports `Primary_5TB=72%` and `Backup_5TB=96%`.
 - Central Prometheus on jellybase scrapes jellyhome storage metrics.
 - Bounded duplicate scan of `/opt/docker` succeeded and generated a report; it was report-only.
 
@@ -163,12 +166,13 @@ SMART metrics verified for jellyhome:
 - [x] jellyhome storage scan and duplicate scan timers are installed and enabled.
 - [x] jellyhome SMART and filesystem metrics are emitted locally and scraped centrally by jellybase Prometheus.
 - [x] jellyhome first bounded duplicate report is verified against `/opt/docker`.
+- [x] jellyhome 5TB media volumes are mounted by UUID in `/etc/fstab`, survive reboot path via `mount -av`/`findmnt --verify`, and are writable by `jellyfish`.
 - [x] Prometheus textfile metrics are emitted and scraped, if textfile collector exists.
 - [x] No destructive cleanup actions are enabled.
 
 ## Next steps
 
 1. Observe the real Alertmanager/Discord delivery path for the existing `/mnt/2TB` warning on jellybase.
-2. Decide whether jellyhome's two unmounted 4.5T disks should be mounted, inventoried, or left as SMART-only monitored devices.
+2. Decide whether to tune jellyhome capacity alerting separately for the nearly-full `Backup_5TB` volume, because it is expected to be more heavily used than `Primary_5TB`.
 3. Add report retention if `/opt/docker/appdata/storage-monitoring/reports` starts growing materially.
 4. Keep `/mnt/2TB` cleanup planning separate from this monitoring rollout.

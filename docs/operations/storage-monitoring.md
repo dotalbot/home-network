@@ -168,8 +168,8 @@ Discovery method: sudo-capable tmux window `0:2`, SSH session to `jellyhome` as 
 | Device | Size | Type | Model | Mount/use |
 |---|---:|---|---|---|
 | `/dev/sda` | 931.5G | disk | `CT1000BX500SSD1` | boot + LVM root |
-| `/dev/sdb` | 4.5T | disk | `ST5000DM000-1FK1` | `/dev/sdb1` ext4, not mounted during rollout |
-| `/dev/sdc` | 4.5T | disk | `ST5000DM000-1FK1` | `/dev/sdc1` ext4, not mounted during rollout |
+| `/dev/sdb` | 4.5T | disk | `ST5000DM000-1FK1` | `/dev/sdb1` ext4 mounted at `/home/jellyfish/media/Primary_5TB` |
+| `/dev/sdc` | 4.5T | disk | `ST5000DM000-1FK1` | `/dev/sdc1` ext4 mounted at `/home/jellyfish/media/Backup_5TB` |
 
 ### Filesystems
 
@@ -180,8 +180,10 @@ Verified central Prometheus filesystem usage from jellyhome:
 | `/` | 38% |
 | `/boot/efi` | 1% |
 | `/boot` | 11% |
+| `/home/jellyfish/media/Primary_5TB` | 72% |
+| `/home/jellyfish/media/Backup_5TB` | 96% |
 
-No `/mnt/*` or separate `/opt/docker` mount was observed during rollout, so the default scan scripts currently scan `/opt/docker` plus report system filesystem usage. The unmounted 4.5T disks are SMART-monitored only until they are deliberately mounted/inventoried.
+The two 5TB media volumes are mounted by UUID in `/etc/fstab` with `nofail` and a 10-second systemd device timeout. `/dev/sdb1` is the less-used primary volume; `/dev/sdc1` is the more-used backup volume. The mounted filesystem roots are owned by `jellyfish:jellyfish`, and write tests as `jellyfish` passed on both paths.
 
 ### Tooling and timers
 
@@ -190,7 +192,7 @@ No `/mnt/*` or separate `/opt/docker` mount was observed during rollout, so the 
 - `czkawka_cli`: installed from pinned GitHub release `11.0.1` via source-managed `scripts/install-czkawka-cli`.
 - `home-network-storage-scan.timer`: enabled; next run was scheduled for `2026-06-05 03:26:06 BST` at verification time.
 - `home-network-duplicate-scan.timer`: enabled; next run was scheduled for `2026-06-07 04:36:04 BST` at verification time.
-- Manual storage scan succeeded and wrote `/var/lib/node_exporter/textfile_collector/storage_monitoring.prom` plus `/var/lib/node_exporter/textfile_collector/storage_smart.prom`.
+- Manual storage scan succeeded and wrote `/var/lib/node_exporter/textfile_collector/storage_monitoring.prom` plus `/var/lib/node_exporter/textfile_collector/storage_smart.prom`; after mounting the 5TB media volumes, central Prometheus showed `Primary_5TB` at 72% and `Backup_5TB` at 96%.
 - Bounded report-only duplicate scan against `/opt/docker` succeeded.
 
 ### SMART summary, sanitized
