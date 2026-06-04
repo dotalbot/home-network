@@ -284,6 +284,46 @@ groups:
           summary: "jellybase /mnt/2TB is above 90% used"
           description: "The custom storage monitor reports /mnt/2TB at or above 90% used. This is expected initially but should remain visible until cleanup or migration reduces usage."
 
+      - alert: JellyhomePrimary5TBCritical
+        expr: storage_monitoring_filesystem_used_percent{job="node_exporter",host="jellyhome",mountpoint="/home/jellyfish/media/Primary_5TB"} >= 95
+        for: 15m
+        labels:
+          severity: critical
+          category: disk
+        annotations:
+          summary: "jellyhome Primary_5TB is critically full"
+          description: "The custom storage monitor reports Primary_5TB at or above 95% used. Review folder/duplicate reports and decide whether to clean up or rebalance media."
+
+      - alert: JellyhomePrimary5TBWarning
+        expr: storage_monitoring_filesystem_used_percent{job="node_exporter",host="jellyhome",mountpoint="/home/jellyfish/media/Primary_5TB"} >= 90
+        for: 30m
+        labels:
+          severity: warning
+          category: disk
+        annotations:
+          summary: "jellyhome Primary_5TB is above 90% used"
+          description: "The primary jellyhome media volume is above 90% used. This should stay visible before it reaches the backup volume's pressure level."
+
+      - alert: JellyhomeBackup5TBCritical
+        expr: storage_monitoring_filesystem_used_percent{job="node_exporter",host="jellyhome",mountpoint="/home/jellyfish/media/Backup_5TB"} >= 99
+        for: 15m
+        labels:
+          severity: critical
+          category: disk
+        annotations:
+          summary: "jellyhome Backup_5TB is critically full"
+          description: "Backup_5TB is at or above 99% used. This volume is expected to be more heavily used, but this leaves almost no working headroom."
+
+      - alert: JellyhomeBackup5TBNearFull
+        expr: storage_monitoring_filesystem_used_percent{job="node_exporter",host="jellyhome",mountpoint="/home/jellyfish/media/Backup_5TB"} >= 98
+        for: 30m
+        labels:
+          severity: warning
+          category: disk
+        annotations:
+          summary: "jellyhome Backup_5TB is nearly full"
+          description: "Backup_5TB is at or above 98% used. Current known baseline is around 96%, so this threshold avoids immediate noise while still catching further growth."
+
       - alert: Seedit4meReverseTunnelDown
         expr: home_network_seedit4me_tunnel_success{job="node_exporter",host="jellyberry"} == 0
         for: 2m

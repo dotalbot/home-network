@@ -129,6 +129,8 @@ Verified runtime state:
 - Storage scan and duplicate scan units installed under `/etc/systemd/system`.
 - `home-network-storage-scan.timer` and `home-network-duplicate-scan.timer` enabled.
 - Manual storage scan succeeded and wrote `storage_monitoring.prom` plus `storage_smart.prom` into `/var/lib/node_exporter/textfile_collector`; after the media mounts, central Prometheus reports `Primary_5TB=72%` and `Backup_5TB=96%`.
+- Scan scripts now choose host-aware default paths. jellyhome includes both 5TB media mounts plus `/opt/docker`; mountpoint guards prevent accidental scans of empty media directories if fstab/device mounting fails.
+- Archived summary and duplicate reports have 90-day default retention via `REPORT_RETENTION_DAYS`.
 - Central Prometheus on jellybase scrapes jellyhome storage metrics.
 - Bounded duplicate scan of `/opt/docker` succeeded and generated a report; it was report-only.
 
@@ -167,12 +169,14 @@ SMART metrics verified for jellyhome:
 - [x] jellyhome SMART and filesystem metrics are emitted locally and scraped centrally by jellybase Prometheus.
 - [x] jellyhome first bounded duplicate report is verified against `/opt/docker`.
 - [x] jellyhome 5TB media volumes are mounted by UUID in `/etc/fstab`, survive reboot path via `mount -av`/`findmnt --verify`, and are writable by `jellyfish`.
+- [x] jellyhome media paths are included in host-aware storage/duplicate scan defaults without hardcoding them into other hosts.
+- [x] jellyhome Backup_5TB alerting is tuned to avoid immediate noise at the known 96% baseline while still alerting on further growth.
 - [x] Prometheus textfile metrics are emitted and scraped, if textfile collector exists.
 - [x] No destructive cleanup actions are enabled.
 
 ## Next steps
 
 1. Observe the real Alertmanager/Discord delivery path for the existing `/mnt/2TB` warning on jellybase.
-2. Decide whether to tune jellyhome capacity alerting separately for the nearly-full `Backup_5TB` volume, because it is expected to be more heavily used than `Primary_5TB`.
-3. Add report retention if `/opt/docker/appdata/storage-monitoring/reports` starts growing materially.
-4. Keep `/mnt/2TB` cleanup planning separate from this monitoring rollout.
+2. Keep `/mnt/2TB` cleanup planning separate from this monitoring rollout.
+3. After jellyhome's pending reboot, verify both 5TB media mounts return and the next storage scan still exports them.
+4. Watch first full scheduled jellyhome duplicate scan duration/noise; keep it report-only and adjust exclusions if it is too heavy.

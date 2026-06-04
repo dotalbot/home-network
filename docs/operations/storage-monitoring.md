@@ -192,6 +192,8 @@ The two 5TB media volumes are mounted by UUID in `/etc/fstab` with `nofail` and 
 - `czkawka_cli`: installed from pinned GitHub release `11.0.1` via source-managed `scripts/install-czkawka-cli`.
 - `home-network-storage-scan.timer`: enabled; next run was scheduled for `2026-06-05 03:26:06 BST` at verification time.
 - `home-network-duplicate-scan.timer`: enabled; next run was scheduled for `2026-06-07 04:36:04 BST` at verification time.
+- Scan scripts choose host-aware default paths. On jellyhome, daily storage scan and weekly report-only duplicate scan include `/home/jellyfish/media/Primary_5TB`, `/home/jellyfish/media/Backup_5TB`, and `/opt/docker`; optional mount guards prevent scanning empty media mount directories if a disk fails to mount.
+- Archived summary and duplicate reports are retained for 90 days by default via `REPORT_RETENTION_DAYS`.
 - Manual storage scan succeeded and wrote `/var/lib/node_exporter/textfile_collector/storage_monitoring.prom` plus `/var/lib/node_exporter/textfile_collector/storage_smart.prom`; after mounting the 5TB media volumes, central Prometheus showed `Primary_5TB` at 72% and `Backup_5TB` at 96%.
 - Bounded report-only duplicate scan against `/opt/docker` succeeded.
 
@@ -242,6 +244,8 @@ Storage-monitoring-specific alerts cover:
 - reallocated sector count increases over 7 days.
 - disk temperature above 55C for 15 minutes.
 - `/mnt/2TB` warning at 90% and critical at 95% used.
+- jellyhome `Primary_5TB` warning at 90% and critical at 95% used.
+- jellyhome `Backup_5TB` near-full warning at 98% and critical at 99% used, intentionally above the known 96% baseline to avoid immediate noise while still catching further growth.
 
 Grafana Host Observability includes storage panels for:
 
