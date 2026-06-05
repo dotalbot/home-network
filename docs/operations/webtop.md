@@ -159,7 +159,7 @@ curl -kI https://192.168.1.2:30301/
 curl -kI https://100.125.86.118:30301/
 docker logs --tail=100 webtop-jellybase
 docker exec webtop-jellybase sh -lc 'command -v krokiet czkawka-gui ncdu duf mc ranger rsync tree jq 7z unzip zip'
-docker exec --user abc webtop-jellybase sh -lc 'for p in /host-disks/jellybase/2TB /host-disks/jellybase/4TB; do findmnt "$p" >/dev/null && test -r "$p" && ! test -w "$p" || exit 1; done'
+docker exec --user abc webtop-jellybase sh -lc 'for p in /host-disks/jellybase/2TB /host-disks/jellybase/4TB; do ls -ld "$p" && test -r "$p" && ! touch "$p/.webtop_ro_probe" 2>/tmp/touch.err && grep -q "Read-only file system" /tmp/touch.err; done'
 ```
 
 jellyhome:
@@ -171,7 +171,7 @@ curl -kI https://192.168.1.1:30301/
 curl -kI https://100.90.175.59:30301/
 docker logs --tail=100 webtop-jellyhome
 docker exec webtop-jellyhome sh -lc 'command -v krokiet czkawka-gui ncdu duf mc ranger rsync tree jq 7z unzip zip'
-docker exec --user abc webtop-jellyhome sh -lc 'for p in /host-disks/jellyhome/Primary_5TB /host-disks/jellyhome/Backup_5TB; do findmnt "$p" >/dev/null && test -r "$p" && ! test -w "$p" || exit 1; done'
+docker exec --user abc webtop-jellyhome sh -lc 'for p in /host-disks/jellyhome/Primary_5TB /host-disks/jellyhome/Backup_5TB; do ls -ld "$p" && test -r "$p" && ! touch "$p/.webtop_ro_probe" 2>/tmp/touch.err && grep -q "Read-only file system" /tmp/touch.err; done'
 ```
 
 Expected notes:
