@@ -221,7 +221,7 @@
     }
   },
   "future_write_workflow": "Coming next only: propose Git-reviewed inventory/backups.yml patches and rendered diffs; no UI mutation in this slice.",
-  "generated_at": "2026-06-05T18:53:36.994292+00:00",
+  "generated_at": "2026-06-05T21:53:28.445857+00:00",
   "hosts": [
     {
       "backup_role": "secondary-monitoring-host",
@@ -655,7 +655,7 @@
       },
       "name": "jellysa",
       "notes": [
-        "Remote South Africa node reached over Tailscale at 100.81.255.104.",
+        "Remote South Africa node reached over Tailscale at 100.120.89.41.",
         "Intended as Tailscale host, backup/sync node, and exit-node candidate.",
         "Destination remains disabled until remote Borgmatic transport, repository path, excludes, and passphrase handling are configured.",
         "Use lower-frequency monitoring than local LAN hosts."

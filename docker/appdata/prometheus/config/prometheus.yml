@@ -40,7 +40,7 @@ scrape_configs:
     scrape_timeout: 30s
     static_configs:
       - targets:
-          - 100.81.255.104:9100
+          - 100.120.89.41:9100
         labels:
           monitored_host: jellysa
           site: south-africa

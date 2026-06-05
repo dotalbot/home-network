@@ -18,7 +18,7 @@
 - Production role: South Africa Tailscale host, backup/sync node, and exit-node candidate.
 - Production access: Tailscale preferred; local LAN discovery address below is pre-relocation evidence only.
 - LAN IPv4 observed during onboarding: `192.168.1.194`
-- Tailnet DNS/IP: `jellysa.cheetah-iwato.ts.net` / `100.81.255.104`
+- Tailnet DNS/IP: `jellysa-1.cheetah-iwato.ts.net` / `100.120.89.41`
 - LAN IPv6: `2a00:23c8:a926:bb01::503`
 - OS: Debian GNU/Linux 13 trixie on Raspberry Pi kernel `6.12.75+rpt-rpi-v8`
 - Architecture: `aarch64`
@@ -110,7 +110,7 @@
 **Initial values to use:**
 
 - `lan_ip: 192.168.1.194`
-- `tailscale_ip: 100.81.255.104`
+- `tailscale_ip: 100.120.89.41`
 - roles pending confirmation.
 
 ### Task 5: Bring jellybackup into monitoring
@@ -134,7 +134,7 @@
 **Monitoring design:**
 
 - Install node_exporter on `jellysa`.
-- Scrape `100.81.255.104:9100` over Tailscale from jellybase Prometheus.
+- Scrape `100.120.89.41:9100` over Tailscale from jellybase Prometheus.
 - Use a separate Prometheus scrape job with `scrape_interval: 5m` and `scrape_timeout: 30s`.
 - Relabel the resulting metrics to `job="node_exporter"` so existing dashboards and alerts still apply.
 - Do not add LAN firewall assumptions until the host's South Africa network posture is known.

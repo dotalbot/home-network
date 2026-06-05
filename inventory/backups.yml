@@ -371,7 +371,7 @@ hosts:
       monitoring_status: planned-low-frequency-tailscale-scrape
       backup_status: planned; do not enable timers until repo path, excludes, and secrets are configured
     notes:
-      - Remote South Africa node reached over Tailscale at 100.81.255.104.
+      - Remote South Africa node reached over Tailscale at 100.120.89.41.
       - Intended as Tailscale host, backup/sync node, and exit-node candidate.
       - Destination remains disabled until remote Borgmatic transport, repository path, excludes, and passphrase handling are configured.
       - Use lower-frequency monitoring than local LAN hosts.
