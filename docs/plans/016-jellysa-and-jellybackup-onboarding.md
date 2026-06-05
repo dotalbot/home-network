@@ -36,8 +36,8 @@
 - Existing Borg SSH user: `jellybackup` works and Borg version is `1.4.3`.
 - Sudo status: passwordless sudo works for `jellyfish`.
 - External disk: `/home/jellybackup/externaldisk`, ext4, about 4.6T total, 2.4T used, 2.0T available.
-- Critical issue: root filesystem is effectively full: `/dev/mmcblk0p2` 59G with about 305M available.
-- Root filesystem hidden usage: about 52G exists under the unmounted-underlay path `/home/jellybackup/externaldisk/borg_store`, currently hidden by the mounted external disk. This likely happened when backups wrote to the mountpoint while the external disk was not mounted.
+- Resolved issue: root filesystem was effectively full: `/dev/mmcblk0p2` 59G with about 305M available before recovery; after cleanup it has about 52G available and is 7% used.
+- Root filesystem hidden usage: about 52G existed under the unmounted-underlay path `/home/jellybackup/externaldisk/borg_store`, hidden by the mounted external disk. This likely happened when backups wrote to the mountpoint while the external disk was not mounted. The hidden data was copied to the real external disk recovery path and the hidden underlay copy was removed after approval.
 
 ## Non-goals / safety
 
@@ -138,8 +138,8 @@
 - [ ] `jellysa` role confirmed.
 - [ ] `jellysa` passwordless SSH/operator path established.
 - [ ] `jellysa` sudo/bootstrap completed or explicitly deferred.
-- [ ] `jellybackup` hidden underlay data moved/recovered or explicitly removed.
-- [ ] `jellybackup` root filesystem has safe free space.
+- [x] `jellybackup` hidden underlay data moved/recovered or explicitly removed.
+- [x] `jellybackup` root filesystem has safe free space.
 - [ ] `jellybackup` node_exporter installed/configured if approved.
 - [ ] Prometheus scrapes `jellybackup` if monitoring was enabled.
 - [ ] `inventory/hosts.yml` and `inventory/backups.yml` reflect live state.
