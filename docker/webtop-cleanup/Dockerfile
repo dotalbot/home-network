@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-FROM lscr.io/linuxserver/webtop:latest
+FROM lscr.io/linuxserver/webtop:ubuntu-xfce
 
 ARG DEBIAN_FRONTEND=noninteractive
 ARG KROKIET_VERSION=11.0.1

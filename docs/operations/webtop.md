@@ -8,7 +8,7 @@ Image:
 
 - `home-network-webtop-cleanup:latest`
 
-This is a source-managed local image built from `docker/webtop-cleanup/Dockerfile`, which inherits from `lscr.io/linuxserver/webtop:latest` and adds the disk-cleanup tools used by the Webtop desktop sessions.
+This is a source-managed local image built from `docker/webtop-cleanup/Dockerfile`, which inherits from `lscr.io/linuxserver/webtop:ubuntu-xfce` and adds the disk-cleanup tools used by the Webtop desktop sessions. The Ubuntu base is intentional so the requested cleanup tools can be installed reproducibly with `apt`.
 
 Default additional tools in the custom image:
 
