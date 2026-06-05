@@ -27,6 +27,8 @@
 - Sudo status: `sudo -n` requires a password.
 - Installed basics observed: `sudo` only from the precheck command list; no Docker/Tailscale/Borg/node_exporter found in PATH during precheck.
 - Monitoring intent: node_exporter over Tailscale at a 5 minute scrape interval, not the local 15 second LAN cadence.
+- Runtime status: Tailscale `100.120.89.41`, node_exporter, disk-health probe, and journal-signal probe are deployed and scraped by Prometheus from jellybase.
+- Exit-node prerequisite: IP forwarding enabled via `/etc/sysctl.d/99-tailscale-exit-node.conf`; Tailscale advertises exit-node capability.
 
 ### jellybackup
 
@@ -155,8 +157,8 @@
 
 - [x] `jellysa` role confirmed.
 - [x] `jellysa` passwordless SSH/operator path established.
-- [ ] `jellysa` sudo/bootstrap completed or explicitly deferred.
-- [ ] `jellysa` low-frequency Tailscale node_exporter scrape deployed and verified.
+- [x] `jellysa` sudo/bootstrap completed or explicitly deferred.
+- [x] `jellysa` low-frequency Tailscale node_exporter scrape deployed and verified.
 - [ ] `jellysa` backup/sync paths and excludes confirmed.
 - [x] `jellybackup` hidden underlay data moved/recovered or explicitly removed.
 - [x] `jellybackup` root filesystem has safe free space.
