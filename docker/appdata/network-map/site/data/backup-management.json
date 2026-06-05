@@ -221,7 +221,7 @@
     }
   },
   "future_write_workflow": "Coming next only: propose Git-reviewed inventory/backups.yml patches and rendered diffs; no UI mutation in this slice.",
-  "generated_at": "2026-06-04T15:57:44.827953+00:00",
+  "generated_at": "2026-06-05T17:49:35.672149+00:00",
   "hosts": [
     {
       "backup_role": "secondary-monitoring-host",
@@ -626,6 +626,48 @@
         "latest_verified_archive": "jellyhome-2026-05-23T09:40:36",
         "loki_log_shipping_status": "verified",
         "metrics_status": "verified"
+      }
+    },
+    {
+      "backup_role": "pending-bootstrap",
+      "backup_sets": [],
+      "borg_enabled": false,
+      "description": "Fresh Raspberry Pi host pending home-network onboarding",
+      "destination_labels": [],
+      "destinations": {
+        "primary": {
+          "enabled": false,
+          "status": "pending_role_and_paths"
+        }
+      },
+      "enabled": false,
+      "host_type": "non_docker",
+      "important_paths": [],
+      "lan_ip": "192.168.1.194",
+      "links": {
+        "alertmanager": "http://192.168.1.2:9093/",
+        "grafana": "http://192.168.1.2:3001/",
+        "loki_explore_hint": "{job=\"borgmatic\", host=\"jellysa\"}",
+        "restore_runbook_index": {
+          "path": "docs/guides/consolidated-backup-management-operator-guide.md",
+          "url": "https://github.com/dotalbot/home-network/blob/main/docs/guides/consolidated-backup-management-operator-guide.md"
+        }
+      },
+      "name": "jellysa",
+      "notes": [
+        "Fresh Raspberry Pi host discovered at 192.168.1.194 / 100.81.255.104.",
+        "Do not enable Borgmatic until its role and important paths are confirmed.",
+        "If it becomes a Docker host, likely backup set is /opt/docker plus any repo/runtime paths."
+      ],
+      "repository_path": null,
+      "roles": [
+        "pi",
+        "tailscale-node",
+        "pending-bootstrap"
+      ],
+      "rollout_status": {
+        "config_status": "pending-role-confirmation",
+        "ssh_status": "passwordless SSH installed for jellyfish; sudo bootstrap pending"
       }
     },
     {
@@ -2022,9 +2064,9 @@
     "docs/guides/*.md"
   ],
   "summary": {
-    "backup_hosts_total": 4,
+    "backup_hosts_total": 5,
     "backup_sets_total": 9,
-    "disabled_or_planned_hosts": 1,
+    "disabled_or_planned_hosts": 2,
     "enabled_backup_hosts": 3,
     "missing_metrics_policy": "unknown_not_healthy",
     "runbook_docs": 40,

@@ -1,0 +1,145 @@
+# Jellysa and Jellybackup Onboarding Plan
+
+> **For Hermes:** Use home-network-operations and repository-development-discipline. Work directly on `main` for `/home/jellybot/home-network` under the standing home-network exception. Execute through tmux panes one command at a time.
+
+**Goal:** Bring the fresh Raspberry Pi host `jellysa` and existing backup host `jellybackup` into the source-managed home-network operations model.
+
+**Architecture:** `home-network` remains source of truth for inventory, bootstrap scripts, monitoring rollout, and backup policy. Runtime hosts get only the minimum host-local state required: operator SSH access, packages, `/opt/docker` only when the host is intended to be a Docker host, and secrets outside Git. `jellybackup` remains the Borg destination and should not be treated as a Docker application host unless explicitly approved.
+
+**Tech Stack:** Raspberry Pi OS/Debian 13, systemd, SSH, Tailscale, Borg/Borgmatic, Prometheus node_exporter, home-network inventory.
+
+---
+
+## Discovery snapshot
+
+### jellysa
+
+- Hostname: `jellysa`
+- LAN IPv4: `192.168.1.194`
+- Tailnet DNS/IP: `jellysa.cheetah-iwato.ts.net` / `100.81.255.104`
+- LAN IPv6: `2a00:23c8:a926:bb01::503`
+- OS: Debian GNU/Linux 13 trixie on Raspberry Pi kernel `6.12.75+rpt-rpi-v8`
+- Architecture: `aarch64`
+- Active login pane: tmux pane `0:5`, user `jellyfish`
+- Current access: interactive SSH works as `jellyfish`; passwordless SSH from the agent does not yet work.
+- Sudo status: `sudo -n` requires a password.
+- Installed basics observed: `sudo` only from the precheck command list; no Docker/Tailscale/Borg/node_exporter found in PATH during precheck.
+
+### jellybackup
+
+- Hostname: `jellybackup`
+- LAN IPv4: `192.168.1.75`
+- Tailscale IPv4: `100.116.9.17`
+- OS: Debian GNU/Linux 13 trixie on Raspberry Pi kernel `6.12.47+rpt-rpi-v8`
+- Architecture: `aarch64`
+- Active login pane: tmux pane `0:6`, user `jellyfish`
+- Existing Borg SSH user: `jellybackup` works and Borg version is `1.4.3`.
+- Sudo status: passwordless sudo works for `jellyfish`.
+- External disk: `/home/jellybackup/externaldisk`, ext4, about 4.6T total, 2.4T used, 2.0T available.
+- Critical issue: root filesystem is effectively full: `/dev/mmcblk0p2` 59G with about 305M available.
+- Root filesystem hidden usage: about 52G exists under the unmounted-underlay path `/home/jellybackup/externaldisk/borg_store`, currently hidden by the mounted external disk. This likely happened when backups wrote to the mountpoint while the external disk was not mounted.
+
+## Non-goals / safety
+
+- Do not delete hidden Borg data on `jellybackup` until it has either been copied/moved to the real external disk and verified, or the operator explicitly says it is safe to remove.
+- Do not enable UFW on a host unless a backdoor path is verified and a host-specific firewall plan exists.
+- Do not create `/opt/docker` on low-power/special-purpose nodes unless their role is confirmed as a Docker host.
+- Do not print private SSH keys or backup passphrases.
+
+## Proposed staged tasks
+
+### Task 1: Confirm intended roles
+
+**Objective:** Avoid turning `jellysa` or `jellybackup` into the wrong class of host.
+
+**Questions:**
+
+- Is `jellysa` intended to be a Docker-capable Raspberry Pi host, or a lightweight/non-Docker utility node?
+- Should `jellysa` be backed up to `jellybackup`, and if so which paths matter?
+- Should `jellybackup` get node_exporter/host monitoring only, or also a `jellybot` operator account and `/opt/docker` layout for source-managed helper scripts?
+
+### Task 2: Establish durable SSH/operator access
+
+**Objective:** Make future automation non-interactive without storing passwords.
+
+**jellysa:**
+
+- Add the local `jellybot` public key to `jellyfish` or `jellybot` authorized_keys.
+- If `jellybot` should be an operator account, run `scripts/bootstrap-jellybot-operator` with sudo after sudo access is available.
+
+**jellybackup:**
+
+- Add the local `jellybot` public key to the appropriate operator account.
+- Consider running `scripts/bootstrap-jellybot-operator --skip-github-key` if the host needs repo-managed helper scripts; keep it non-Docker if backup-target-only is preferred.
+
+### Task 3: Fix jellybackup root filesystem before package rollout
+
+**Objective:** Free the SD card safely.
+
+**Evidence:** 52G hidden below the mounted external-disk mountpoint.
+
+**Safe approach:**
+
+1. Create a destination on the real external disk, e.g. `/home/jellybackup/externaldisk/recovered-root-underlay-20260605/`.
+2. Use a root-bind view to access the hidden underlay source: `/tmp/rootfs-view/home/jellybackup/externaldisk/borg_store`.
+3. Copy or move the hidden data to the real external disk.
+4. Verify size and representative files.
+5. Only then remove the hidden source if approved.
+6. Verify `df -hT /` returns a healthy free-space value.
+
+### Task 4: Register jellysa in inventory
+
+**Objective:** Make `jellysa` visible to home-network scripts and dashboards.
+
+**Files:**
+
+- Modify: `inventory/hosts.yml`
+- Modify if backed up: `inventory/backups.yml`
+- Modify if served/monitored as a service host: `inventory/services.yml`
+
+**Initial values to use:**
+
+- `lan_ip: 192.168.1.194`
+- `tailscale_ip: 100.81.255.104`
+- roles pending confirmation.
+
+### Task 5: Bring jellybackup into monitoring
+
+**Objective:** Add node_exporter and disk-health visibility for the backup target.
+
+**Prerequisite:** Root filesystem free space fixed.
+
+**Steps:**
+
+- Update `inventory/hosts.yml` so `jellybackup` is a `node-exporter-client` if monitoring is desired.
+- Generate node_exporter rollout stages.
+- Run install/configure/verify stages on `jellybackup` with sudo.
+- Update Prometheus scrape config from generated config.
+- Verify `up{monitored_host="jellybackup"}` and filesystem/disk metrics.
+
+### Task 6: Decide backup client rollout for jellysa
+
+**Objective:** Only add Borgmatic once host role and important paths are known.
+
+**Potential backup sets:**
+
+- If Docker host: `/opt/docker`, plus relevant repo paths.
+- If utility node: config-only, or selected `/home/jellyfish`/service paths.
+- If ephemeral/test node: no Borgmatic yet.
+
+## Current blockers
+
+- `jellysa` needs sudo password entry or passwordless sudo/bootstrap before host packages and operator account can be installed.
+- `jellybackup` root filesystem is full due to hidden Borg data under the external-disk mountpoint; package/monitoring rollout should wait until this is corrected.
+- `jellysa` role is not yet confirmed, so inventory should not overclaim Docker/Borg roles.
+
+## Verification checklist
+
+- [ ] `jellysa` role confirmed.
+- [ ] `jellysa` passwordless SSH/operator path established.
+- [ ] `jellysa` sudo/bootstrap completed or explicitly deferred.
+- [ ] `jellybackup` hidden underlay data moved/recovered or explicitly removed.
+- [ ] `jellybackup` root filesystem has safe free space.
+- [ ] `jellybackup` node_exporter installed/configured if approved.
+- [ ] Prometheus scrapes `jellybackup` if monitoring was enabled.
+- [ ] `inventory/hosts.yml` and `inventory/backups.yml` reflect live state.

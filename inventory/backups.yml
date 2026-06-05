@@ -355,6 +355,24 @@ hosts:
     notes:
       - Only back up if it has local state worth preserving.
 
+  jellysa:
+    borg_enabled: false
+    host_type: non_docker
+    role: pending-bootstrap
+    destinations:
+      primary:
+        enabled: false
+        status: pending_role_and_paths
+    important_paths: []
+    backup_sets: []
+    rollout_status:
+      config_status: pending-role-confirmation
+      ssh_status: passwordless SSH installed for jellyfish; sudo bootstrap pending
+    notes:
+      - Fresh Raspberry Pi host discovered at 192.168.1.194 / 100.81.255.104.
+      - Do not enable Borgmatic until its role and important paths are confirmed.
+      - If it becomes a Docker host, likely backup set is /opt/docker plus any repo/runtime paths.
+
   seedbox:
     borg_enabled: true
     host_type: remote
