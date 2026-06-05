@@ -269,7 +269,9 @@ services:
       - alertmanager
 
   webtop-jellybase:
-    image: lscr.io/linuxserver/webtop:latest
+    image: home-network-webtop-cleanup:latest
+    build:
+      context: /home/jellyfish/repo/home-network/docker/webtop-cleanup
     container_name: webtop-jellybase
     restart: unless-stopped
     shm_size: "1gb"

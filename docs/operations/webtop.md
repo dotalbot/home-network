@@ -6,9 +6,23 @@
 
 Image:
 
-- `lscr.io/linuxserver/webtop:latest`
+- `home-network-webtop-cleanup:latest`
 
-The `latest` tag is LinuxServer's XFCE Alpine Webtop image.
+This is a source-managed local image built from `docker/webtop-cleanup/Dockerfile`, which inherits from `lscr.io/linuxserver/webtop:latest` and adds the disk-cleanup tools used by the Webtop desktop sessions.
+
+Default additional tools in the custom image:
+
+- Krokiet `11.0.1` as `/usr/local/bin/krokiet` and `/usr/local/bin/czkawka-gui`; Krokiet is the actively developed Czkawka GUI frontend.
+- `ncdu`
+- `duf`
+- `mc`
+- `ranger`
+- `rsync`
+- `tree`
+- `jq`
+- `p7zip-full`
+- `unzip`
+- `zip`
 
 ## Access
 
@@ -34,6 +48,7 @@ Compose services are managed by this repository:
 
 - `docker/hosts/jellybase.yaml`
 - `docker/hosts/jellyhome.yaml`
+- `docker/webtop-cleanup/Dockerfile`
 
 Runtime copies are deployed under `/opt/docker` by `just sync-docker-config`.
 
@@ -111,7 +126,8 @@ git pull --ff-only origin main
 just sync-docker-config
 cd /opt/docker
 docker compose --env-file .env -f docker-compose.yml -f hosts/$(hostname -s).yaml config >/tmp/webtop-compose-check.yml
-docker compose --env-file .env -f docker-compose.yml -f hosts/$(hostname -s).yaml up -d webtop-$(hostname -s)
+docker compose --env-file .env -f docker-compose.yml -f hosts/$(hostname -s).yaml build webtop-$(hostname -s)
+docker compose --env-file .env -f docker-compose.yml -f hosts/$(hostname -s).yaml up -d --force-recreate webtop-$(hostname -s)
 ```
 
 ## Runtime verification
@@ -124,6 +140,7 @@ docker ps --filter name=webtop-jellybase
 curl -kI https://192.168.1.2:30301/
 curl -kI https://100.125.86.118:30301/
 docker logs --tail=100 webtop-jellybase
+docker exec webtop-jellybase sh -lc 'command -v krokiet czkawka-gui ncdu duf mc ranger rsync tree jq 7z unzip zip'
 ```
 
 jellyhome:
@@ -134,6 +151,7 @@ docker ps --filter name=webtop-jellyhome
 curl -kI https://192.168.1.1:30301/
 curl -kI https://100.90.175.59:30301/
 docker logs --tail=100 webtop-jellyhome
+docker exec webtop-jellyhome sh -lc 'command -v krokiet czkawka-gui ncdu duf mc ranger rsync tree jq 7z unzip zip'
 ```
 
 Expected notes:

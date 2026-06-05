@@ -170,7 +170,9 @@ services:
       - no-new-privileges:true
 
   webtop-jellyhome:
-    image: lscr.io/linuxserver/webtop:latest
+    image: home-network-webtop-cleanup:latest
+    build:
+      context: /home/jellyfish/repo/home-network/docker/webtop-cleanup
     container_name: webtop-jellyhome
     restart: unless-stopped
     shm_size: "1gb"
