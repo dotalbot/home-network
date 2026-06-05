@@ -194,6 +194,18 @@ services:
         target: webtop_password
     volumes:
       - /opt/docker/appdata/webtop-jellyhome/config:/config
+      - type: bind
+        source: /home/jellyfish/media/Primary_5TB
+        target: /host-disks/jellyhome/Primary_5TB
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: /home/jellyfish/media/Backup_5TB
+        target: /host-disks/jellyhome/Backup_5TB
+        read_only: true
+        bind:
+          create_host_path: false
     security_opt:
       - no-new-privileges:true
 

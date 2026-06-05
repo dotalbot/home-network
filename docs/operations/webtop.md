@@ -59,6 +59,24 @@ Persistent appdata:
 
 Backup class: `appdata`.
 
+Read-only host disk mounts are exposed inside each desktop for disk inspection and cleanup planning:
+
+- jellybase:
+  - `/mnt/2TB` -> `/host-disks/jellybase/2TB` read-only
+  - `/mnt/4TB` -> `/host-disks/jellybase/4TB` read-only
+- jellyhome:
+  - `/home/jellyfish/media/Primary_5TB` -> `/host-disks/jellyhome/Primary_5TB` read-only
+  - `/home/jellyfish/media/Backup_5TB` -> `/host-disks/jellyhome/Backup_5TB` read-only
+
+The container bind mounts are intentionally `:ro` even if the host filesystem grants UID/GID `1000` write access. This keeps the first Webtop cleanup phase inspection-only.
+
+jellybase host-disk permission note:
+
+- `/mnt/2TB` and `/mnt/4TB` are ext4 mounts.
+- `/mnt/2TB` is mounted by UUID in `/etc/fstab` as `e64580e3-050c-4e84-b53a-17b75ea01425`.
+- `/mnt/4TB` is mounted by UUID in `/etc/fstab` as `85f9285f-fa1d-4b65-830d-40bea4036aee`.
+- ACLs grant `jellyfish`/UID `1000` `rwX` plus default `rwX` on both mounts so the host user and LinuxServer Webtop user (`abc`, UID `1000`) can access the disks if the container mount is later switched from read-only to read-write.
+
 ## Security posture
 
 LinuxServer's Webtop documentation warns that this container exposes an interactive browser desktop and can include powerful tools inside the container. Treat it as a trusted-LAN/Tailscale-only service.
@@ -141,6 +159,7 @@ curl -kI https://192.168.1.2:30301/
 curl -kI https://100.125.86.118:30301/
 docker logs --tail=100 webtop-jellybase
 docker exec webtop-jellybase sh -lc 'command -v krokiet czkawka-gui ncdu duf mc ranger rsync tree jq 7z unzip zip'
+docker exec --user abc webtop-jellybase sh -lc 'for p in /host-disks/jellybase/2TB /host-disks/jellybase/4TB; do findmnt "$p" >/dev/null && test -r "$p" && ! test -w "$p" || exit 1; done'
 ```
 
 jellyhome:
@@ -152,6 +171,7 @@ curl -kI https://192.168.1.1:30301/
 curl -kI https://100.90.175.59:30301/
 docker logs --tail=100 webtop-jellyhome
 docker exec webtop-jellyhome sh -lc 'command -v krokiet czkawka-gui ncdu duf mc ranger rsync tree jq 7z unzip zip'
+docker exec --user abc webtop-jellyhome sh -lc 'for p in /host-disks/jellyhome/Primary_5TB /host-disks/jellyhome/Backup_5TB; do findmnt "$p" >/dev/null && test -r "$p" && ! test -w "$p" || exit 1; done'
 ```
 
 Expected notes:

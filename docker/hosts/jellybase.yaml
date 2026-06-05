@@ -293,6 +293,18 @@ services:
         target: webtop_password
     volumes:
       - /opt/docker/appdata/webtop-jellybase/config:/config
+      - type: bind
+        source: /mnt/2TB
+        target: /host-disks/jellybase/2TB
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: /mnt/4TB
+        target: /host-disks/jellybase/4TB
+        read_only: true
+        bind:
+          create_host_path: false
     security_opt:
       - no-new-privileges:true
 
