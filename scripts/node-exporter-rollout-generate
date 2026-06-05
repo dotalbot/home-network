@@ -63,6 +63,15 @@ def validate_ip(value: Any, field: str) -> str:
         fail(f"{field} must be a valid IP address, got {value!r}")
 
 
+def validate_scrape_target(value: Any, field: str) -> str:
+    if not isinstance(value, str) or not value:
+        fail(f"{field} must be a host name or IP address, got {value!r}")
+    try:
+        return str(ipaddress.ip_address(value))
+    except ValueError:
+        return validate_host_name(value, field)
+
+
 def shell_single_quote(value: str) -> str:
     return "'" + value.replace("'", "'\\''") + "'"
 
@@ -512,8 +521,10 @@ def stages(host: str, cfg: dict[str, Any], scrape_targets: list[str]) -> dict[st
     scrape_host = cfg["scrape_host"]
     pi_early = bool(cfg.get("pi_early_warning", False))
     allowed_scrapers = cfg.get("allowed_scrapers") or []
+    access_path = str(cfg.get("access_path") or "lan")
+    scraper_ip_key = "tailscale_ip" if access_path == "tailscale" else "lan_ip"
     allowed_host_array = " ".join(shell_single_quote(str(item["host"])) for item in allowed_scrapers)
-    allowed_ip_array = " ".join(shell_single_quote(str(item["ip"])) for item in allowed_scrapers)
+    allowed_ip_array = " ".join(shell_single_quote(str(item[scraper_ip_key])) for item in allowed_scrapers)
     packages = "prometheus-node-exporter smartmontools nvme-cli util-linux lm-sensors"
     if pi_early:
         packages += " usbutils hdparm mmc-utils sysstat"
@@ -912,8 +923,11 @@ def monitored_hosts(data: dict[str, Any]) -> dict[str, dict[str, Any]]:
         scraper_cfg = hosts.get(scraper_host)
         if not isinstance(scraper_cfg, dict):
             fail(f"allowed scraper host {scraper_host} is not defined in hosts")
-        scraper_ip = validate_ip(scraper_cfg.get("lan_ip"), f"hosts.{scraper_host}.lan_ip")
-        allowed_scrapers.append({"host": scraper_host, "ip": scraper_ip})
+        scraper_lan_ip = validate_ip(scraper_cfg.get("lan_ip"), f"hosts.{scraper_host}.lan_ip")
+        scraper_tailscale_ip = None
+        if scraper_cfg.get("tailscale_ip") is not None:
+            scraper_tailscale_ip = validate_ip(scraper_cfg.get("tailscale_ip"), f"hosts.{scraper_host}.tailscale_ip")
+        allowed_scrapers.append({"host": scraper_host, "lan_ip": scraper_lan_ip, "tailscale_ip": scraper_tailscale_ip or scraper_lan_ip})
     result: dict[str, dict[str, Any]] = {}
     for raw_host, raw_cfg in sorted(hosts.items()):
         host = validate_host_name(str(raw_host), "hosts key")
@@ -937,11 +951,18 @@ def monitored_hosts(data: dict[str, Any]) -> dict[str, dict[str, Any]]:
         if not (enabled and has_role):
             continue
         cfg["host"] = host
-        if raw_cfg.get("lan_ip") is None:
-            fail(f"hosts.{host}.lan_ip is required for node_exporter firewall allowlisting")
-        cfg["lan_ip"] = validate_ip(raw_cfg.get("lan_ip"), f"hosts.{host}.lan_ip")
+        access_path = str(cfg.get("access_path") or "lan")
+        if access_path == "tailscale":
+            cfg["lan_ip"] = validate_ip(raw_cfg.get("tailscale_ip"), f"hosts.{host}.tailscale_ip")
+        elif access_path in ("lan", "local"):
+            if raw_cfg.get("lan_ip") is None:
+                fail(f"hosts.{host}.lan_ip is required for node_exporter firewall allowlisting")
+            cfg["lan_ip"] = validate_ip(raw_cfg.get("lan_ip"), f"hosts.{host}.lan_ip")
+        else:
+            fail(f"hosts.{host}.monitoring.node_exporter.access_path is unknown: {access_path}")
+        cfg["access_path"] = access_path
         cfg["allowed_scrapers"] = allowed_scrapers
-        cfg["scrape_host"] = validate_host_name(str(cfg.get("scrape_host") or host), f"hosts.{host}.monitoring.node_exporter.scrape_host")
+        cfg["scrape_host"] = validate_scrape_target(cfg.get("scrape_host") or host, f"hosts.{host}.monitoring.node_exporter.scrape_host")
         cfg["scrape_port"] = validate_port(cfg.get("scrape_port"), f"hosts.{host}.monitoring.node_exporter.scrape_port")
         scheme = cfg.get("scrape_scheme")
         if not isinstance(scheme, str) or not SAFE_SCHEME_RE.fullmatch(scheme):

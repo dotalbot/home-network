@@ -221,7 +221,7 @@
     }
   },
   "future_write_workflow": "Coming next only: propose Git-reviewed inventory/backups.yml patches and rendered diffs; no UI mutation in this slice.",
-  "generated_at": "2026-06-05T17:49:35.672149+00:00",
+  "generated_at": "2026-06-05T18:53:36.994292+00:00",
   "hosts": [
     {
       "backup_role": "secondary-monitoring-host",
@@ -629,21 +629,21 @@
       }
     },
     {
-      "backup_role": "pending-bootstrap",
+      "backup_role": "south-africa-tailscale-backup-sync-node",
       "backup_sets": [],
       "borg_enabled": false,
-      "description": "Fresh Raspberry Pi host pending home-network onboarding",
+      "description": "South Africa Raspberry Pi Tailscale backup/sync node and exit-node candidate",
       "destination_labels": [],
       "destinations": {
         "primary": {
           "enabled": false,
-          "status": "pending_role_and_paths"
+          "status": "pending_remote_borgmatic_rollout"
         }
       },
       "enabled": false,
-      "host_type": "non_docker",
+      "host_type": "remote",
       "important_paths": [],
-      "lan_ip": "192.168.1.194",
+      "lan_ip": null,
       "links": {
         "alertmanager": "http://192.168.1.2:9093/",
         "grafana": "http://192.168.1.2:3001/",
@@ -655,18 +655,26 @@
       },
       "name": "jellysa",
       "notes": [
-        "Fresh Raspberry Pi host discovered at 192.168.1.194 / 100.81.255.104.",
-        "Do not enable Borgmatic until its role and important paths are confirmed.",
-        "If it becomes a Docker host, likely backup set is /opt/docker plus any repo/runtime paths."
+        "Remote South Africa node reached over Tailscale at 100.81.255.104.",
+        "Intended as Tailscale host, backup/sync node, and exit-node candidate.",
+        "Destination remains disabled until remote Borgmatic transport, repository path, excludes, and passphrase handling are configured.",
+        "Use lower-frequency monitoring than local LAN hosts."
       ],
       "repository_path": null,
       "roles": [
         "pi",
+        "remote-server",
+        "remote-sync",
+        "remote-backup",
         "tailscale-node",
-        "pending-bootstrap"
+        "tailscale-exit-node",
+        "borg-client",
+        "node-exporter-client"
       ],
       "rollout_status": {
-        "config_status": "pending-role-confirmation",
+        "backup_status": "planned; do not enable timers until repo path, excludes, and secrets are configured",
+        "config_status": "role-confirmed-runtime-pending",
+        "monitoring_status": "planned-low-frequency-tailscale-scrape",
         "ssh_status": "passwordless SSH installed for jellyfish; sudo bootstrap pending"
       }
     },

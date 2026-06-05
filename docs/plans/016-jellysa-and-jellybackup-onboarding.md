@@ -2,9 +2,9 @@
 
 > **For Hermes:** Use home-network-operations and repository-development-discipline. Work directly on `main` for `/home/jellybot/home-network` under the standing home-network exception. Execute through tmux panes one command at a time.
 
-**Goal:** Bring the fresh Raspberry Pi host `jellysa` and existing backup host `jellybackup` into the source-managed home-network operations model.
+**Goal:** Bring the Raspberry Pi host `jellysa` and existing backup host `jellybackup` into the source-managed home-network operations model.
 
-**Architecture:** `home-network` remains source of truth for inventory, bootstrap scripts, monitoring rollout, and backup policy. Runtime hosts get only the minimum host-local state required: operator SSH access, packages, `/opt/docker` only when the host is intended to be a Docker host, and secrets outside Git. `jellybackup` remains the Borg destination and should not be treated as a Docker application host unless explicitly approved.
+**Architecture:** `home-network` remains source of truth for inventory, bootstrap scripts, monitoring rollout, and backup policy. Runtime hosts get only the minimum host-local state required: operator SSH access, packages, `/opt/docker` only when the host is intended to be a Docker host, and secrets outside Git. `jellybackup` remains the Borg destination and should not be treated as a Docker application host unless explicitly approved. `jellysa` is a remote South Africa node, so production access and monitoring should prefer Tailscale and use a lower scrape cadence than LAN hosts.
 
 **Tech Stack:** Raspberry Pi OS/Debian 13, systemd, SSH, Tailscale, Borg/Borgmatic, Prometheus node_exporter, home-network inventory.
 
@@ -15,15 +15,18 @@
 ### jellysa
 
 - Hostname: `jellysa`
-- LAN IPv4: `192.168.1.194`
+- Production role: South Africa Tailscale host, backup/sync node, and exit-node candidate.
+- Production access: Tailscale preferred; local LAN discovery address below is pre-relocation evidence only.
+- LAN IPv4 observed during onboarding: `192.168.1.194`
 - Tailnet DNS/IP: `jellysa.cheetah-iwato.ts.net` / `100.81.255.104`
 - LAN IPv6: `2a00:23c8:a926:bb01::503`
 - OS: Debian GNU/Linux 13 trixie on Raspberry Pi kernel `6.12.75+rpt-rpi-v8`
 - Architecture: `aarch64`
 - Active login pane: tmux pane `0:5`, user `jellyfish`
-- Current access: interactive SSH works as `jellyfish`; passwordless SSH from the agent does not yet work.
+- Current access: interactive SSH works as `jellyfish`; passwordless SSH from the agent has been installed.
 - Sudo status: `sudo -n` requires a password.
 - Installed basics observed: `sudo` only from the precheck command list; no Docker/Tailscale/Borg/node_exporter found in PATH during precheck.
+- Monitoring intent: node_exporter over Tailscale at a 5 minute scrape interval, not the local 15 second LAN cadence.
 
 ### jellybackup
 
@@ -52,11 +55,18 @@
 
 **Objective:** Avoid turning `jellysa` or `jellybackup` into the wrong class of host.
 
-**Questions:**
+**Resolved:**
 
-- Is `jellysa` intended to be a Docker-capable Raspberry Pi host, or a lightweight/non-Docker utility node?
-- Should `jellysa` be backed up to `jellybackup`, and if so which paths matter?
-- Should `jellybackup` get node_exporter/host monitoring only, or also a `jellybot` operator account and `/opt/docker` layout for source-managed helper scripts?
+- `jellysa` is a Tailscale-managed South Africa node.
+- It should support backup/sync duties.
+- It is an exit-node candidate.
+- It should have monitoring, but at lower frequency than local LAN hosts.
+
+**Still open:**
+
+- Exact backup/sync paths and excludes.
+- Whether `jellysa` should be Docker-capable or systemd-only.
+- Whether `jellybackup` should get node_exporter/host monitoring only, or also a `jellybot` operator account and `/opt/docker` layout for source-managed helper scripts.
 
 ### Task 2: Establish durable SSH/operator access
 
@@ -117,27 +127,37 @@
 - Update Prometheus scrape config from generated config.
 - Verify `up{monitored_host="jellybackup"}` and filesystem/disk metrics.
 
-### Task 6: Decide backup client rollout for jellysa
+### Task 6: Roll out backup/sync and low-frequency monitoring for jellysa
 
-**Objective:** Only add Borgmatic once host role and important paths are known.
+**Objective:** Add remote-safe monitoring and backup/sync without treating a South Africa node like a LAN machine.
+
+**Monitoring design:**
+
+- Install node_exporter on `jellysa`.
+- Scrape `100.81.255.104:9100` over Tailscale from jellybase Prometheus.
+- Use a separate Prometheus scrape job with `scrape_interval: 5m` and `scrape_timeout: 30s`.
+- Relabel the resulting metrics to `job="node_exporter"` so existing dashboards and alerts still apply.
+- Do not add LAN firewall assumptions until the host's South Africa network posture is known.
 
 **Potential backup sets:**
 
+- Default first candidate: `/home/jellyfish` with explicit excludes once workload is known.
 - If Docker host: `/opt/docker`, plus relevant repo paths.
-- If utility node: config-only, or selected `/home/jellyfish`/service paths.
-- If ephemeral/test node: no Borgmatic yet.
+- If systemd-only utility node: selected `/home/jellyfish` and service config paths.
 
 ## Current blockers
 
 - `jellysa` needs sudo password entry or passwordless sudo/bootstrap before host packages and operator account can be installed.
-- `jellybackup` root filesystem is full due to hidden Borg data under the external-disk mountpoint; package/monitoring rollout should wait until this is corrected.
-- `jellysa` role is not yet confirmed, so inventory should not overclaim Docker/Borg roles.
+- `jellysa` backup/sync paths and excludes still need confirmation before enabling Borgmatic timers.
+- `jellybackup` external disk persistence in `/etc/fstab` is still pending; the safety layer blocked the first attempt to add the UUID-based fstab entry.
 
 ## Verification checklist
 
-- [ ] `jellysa` role confirmed.
-- [ ] `jellysa` passwordless SSH/operator path established.
+- [x] `jellysa` role confirmed.
+- [x] `jellysa` passwordless SSH/operator path established.
 - [ ] `jellysa` sudo/bootstrap completed or explicitly deferred.
+- [ ] `jellysa` low-frequency Tailscale node_exporter scrape deployed and verified.
+- [ ] `jellysa` backup/sync paths and excludes confirmed.
 - [x] `jellybackup` hidden underlay data moved/recovered or explicitly removed.
 - [x] `jellybackup` root filesystem has safe free space.
 - [ ] `jellybackup` node_exporter installed/configured if approved.
