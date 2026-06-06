@@ -124,6 +124,8 @@
 
 **Runtime status:** In progress. Inventory now enables `jellybackup` as a `node-exporter-client` using `192.168.1.75:9100`; rollout stages should install node_exporter, disk-health probe, and journal-signal probe, then Prometheus should scrape it from jellybase.
 
+**Completed runtime evidence:** node_exporter, disk-health probe, and journal-signal probe are deployed on `jellybackup`; Prometheus on `jellybase` scrapes `192.168.1.75:9100` with `up{monitored_host="jellybackup"} == 1`. Disk-health reports `/dev/sda` healthy via smartctl, with Pi/virtual devices explicitly `unknown`.
+
 **Steps:**
 
 - Update `inventory/hosts.yml` so `jellybackup` is a `node-exporter-client` if monitoring is desired.
@@ -165,6 +167,6 @@
 - [ ] `jellysa` backup/sync paths and excludes confirmed.
 - [x] `jellybackup` hidden underlay data moved/recovered or explicitly removed.
 - [x] `jellybackup` root filesystem has safe free space.
-- [ ] `jellybackup` node_exporter installed/configured if approved.
-- [ ] Prometheus scrapes `jellybackup` if monitoring was enabled.
+- [x] `jellybackup` node_exporter installed/configured if approved.
+- [x] Prometheus scrapes `jellybackup` if monitoring was enabled.
 - [ ] `inventory/hosts.yml` and `inventory/backups.yml` reflect live state.
