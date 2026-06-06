@@ -157,6 +157,29 @@ services:
     backup: source-repo
     status: active
 
+  cert-study-hub:
+    display_name: Certification Study Hub
+    icon: mdi-school-outline
+    category: Study
+    mode: single-primary-home-network-compose
+    hosts:
+      - jellyberry
+    containers:
+      jellyberry:
+        - cert-study-hub
+    urls:
+      primary: http://192.168.1.159:8795
+    description: Unified certification study menu for SC-401, MS-102, and AB-900 | home-network managed on jellyberry
+    source:
+      type: local-directory
+      local_path: /home/jellybot/cert-study-hub
+      remote: TBD
+      build_context: /home/jellybot/cert-study-hub
+      dockerfile: Dockerfile
+      restore_note: Requires `/home/jellybot/cert-study-hub`, generated from the local SC-401, MS-102, and AB-900 downloaded course directories.
+    backup: source-repo
+    status: active
+
   image-pastebin:
     display_name: Image Pastebin
     icon: mdi-image-plus-outline

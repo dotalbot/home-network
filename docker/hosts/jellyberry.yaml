@@ -42,6 +42,16 @@ services:
     ports:
       - "8794:80"
 
+  cert-study-hub:
+    build:
+      context: /home/jellybot/cert-study-hub
+      dockerfile: Dockerfile
+    image: cert-study-hub:latest
+    container_name: cert-study-hub
+    restart: unless-stopped
+    ports:
+      - "8795:80"
+
   image-pastebin:
     build:
       context: /home/jellybot/image-pastebin
