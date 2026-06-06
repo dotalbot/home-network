@@ -34,6 +34,10 @@ scrape_configs:
           - jellyberry:9100
         labels:
           monitored_host: jellyberry
+      - targets:
+          - 192.168.1.75:9100
+        labels:
+          monitored_host: jellybackup
 
   - job_name: node_exporter_remote
     scrape_interval: 5m

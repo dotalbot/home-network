@@ -43,6 +43,7 @@
 - External disk: `/home/jellybackup/externaldisk`, ext4, about 4.6T total, 2.4T used, 2.0T available.
 - Resolved issue: root filesystem was effectively full: `/dev/mmcblk0p2` 59G with about 305M available before recovery; after cleanup it has about 52G available and is 7% used.
 - Root filesystem hidden usage: about 52G existed under the unmounted-underlay path `/home/jellybackup/externaldisk/borg_store`, hidden by the mounted external disk. This likely happened when backups wrote to the mountpoint while the external disk was not mounted. The hidden data was copied to the real external disk recovery path and the hidden underlay copy was removed after approval.
+- Monitoring intent: node_exporter over LAN at the normal local scrape cadence, with Pi early-warning and disk/log textfile probes like `jellysa`.
 
 ## Non-goals / safety
 
@@ -120,6 +121,8 @@
 **Objective:** Add node_exporter and disk-health visibility for the backup target.
 
 **Prerequisite:** Root filesystem free space fixed.
+
+**Runtime status:** In progress. Inventory now enables `jellybackup` as a `node-exporter-client` using `192.168.1.75:9100`; rollout stages should install node_exporter, disk-health probe, and journal-signal probe, then Prometheus should scrape it from jellybase.
 
 **Steps:**
 
