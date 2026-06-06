@@ -133,6 +133,11 @@
       description: Browser-accessible LinuxServer Webtop desktop on jellyhome | LAN/Tailscale
         only | basic auth | hardened desktop profile
       icon: mdi-monitor-dashboard
+  - Obsidian jellybase:
+      href: https://192.168.1.2:30302
+      description: Browser-accessible LinuxServer Obsidian desktop on jellybase |
+        LAN/Tailscale only | basic auth | vault writable by jellypai
+      icon: mdi-notebook-edit-outline
 - Media:
   - Manyfold:
       href: http://192.168.1.1:3214/health

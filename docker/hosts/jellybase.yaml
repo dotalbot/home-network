@@ -308,6 +308,31 @@ services:
     security_opt:
       - no-new-privileges:true
 
+  obsidian-jellybase:
+    image: lscr.io/linuxserver/obsidian:latest
+    container_name: obsidian-jellybase
+    restart: unless-stopped
+    shm_size: "1gb"
+    ports:
+      - "192.168.1.2:${OBSIDIAN_JELLYBASE_PORT:-30302}:3001"
+      - "100.125.86.118:${OBSIDIAN_JELLYBASE_PORT:-30302}:3001"
+    environment:
+      PUID: "1005"
+      PGID: "1005"
+      TZ: ${TZ}
+      CUSTOM_USER: ${OBSIDIAN_USER:-dominic}
+      FILE__PASSWORD: /run/secrets/obsidian_password
+      TITLE: Jellybase Obsidian
+      SELKIES_USE_BROWSER_CURSORS: "true"
+    secrets:
+      - source: obsidian_jellybase_password
+        target: obsidian_password
+    volumes:
+      - /opt/docker/appdata/obsidian-jellybase/config:/config
+      - /opt/docker/appdata/obsidian-jellybase/vault:/config/vault
+    security_opt:
+      - no-new-privileges:true
+
   alloy:
     image: grafana/alloy:latest
     container_name: alloy
@@ -340,3 +365,5 @@ secrets:
     file: /opt/docker/.secrets/mqtt-exporter/password
   webtop_jellybase_password:
     file: /opt/docker/.secrets/webtop-jellybase/password
+  obsidian_jellybase_password:
+    file: /opt/docker/.secrets/obsidian-jellybase/password

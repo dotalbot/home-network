@@ -683,6 +683,30 @@ services:
       - Password secret lives at /opt/docker/.secrets/webtop-jellyhome/password and is not stored in Git.
       - Initial deployment uses HARDEN_DESKTOP=true, START_DOCKER=false, no Docker socket, no privileged mode, and no GPU passthrough.
 
+  obsidian-jellybase:
+    display_name: Obsidian jellybase
+    icon: mdi-notebook-edit-outline
+    category: Tools
+    mode: host-local-desktop
+    hosts:
+      - jellybase
+    containers:
+      jellybase:
+        - obsidian-jellybase
+    urls:
+      primary: https://192.168.1.2:30302
+      lan: https://192.168.1.2:30302
+      tailscale: https://100.125.86.118:30302
+    description: Browser-accessible LinuxServer Obsidian desktop on jellybase | LAN/Tailscale only | basic auth | vault writable by jellypai
+    backup: appdata-and-library
+    status: active
+    notes:
+      - LinuxServer Obsidian image is lscr.io/linuxserver/obsidian:latest.
+      - Persistent container config lives at /opt/docker/appdata/obsidian-jellybase/config.
+      - Vault path is /opt/docker/appdata/obsidian-jellybase/vault and is mounted at /config/vault inside the container.
+      - Container runs as UID/GID 1005 and the vault directory has a jellypai ACL so the jellypai user can read and write it directly.
+      - Password secret lives at /opt/docker/.secrets/obsidian-jellybase/password and is not stored in Git.
+
 drift:
   ignored_containers:
     jellybase:
