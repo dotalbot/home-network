@@ -224,6 +224,8 @@ hosts:
       - /opt/docker
       - /home/jellyfish/repo
       - /home/jellyfish/media/Primary_5TB/3D_models
+      - /home/jellyfish/media/Primary_5TB/ebooks_library
+      - /home/jellyfish/media/Primary_5TB/ebooks_inbound
     backup_sets:
       - id: docker-root
         type: path
@@ -254,9 +256,20 @@ hosts:
         restore_metadata:
           restore_scope: Manyfold-visible 3D model library path
           related_restore_runbook: docs/runbooks/central-postgres-manyfold-restore.md
+      - id: calibre-ebook-library
+        type: media_library
+        backup_class: appdata-and-library
+        paths:
+          - /home/jellyfish/media/Primary_5TB/ebooks_library
+          - /home/jellyfish/media/Primary_5TB/ebooks_inbound
+        destinations:
+          - primary
+        restore_metadata:
+          restore_scope: Calibre Web Automated ebook library and inbound ingest folder
+          related_restore_runbook: docs/runbooks/calibre-web-automated-restore.md
     notes:
       - Runs core management UI.
-      - Runs planned Calibre and Mosquitto.
+      - Runs Calibre Web Automated and planned Mosquitto.
       - Dev repos may also be synced elsewhere.
 
   jellybase:

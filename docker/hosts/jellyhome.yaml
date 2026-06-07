@@ -95,6 +95,25 @@ services:
     security_opt:
       - no-new-privileges:true
 
+  calibre-web-automated:
+    image: crocodilestick/calibre-web-automated:latest
+    container_name: calibre-web-automated
+    restart: unless-stopped
+    ports:
+      - "${CALIBRE_WEB_AUTOMATED_BIND_IP:-192.168.1.1}:${CALIBRE_WEB_AUTOMATED_PORT:-8083}:8083"
+      - "${CALIBRE_WEB_AUTOMATED_TAILSCALE_BIND_IP:-100.90.175.59}:${CALIBRE_WEB_AUTOMATED_PORT:-8083}:8083"
+    environment:
+      PUID: "1000"
+      PGID: "1000"
+      TZ: ${TZ}
+      NETWORK_SHARE_MODE: "false"
+    volumes:
+      - /opt/docker/appdata/calibre-web-automated/config:/config
+      - /home/jellyfish/media/Primary_5TB/ebooks_library/Calibre:/calibre-library
+      - /home/jellyfish/media/Primary_5TB/ebooks_inbound:/cwa-book-ingest
+    security_opt:
+      - no-new-privileges:true
+
   3dprint-loader-api:
     build:
       context: /home/jellybot/3dprint_loader/backend

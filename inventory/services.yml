@@ -587,9 +587,16 @@ services:
       jellyhome:
         - calibre-web-automated
     urls:
-      primary: pending
+      primary: http://192.168.1.1:8083
+      lan: http://192.168.1.1:8083
+      tailscale: http://100.90.175.59:8083
+    description: Calibre Web Automated ebook library on jellyhome | library /home/jellyfish/media/Primary_5TB/ebooks_library/Calibre | inbound /home/jellyfish/media/Primary_5TB/ebooks_inbound
+    appdata:
+      config: /opt/docker/appdata/calibre-web-automated/config
+      library: /home/jellyfish/media/Primary_5TB/ebooks_library/Calibre
+      inbound: /home/jellyfish/media/Primary_5TB/ebooks_inbound
     backup: appdata-and-library
-    status: planned
+    status: active
 
   mosquitto:
     display_name: Mosquitto MQTT

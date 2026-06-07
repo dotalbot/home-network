@@ -3,33 +3,31 @@
 Service: Calibre Web Automated
 Host: `jellyhome`
 Backup class: `appdata-and-library`
-Runtime container: `calibre-web-automated` once deployed
-URL: pending in `inventory/services.yml`
-Status: planned; write this before the media library becomes important.
+Runtime container: `calibre-web-automated`
+URL: `http://192.168.1.1:8083` (LAN), `http://100.90.175.59:8083` (Tailscale)
+Status: active on jellyhome; appdata and ebook library are backup-tracked.
 
 ## Runtime paths
 
-Expected paths when deployed:
+Runtime paths:
 
-- appdata/config: `/opt/docker/appdata/calibre-web-automated`
-- book library: operator-selected media/library path on `jellyhome` (record the final path in `inventory/services.yml` before going live)
-- Compose source: `/home/jellybot/home-network/docker/hosts/jellyhome.yaml`
+- appdata/config: `/opt/docker/appdata/calibre-web-automated/config`
+- book library root mounted into CWA: `/home/jellyfish/media/Primary_5TB/ebooks_library/Calibre`
+- inbound ingest folder: `/home/jellyfish/media/Primary_5TB/ebooks_inbound`
+- Compose source: `/home/jellyfish/repo/home-network/docker/hosts/jellyhome.yaml` on jellyhome; `/home/jellybot/home-network/docker/hosts/jellyhome.yaml` in the operator source checkout
 
 Host-local secrets, if any, must live under `/opt/docker/.secrets/calibre-web-automated/` and stay out of Git.
 
 ## Restore priority
 
-Currently low because the service is planned. Raise to high before importing an authoritative book library or making Calibre metadata the source of truth.
+High. The Calibre metadata database lives in the ebook library at `/home/jellyfish/media/Primary_5TB/ebooks_library/Calibre/metadata.db`; CWA application config lives under `/opt/docker/appdata/calibre-web-automated/config`.
 
-## Before first production use
+## Production notes
 
-Complete these items before marking the service active:
-
-- record the final library path in `inventory/services.yml`;
-- add the Compose service to `docker/hosts/jellyhome.yaml`;
-- document whether metadata lives in appdata, the book library, or both;
-- confirm Borg covers the appdata path and the library path;
-- run one non-destructive extraction drill before importing important media.
+- Final library and inbound paths are recorded in `inventory/services.yml`.
+- Compose service lives in `docker/hosts/jellyhome.yaml`.
+- Borg policy tracks `/opt/docker`, `/home/jellyfish/media/Primary_5TB/ebooks_library`, and `/home/jellyfish/media/Primary_5TB/ebooks_inbound` for jellyhome.
+- Run a non-destructive extraction drill after the service has accumulated current appdata.
 
 ## Non-destructive drill
 
@@ -63,7 +61,7 @@ sudo find "$DRILL/opt/docker/appdata/calibre-web-automated" -maxdepth 3 -type f 
 4. Inspect the library path read-only after it is finalized:
 
 ```bash
-LIBRARY_PATH=/path/to/final/calibre/library
+LIBRARY_PATH=/home/jellyfish/media/Primary_5TB/ebooks_library/Calibre
 test -d "$LIBRARY_PATH"
 find "$LIBRARY_PATH" -maxdepth 2 -type f | head -50
 ```
@@ -113,12 +111,12 @@ sudo borg extract --list REPOSITORY::ARCHIVE opt/docker/appdata/calibre-web-auto
 5. Restore or reattach the book library only if the library path is damaged or empty. Prefer verifying the existing library before overwriting it:
 
 ```bash
-LIBRARY_PATH=/path/to/final/calibre/library
+LIBRARY_PATH=/home/jellyfish/media/Primary_5TB/ebooks_library/Calibre
 test -d "$LIBRARY_PATH"
 find "$LIBRARY_PATH" -maxdepth 2 -type f | head -50
-# Example library restore shape; fill final path and archive during a real restore.
+# Example library restore shape; fill archive during a real restore.
 # cd /
-# sudo borg extract --list REPOSITORY::ARCHIVE path/to/final/calibre/library
+# sudo borg extract --list REPOSITORY::ARCHIVE home/jellyfish/media/Primary_5TB/ebooks_library
 ```
 
 6. Verify permissions and secrets:
@@ -144,8 +142,7 @@ docker compose --env-file .env -f docker-compose.yml -f hosts/jellyhome.yaml up 
 ```bash
 docker ps --filter name=calibre-web-automated --format '{{.Names}} {{.Status}}'
 docker logs --tail=120 calibre-web-automated
-# Fill in the final URL when deployed:
-# curl -fsS http://127.0.0.1:PORT/ >/dev/null && echo calibre_web_http_ok
+curl -fsS http://192.168.1.1:8083/ >/dev/null && echo calibre_web_http_ok
 ```
 
 Verify in the UI that the expected books and metadata appear before declaring recovery complete.
@@ -156,4 +153,4 @@ Stop `calibre-web-automated`, restore the pre-restore tarball under `/opt/docker
 
 ## Drill log
 
-- Pending: service is planned; first drill should run after Compose, final library path, and initial appdata exist.
+- Pending: first post-deployment drill should extract appdata and verify `/home/jellyfish/media/Primary_5TB/ebooks_library/Calibre/metadata.db` in scratch/read-only checks.

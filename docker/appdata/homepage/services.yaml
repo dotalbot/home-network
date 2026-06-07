@@ -100,9 +100,21 @@
       icon: mdi-cube-scan
       siteMonitor: http://192.168.1.1:8793/health
 - Study:
+  - SC-401 Study Hub:
+      href: http://192.168.1.159:8791
+      description: certification study hub | home-network managed on jellyberry
+      icon: mdi-school-outline
+      siteMonitor: http://192.168.1.159:8791
+  - MS-102 Study Hub:
+      href: http://192.168.1.159:8794
+      description: Microsoft 365 Administrator study hub | home-network managed on
+        jellyberry
+      icon: mdi-school-outline
+      siteMonitor: http://192.168.1.159:8794
   - Certification Study Hub:
       href: http://192.168.1.159:8795
-      description: unified certification study menu for SC-401, MS-102, and AB-900 | home-network managed on jellyberry
+      description: Unified certification study menu for SC-401, MS-102, and AB-900
+        | home-network managed on jellyberry
       icon: mdi-school-outline
       siteMonitor: http://192.168.1.159:8795
 - Tools:
@@ -146,3 +158,9 @@
         validates local libraries as writable
       icon: mdi-printer-3d
       siteMonitor: http://192.168.1.1:3214/health
+  - Calibre Web Automated:
+      href: http://192.168.1.1:8083
+      description: Calibre Web Automated ebook library on jellyhome | library /home/jellyfish/media/Primary_5TB/ebooks_library/Calibre
+        | inbound /home/jellyfish/media/Primary_5TB/ebooks_inbound
+      icon: calibre-web.png
+      siteMonitor: http://192.168.1.1:8083

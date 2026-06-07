@@ -221,7 +221,7 @@
     }
   },
   "future_write_workflow": "Coming next only: propose Git-reviewed inventory/backups.yml patches and rendered diffs; no UI mutation in this slice.",
-  "generated_at": "2026-06-06T05:03:46.555449+00:00",
+  "generated_at": "2026-06-07T20:32:58.387358+00:00",
   "hosts": [
     {
       "backup_role": "secondary-monitoring-host",
@@ -572,6 +572,41 @@
             "url": "https://github.com/dotalbot/home-network/blob/main/docs/runbooks/central-postgres-manyfold-restore.md"
           },
           "type": "media_library"
+        },
+        {
+          "backup_class": {
+            "description": "Service has appdata plus media/library files.",
+            "excludes": [
+              "cache",
+              "temp files"
+            ],
+            "includes": [
+              "/opt/docker/appdata/SERVICE",
+              "library storage"
+            ],
+            "name": "appdata-and-library",
+            "restore_priority": "high",
+            "restore_verification": null
+          },
+          "database_hook": {},
+          "destinations": [
+            "primary"
+          ],
+          "id": "calibre-ebook-library",
+          "output_path": null,
+          "paths": [
+            "/home/jellyfish/media/Primary_5TB/ebooks_library",
+            "/home/jellyfish/media/Primary_5TB/ebooks_inbound"
+          ],
+          "restore_metadata": {
+            "related_restore_runbook": "docs/runbooks/calibre-web-automated-restore.md",
+            "restore_scope": "Calibre Web Automated ebook library and inbound ingest folder"
+          },
+          "restore_runbook": {
+            "path": "docs/runbooks/calibre-web-automated-restore.md",
+            "url": "https://github.com/dotalbot/home-network/blob/main/docs/runbooks/calibre-web-automated-restore.md"
+          },
+          "type": "media_library"
         }
       ],
       "borg_enabled": true,
@@ -590,7 +625,9 @@
       "important_paths": [
         "/opt/docker",
         "/home/jellyfish/repo",
-        "/home/jellyfish/media/Primary_5TB/3D_models"
+        "/home/jellyfish/media/Primary_5TB/3D_models",
+        "/home/jellyfish/media/Primary_5TB/ebooks_library",
+        "/home/jellyfish/media/Primary_5TB/ebooks_inbound"
       ],
       "lan_ip": "192.168.1.1",
       "links": {
@@ -605,7 +642,7 @@
       "name": "jellyhome",
       "notes": [
         "Runs core management UI.",
-        "Runs planned Calibre and Mosquitto.",
+        "Runs Calibre Web Automated and planned Mosquitto.",
         "Dev repos may also be synced elsewhere."
       ],
       "repository_path": "/home/jellybackup/externaldisk/borg_jellyhome",
@@ -1003,9 +1040,19 @@
       "url": "https://github.com/dotalbot/home-network/blob/main/docs/operations/borgmatic-host-rollout.md"
     },
     {
+      "path": "docs/operations/calibre-web-automated.md",
+      "title": "Calibre Web Automated",
+      "url": "https://github.com/dotalbot/home-network/blob/main/docs/operations/calibre-web-automated.md"
+    },
+    {
       "path": "docs/operations/central-postgres.md",
       "title": "Central Postgres",
       "url": "https://github.com/dotalbot/home-network/blob/main/docs/operations/central-postgres.md"
+    },
+    {
+      "path": "docs/operations/cert-study-hub.md",
+      "title": "Cert Study Hub",
+      "url": "https://github.com/dotalbot/home-network/blob/main/docs/operations/cert-study-hub.md"
     },
     {
       "path": "docs/operations/cross-repo-app-deployment.md",
@@ -1076,6 +1123,11 @@
       "path": "docs/operations/node-exporter-disk-health.md",
       "title": "Node Exporter Disk Health",
       "url": "https://github.com/dotalbot/home-network/blob/main/docs/operations/node-exporter-disk-health.md"
+    },
+    {
+      "path": "docs/operations/obsidian.md",
+      "title": "Obsidian",
+      "url": "https://github.com/dotalbot/home-network/blob/main/docs/operations/obsidian.md"
     },
     {
       "path": "docs/operations/portfolio-mission-control.md",
@@ -1261,9 +1313,11 @@
       "restore_runbook": null,
       "source_metadata_status": "not-recorded",
       "source_type": null,
-      "status": "planned",
+      "status": "active",
       "urls": {
-        "primary": "pending"
+        "lan": "http://192.168.1.1:8083",
+        "primary": "http://192.168.1.1:8083",
+        "tailscale": "http://100.90.175.59:8083"
       }
     },
     {
@@ -1296,6 +1350,37 @@
       "status": "active",
       "urls": {
         "primary": "postgresql://192.168.1.2:5432"
+      }
+    },
+    {
+      "backup_class": {
+        "description": "Service can be rebuilt from a separate source repository plus this repo's Compose/config metadata.",
+        "excludes": [
+          "generated build artifacts",
+          "caches"
+        ],
+        "includes": [
+          "source repository remote and branch",
+          "compose config",
+          "deployment notes"
+        ],
+        "name": "source-repo",
+        "restore_priority": "low",
+        "restore_verification": null
+      },
+      "category": "Study",
+      "display_name": "Certification Study Hub",
+      "hosts": [
+        "jellyberry"
+      ],
+      "id": "cert-study-hub",
+      "restore_note": "Requires `/home/jellybot/cert-study-hub`, generated from the local SC-401, MS-102, and AB-900 downloaded course directories.",
+      "restore_runbook": null,
+      "source_metadata_status": "present",
+      "source_type": "local-directory",
+      "status": "active",
+      "urls": {
+        "primary": "http://192.168.1.159:8795"
       }
     },
     {
@@ -1844,6 +1929,38 @@
     },
     {
       "backup_class": {
+        "description": "Service has appdata plus media/library files.",
+        "excludes": [
+          "cache",
+          "temp files"
+        ],
+        "includes": [
+          "/opt/docker/appdata/SERVICE",
+          "library storage"
+        ],
+        "name": "appdata-and-library",
+        "restore_priority": "high",
+        "restore_verification": null
+      },
+      "category": "Tools",
+      "display_name": "Obsidian jellybase",
+      "hosts": [
+        "jellybase"
+      ],
+      "id": "obsidian-jellybase",
+      "restore_note": null,
+      "restore_runbook": null,
+      "source_metadata_status": "not-recorded",
+      "source_type": null,
+      "status": "active",
+      "urls": {
+        "lan": "https://192.168.1.2:30302",
+        "primary": "https://192.168.1.2:30302",
+        "tailscale": "https://100.125.86.118:30302"
+      }
+    },
+    {
+      "backup_class": {
         "description": "Service has useful persistent appdata.",
         "excludes": [
           "cache",
@@ -2073,11 +2190,11 @@
   ],
   "summary": {
     "backup_hosts_total": 5,
-    "backup_sets_total": 9,
+    "backup_sets_total": 10,
     "disabled_or_planned_hosts": 2,
     "enabled_backup_hosts": 3,
     "missing_metrics_policy": "unknown_not_healthy",
-    "runbook_docs": 40,
-    "services_with_backup_metadata": 29
+    "runbook_docs": 43,
+    "services_with_backup_metadata": 31
   }
 }
