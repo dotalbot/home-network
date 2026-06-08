@@ -1,0 +1,52 @@
+#!/usr/bin/env python3
+"""Read-only Docker host maintenance collector.
+
+This script is intentionally check-only in Phase 1. It collects root filesystem
+and Docker storage facts, emits proposed actions, and can write JSON plus
+node_exporter textfile metrics. It never prunes, pulls, recreates, or deletes.
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import socket
+import sys
+from pathlib import Path
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(REPO_ROOT / "scripts" / "lib"))
+
+from docker_maintenance import atomic_write, collect, metrics_for_report  # noqa: E402
+
+DEFAULT_INVENTORY = REPO_ROOT / "inventory" / "hosts.yml"
+DEFAULT_OUTPUT = REPO_ROOT / "build" / "docker-maintenance" / "latest.json"
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Read-only Docker host maintenance collector")
+    parser.add_argument("--host", default=socket.gethostname().split(".", 1)[0], help="inventory host name")
+    parser.add_argument("--inventory", type=Path, default=DEFAULT_INVENTORY, help="path to inventory/hosts.yml")
+    parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT, help="JSON output path")
+    parser.add_argument("--metrics-output", type=Path, default=None, help="optional Prometheus textfile output path")
+    parser.add_argument("--check-only", action="store_true", help="assert read-only behavior; currently always true")
+    parser.add_argument("--pretty", action="store_true", help="pretty-print JSON")
+    parser.add_argument("--stdout", action="store_true", help="write JSON to stdout instead of --output")
+    return parser.parse_args()
+
+
+def main() -> int:
+    args = parse_args()
+    report = collect(args.host, args.inventory)
+    indent = 2 if args.pretty else None
+    payload = json.dumps(report, indent=indent, sort_keys=True) + "\n"
+    if args.stdout:
+        print(payload, end="")
+    else:
+        atomic_write(args.output, payload)
+    if args.metrics_output:
+        atomic_write(args.metrics_output, metrics_for_report(report), mode=0o644)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
