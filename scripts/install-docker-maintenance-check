@@ -1,0 +1,92 @@
+#!/usr/bin/env bash
+# Install the read-only Docker maintenance check systemd timer on a Docker host.
+set -euo pipefail
+
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+EXPECTED_REPO_ROOT="${EXPECTED_REPO_ROOT:-/home/jellyfish/repo/home-network}"
+UNIT_DIR="${UNIT_DIR:-/etc/systemd/system}"
+OUTPUT_DIR="${OUTPUT_DIR:-/opt/docker/appdata/docker-maintenance}"
+TEXTFILE_DIR="${TEXTFILE_DIR:-/var/lib/node_exporter/textfile_collector}"
+DOCKER_GROUP="${DOCKER_GROUP:-dockerops}"
+DRY_RUN=0
+START_NOW=0
+
+usage() {
+  cat <<'EOF'
+Usage: scripts/install-docker-maintenance-check [--dry-run] [--start-now]
+
+Installs home-network-docker-maintenance-check.service/.timer.
+The service is read-only: it runs scripts/docker-maintenance-run, which writes
+JSON status plus Prometheus textfile metrics and never prunes/pulls/recreates.
+EOF
+}
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --dry-run) DRY_RUN=1 ;;
+    --start-now) START_NOW=1 ;;
+    -h|--help) usage; exit 0 ;;
+    *) echo "unknown argument: $1" >&2; usage >&2; exit 2 ;;
+  esac
+  shift
+done
+
+run() {
+  if [ "$DRY_RUN" -eq 1 ]; then
+    printf 'DRY-RUN: '
+    printf '%q ' "$@"
+    printf '\n'
+  else
+    "$@"
+  fi
+}
+
+priv() {
+  if [ "$(id -u)" -eq 0 ]; then
+    run "$@"
+  else
+    run sudo "$@"
+  fi
+}
+
+for path in \
+  "$REPO_ROOT/scripts/docker-maintenance-check" \
+  "$REPO_ROOT/scripts/docker-maintenance-run" \
+  "$REPO_ROOT/scripts/lib/docker_maintenance.py" \
+  "$REPO_ROOT/inventory/hosts.yml" \
+  "$REPO_ROOT/systemd/home-network-docker-maintenance-check.service" \
+  "$REPO_ROOT/systemd/home-network-docker-maintenance-check.timer"; do
+  if [ ! -f "$path" ]; then
+    echo "missing required file: $path" >&2
+    exit 1
+  fi
+done
+
+if [ "$REPO_ROOT" != "$EXPECTED_REPO_ROOT" ]; then
+  if [ "$DRY_RUN" -eq 1 ]; then
+    echo "warning: dry-run from $REPO_ROOT; production install expects $EXPECTED_REPO_ROOT" >&2
+  else
+    echo "refusing install from $REPO_ROOT; run from $EXPECTED_REPO_ROOT or set EXPECTED_REPO_ROOT deliberately" >&2
+    exit 1
+  fi
+fi
+
+run chmod +x "$REPO_ROOT/scripts/docker-maintenance-check" "$REPO_ROOT/scripts/docker-maintenance-run"
+priv install -d -m 2775 -o root -g "$DOCKER_GROUP" "$OUTPUT_DIR"
+priv install -d -m 0755 "$TEXTFILE_DIR"
+priv install -m 0644 "$REPO_ROOT/systemd/home-network-docker-maintenance-check.service" "$UNIT_DIR/home-network-docker-maintenance-check.service"
+priv install -m 0644 "$REPO_ROOT/systemd/home-network-docker-maintenance-check.timer" "$UNIT_DIR/home-network-docker-maintenance-check.timer"
+priv systemctl daemon-reload
+priv systemctl enable home-network-docker-maintenance-check.timer
+priv systemctl start home-network-docker-maintenance-check.timer
+
+if [ "$START_NOW" -eq 1 ]; then
+  priv systemctl start home-network-docker-maintenance-check.service
+fi
+
+if [ "$DRY_RUN" -eq 0 ]; then
+  systemctl list-timers 'home-network-docker-maintenance-check.timer' --all --no-pager || true
+  systemctl status home-network-docker-maintenance-check.service --no-pager || true
+fi
+
+echo "good"

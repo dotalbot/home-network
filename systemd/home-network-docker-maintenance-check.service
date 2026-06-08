@@ -1,0 +1,17 @@
+[Unit]
+Description=Home Network Docker maintenance read-only check
+Documentation=file:/home/jellyfish/repo/home-network/docs/operations/docker-maintenance.md
+Wants=network-online.target
+After=network-online.target docker.service
+Requires=docker.service
+RequiresMountsFor=/opt/docker
+
+[Service]
+Type=oneshot
+Environment=HOME_NETWORK_REPO=/home/jellyfish/repo/home-network
+Environment=OUTPUT_DIR=/opt/docker/appdata/docker-maintenance
+Environment=TEXTFILE_DIR=/var/lib/node_exporter/textfile_collector
+ExecStart=/home/jellyfish/repo/home-network/scripts/docker-maintenance-run
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7

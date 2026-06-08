@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily Home Network Docker maintenance read-only check
+
+[Timer]
+OnCalendar=*-*-* 03:35:00
+Persistent=true
+RandomizedDelaySec=10m
+Unit=home-network-docker-maintenance-check.service
+
+[Install]
+WantedBy=timers.target

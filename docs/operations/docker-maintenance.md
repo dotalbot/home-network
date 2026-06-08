@@ -117,9 +117,28 @@ Fallback in minimal host environments:
 python -m unittest tests/test_docker_maintenance_policy.py tests/test_docker_maintenance_parse.py -v
 ```
 
+## Systemd timer install
+
+Install the read-only timer on a Docker host:
+
+```bash
+scripts/install-docker-maintenance-check --start-now
+```
+
+This installs:
+
+- `home-network-docker-maintenance-check.service`
+- `home-network-docker-maintenance-check.timer`
+
+The service runs `scripts/docker-maintenance-run`, which writes:
+
+- JSON report: `/opt/docker/appdata/docker-maintenance/<host>.json`
+- metrics: `/var/lib/node_exporter/textfile_collector/docker_maintenance.prom`
+
+If the collector fails, the wrapper writes failure metrics instead of silently leaving stale success metrics.
+
 ## Next phases
 
-- Add host systemd service/timer wrappers.
 - Aggregate host reports into Network Map data.
 - Add a Docker Maintenance dashboard route/card.
 - Add image update and code update detection.

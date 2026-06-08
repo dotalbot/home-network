@@ -1,0 +1,58 @@
+#!/usr/bin/env bash
+# Runtime wrapper for the read-only Docker maintenance collector.
+set -euo pipefail
+
+HOST="${HOST:-$(hostname -s)}"
+REPO_ROOT="${HOME_NETWORK_REPO:-/home/jellyfish/repo/home-network}"
+OUTPUT_DIR="${OUTPUT_DIR:-/opt/docker/appdata/docker-maintenance}"
+TEXTFILE_DIR="${TEXTFILE_DIR:-/var/lib/node_exporter/textfile_collector}"
+JSON_OUTPUT="${JSON_OUTPUT:-${OUTPUT_DIR}/${HOST}.json}"
+METRICS_OUTPUT="${METRICS_OUTPUT:-${TEXTFILE_DIR}/docker_maintenance.prom}"
+CHECK_SCRIPT="${CHECK_SCRIPT:-${REPO_ROOT}/scripts/docker-maintenance-check}"
+INVENTORY="${INVENTORY:-${REPO_ROOT}/inventory/hosts.yml}"
+
+prom_escape() {
+  local value="$1"
+  value="${value//\\/\\\\}"
+  value="${value//$'\n'/\\n}"
+  value="${value//\"/\\\"}"
+  printf '%s' "$value"
+}
+
+write_failure_metrics() {
+  local exit_code="$1"
+  local now tmp host_label
+  now="$(date +%s)"
+  host_label="$(prom_escape "$HOST")"
+  mkdir -p "$(dirname "$METRICS_OUTPUT")"
+  tmp="$(mktemp "${METRICS_OUTPUT}.XXXXXX")"
+  cat >"$tmp" <<EOF
+# HELP home_network_docker_maintenance_check_success Whether the latest maintenance check succeeded.
+# TYPE home_network_docker_maintenance_check_success gauge
+home_network_docker_maintenance_check_success{host="${host_label}"} 0
+# HELP home_network_docker_maintenance_check_failure_timestamp_seconds Latest failed check time.
+# TYPE home_network_docker_maintenance_check_failure_timestamp_seconds gauge
+home_network_docker_maintenance_check_failure_timestamp_seconds{host="${host_label}"} ${now}
+# HELP home_network_docker_maintenance_check_failure_exit_code Latest failed check exit code.
+# TYPE home_network_docker_maintenance_check_failure_exit_code gauge
+home_network_docker_maintenance_check_failure_exit_code{host="${host_label}"} ${exit_code}
+EOF
+  chmod 0644 "$tmp"
+  mv "$tmp" "$METRICS_OUTPUT"
+}
+
+mkdir -p "$OUTPUT_DIR" "$TEXTFILE_DIR"
+
+if "$CHECK_SCRIPT" \
+  --host "$HOST" \
+  --inventory "$INVENTORY" \
+  --check-only \
+  --pretty \
+  --output "$JSON_OUTPUT" \
+  --metrics-output "$METRICS_OUTPUT"; then
+  chmod 0644 "$JSON_OUTPUT" "$METRICS_OUTPUT"
+else
+  code="$?"
+  write_failure_metrics "$code"
+  exit "$code"
+fi

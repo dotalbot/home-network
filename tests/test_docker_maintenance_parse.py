@@ -74,6 +74,7 @@ Build Cache     139       0         12.78GB   4.517GB
         metrics = self.mod.metrics_for_report(report)
         self.assertIn('home_network_docker_maintenance_root_free_pct{host="demo"} 12.5', metrics)
         self.assertIn('home_network_docker_maintenance_safe_reclaim_bytes{host="demo"} 1234', metrics)
+        self.assertIn('home_network_docker_maintenance_check_success{host="demo"} 1', metrics)
         self.assertIn('home_network_docker_maintenance_automatic_enabled{host="demo",action="disk_cleanup"} 0', metrics)
 
     def test_metrics_escape_host_label(self) -> None:
