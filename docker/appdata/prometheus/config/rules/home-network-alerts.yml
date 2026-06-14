@@ -206,6 +206,41 @@ groups:
           summary: "Alloy is down on {{ $labels.monitored_host }}"
           description: "Alloy log shipping agent {{ $labels.monitored_host }} has been unreachable for more than 5 minutes."
 
+      - alert: WindowsLaptopExporterDownForDays
+        expr: up{job="windows_exporter",alert_profile="laptop-intermittent"} == 0
+        for: 3d
+        labels:
+          severity: warning
+          category: host
+        annotations:
+          summary: "Windows laptop has not been seen for 3 days: {{ $labels.monitored_host }}"
+          description: "{{ $labels.monitored_host }} is a laptop/intermittent device, so short offline periods are normal. It has not been scrapeable over {{ $labels.access_path }} for 3 days. Confirm it is powered on, Tailscale is connected, and windows_exporter is running."
+
+      - alert: WindowsLaptopExporterDownForWeek
+        expr: up{job="windows_exporter",alert_profile="laptop-intermittent"} == 0
+        for: 7d
+        labels:
+          severity: critical
+          category: host
+        annotations:
+          summary: "Windows laptop has not been seen for 7 days: {{ $labels.monitored_host }}"
+          description: "{{ $labels.monitored_host }} has been unreachable for a week. This is unusual even for a sleeping/roaming laptop; check Tailscale, power state, and the exporter/firewall rule."
+
+      - alert: WindowsLaptopSystemDiskSpaceLow
+        expr: |
+          100 * (
+            windows_logical_disk_free_bytes{job="windows_exporter",volume="C:"}
+            /
+            windows_logical_disk_size_bytes{job="windows_exporter",volume="C:"}
+          ) < 10
+        for: 30m
+        labels:
+          severity: warning
+          category: disk
+        annotations:
+          summary: "Windows laptop C: drive space low on {{ $labels.monitored_host }}"
+          description: "Less than 10% free space remains on C:. This alert is laptop-safe and based on the low-overhead windows_exporter logical_disk collector."
+
 
       - alert: StorageMonitoringSmartHealthFailed
         expr: storage_monitoring_disk_smart_health{job="node_exporter"} != 1
