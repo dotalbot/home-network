@@ -1401,6 +1401,354 @@
         }
       },
       "description": "NVMe percentage-used metric where the disk exposes it."
+    },
+    {
+      "id": 28,
+      "title": "Windows laptops (low-overhead)",
+      "type": "row",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 88
+      },
+      "panels": []
+    },
+    {
+      "id": 29,
+      "title": "Windows exporter up",
+      "type": "stat",
+      "gridPos": {
+        "h": 5,
+        "w": 6,
+        "x": 0,
+        "y": 89
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "up{job=\"windows_exporter\",monitored_host=~\"${host:regex}\"}",
+          "legendFormat": "{{monitored_host}}",
+          "instant": false,
+          "range": true,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "wideLayout": true,
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "showPercentChange": false
+      },
+      "description": "1 means Prometheus can scrape windows_exporter. Laptop sleep/offline is normal; alerts only fire after days."
+    },
+    {
+      "id": 30,
+      "title": "Windows CPU busy",
+      "type": "stat",
+      "gridPos": {
+        "h": 5,
+        "w": 6,
+        "x": 6,
+        "y": 89
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "100 * (1 - avg by (monitored_host) (rate(windows_cpu_time_total{job=\"windows_exporter\",mode=\"idle\",monitored_host=~\"${host:regex}\"}[15m])))",
+          "legendFormat": "{{monitored_host}}",
+          "instant": false,
+          "range": true,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 70
+              },
+              {
+                "color": "red",
+                "value": 90
+              }
+            ]
+          },
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "wideLayout": true,
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "showPercentChange": false
+      },
+      "description": "Low-overhead CPU view from windows_exporter cpu collector."
+    },
+    {
+      "id": 31,
+      "title": "Windows memory used",
+      "type": "stat",
+      "gridPos": {
+        "h": 5,
+        "w": 6,
+        "x": 12,
+        "y": 89
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "100 * (1 - (windows_memory_physical_free_bytes{job=\"windows_exporter\",monitored_host=~\"${host:regex}\"} / windows_memory_physical_total_bytes{job=\"windows_exporter\",monitored_host=~\"${host:regex}\"}))",
+          "legendFormat": "{{monitored_host}}",
+          "instant": false,
+          "range": true,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 80
+              },
+              {
+                "color": "red",
+                "value": 92
+              }
+            ]
+          },
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "wideLayout": true,
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "showPercentChange": false
+      },
+      "description": "Physical memory used on Windows laptops."
+    },
+    {
+      "id": 32,
+      "title": "Windows C: free",
+      "type": "stat",
+      "gridPos": {
+        "h": 5,
+        "w": 6,
+        "x": 18,
+        "y": 89
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "100 * windows_logical_disk_free_bytes{job=\"windows_exporter\",monitored_host=~\"${host:regex}\",volume=\"C:\"} / windows_logical_disk_size_bytes{job=\"windows_exporter\",monitored_host=~\"${host:regex}\",volume=\"C:\"}",
+          "legendFormat": "{{monitored_host}}",
+          "instant": false,
+          "range": true,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 10
+              },
+              {
+                "color": "green",
+                "value": 20
+              }
+            ]
+          },
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "wideLayout": true,
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "showPercentChange": false
+      },
+      "description": "C: drive free percentage; alert threshold is below 10% for 30 minutes."
+    },
+    {
+      "id": 33,
+      "title": "Windows scrape duration",
+      "type": "stat",
+      "gridPos": {
+        "h": 5,
+        "w": 6,
+        "x": 0,
+        "y": 94
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "windows_exporter_scrape_duration_seconds{job=\"windows_exporter\",monitored_host=~\"${host:regex}\"}",
+          "legendFormat": "{{monitored_host}}",
+          "instant": false,
+          "range": true,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 5
+              }
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "wideLayout": true,
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "showPercentChange": false
+      },
+      "description": "Keeps overhead visible; homelap is expected to remain well below 1s per 5-minute scrape."
     }
   ],
   "refresh": "1m",
@@ -1424,7 +1772,7 @@
           "type": "prometheus",
           "uid": "prometheus"
         },
-        "query": "label_values(node_uname_info{job=\"node_exporter\"}, nodename)",
+        "query": "label_values(up{job=~\"node_exporter|windows_exporter\",monitored_host!=\"\"}, monitored_host)",
         "refresh": 1,
         "sort": 1,
         "multi": true,
@@ -1435,7 +1783,7 @@
           "text": "All",
           "value": "$__all"
         },
-        "description": "Canonical host selector; node_exporter metrics are joined through node_uname_info so jellybase works even when its scrape instance is host.docker.internal:9100."
+        "description": "Canonical host selector. Includes Linux node_exporter hosts and Windows laptop windows_exporter targets via monitored_host labels."
       }
     ]
   },
@@ -1447,7 +1795,7 @@
   "timezone": "browser",
   "title": "Host Observability",
   "uid": "host-observability",
-  "version": 2,
+  "version": 4,
   "weekStart": "",
   "description": "Correlates home-network host metrics, sensor telemetry, disk health, and Loki logs by host/time range."
 }
