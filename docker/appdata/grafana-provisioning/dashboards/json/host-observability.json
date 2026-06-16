@@ -35,7 +35,7 @@
   "panels": [
     {
       "id": 1,
-      "title": "Node exporter up",
+      "title": "Host exporter up",
       "type": "stat",
       "gridPos": {
         "h": 5,
@@ -52,6 +52,17 @@
           "refId": "A",
           "expr": "(up{job=\"node_exporter\"}) * on(instance) group_left(nodename) node_uname_info{job=\"node_exporter\",nodename=~\"${host:regex}\"}",
           "legendFormat": "{{nodename}}",
+          "instant": true,
+          "range": false,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        },
+        {
+          "refId": "B",
+          "expr": "up{job=\"windows_exporter\",monitored_host=~\"${host:regex}\"}",
+          "legendFormat": "{{monitored_host}}",
           "instant": true,
           "range": false,
           "datasource": {
@@ -94,7 +105,7 @@
         "justifyMode": "auto",
         "showPercentChange": false
       },
-      "description": "1 means Prometheus can scrape the host exporter."
+      "description": "1 means Prometheus can scrape the host exporter. Linux hosts use node_exporter; Windows laptops use windows_exporter."
     },
     {
       "id": 2,
@@ -115,6 +126,17 @@
           "refId": "A",
           "expr": "(100 * (1 - avg by (instance) (rate(node_cpu_seconds_total{job=\"node_exporter\",mode=\"idle\"}[$__rate_interval])))) * on(instance) group_left(nodename) node_uname_info{job=\"node_exporter\",nodename=~\"${host:regex}\"}",
           "legendFormat": "{{nodename}}",
+          "instant": false,
+          "range": true,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        },
+        {
+          "refId": "B",
+          "expr": "100 * (1 - avg by (monitored_host) (rate(windows_cpu_time_total{job=\"windows_exporter\",mode=\"idle\",monitored_host=~\"${host:regex}\"}[15m])))",
+          "legendFormat": "{{monitored_host}}",
           "instant": false,
           "range": true,
           "datasource": {
@@ -162,7 +184,7 @@
         "justifyMode": "auto",
         "showPercentChange": false
       },
-      "description": "Average CPU busy percentage."
+      "description": "Average CPU busy percentage. Linux hosts use node_exporter; Windows laptops use windows_exporter with a 15m rate window."
     },
     {
       "id": 3,
@@ -183,6 +205,17 @@
           "refId": "A",
           "expr": "(100 * (1 - (node_memory_MemAvailable_bytes{job=\"node_exporter\"} / node_memory_MemTotal_bytes{job=\"node_exporter\"}))) * on(instance) group_left(nodename) node_uname_info{job=\"node_exporter\",nodename=~\"${host:regex}\"}",
           "legendFormat": "{{nodename}}",
+          "instant": true,
+          "range": false,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        },
+        {
+          "refId": "B",
+          "expr": "100 * (1 - (windows_memory_physical_free_bytes{job=\"windows_exporter\",monitored_host=~\"${host:regex}\"} / windows_memory_physical_total_bytes{job=\"windows_exporter\",monitored_host=~\"${host:regex}\"}))",
+          "legendFormat": "{{monitored_host}}",
           "instant": true,
           "range": false,
           "datasource": {
@@ -230,7 +263,7 @@
         "justifyMode": "auto",
         "showPercentChange": false
       },
-      "description": "Memory used from MemAvailable/MemTotal."
+      "description": "Memory used percentage. Linux hosts use MemAvailable/MemTotal; Windows laptops use physical free/total."
     },
     {
       "id": 4,
@@ -262,6 +295,17 @@
           "refId": "B",
           "expr": "max by (host) (home_network_pi_temperature_celsius{host=~\"${host:regex}\"})",
           "legendFormat": "{{host}}",
+          "instant": true,
+          "range": false,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        },
+        {
+          "refId": "C",
+          "expr": "homelap_acpi_thermal_zone_temperature_celsius{job=\"windows_exporter\",monitored_host=~\"${host:regex}\"}",
+          "legendFormat": "{{monitored_host}} {{zone}}",
           "instant": true,
           "range": false,
           "datasource": {
@@ -309,7 +353,7 @@
         "justifyMode": "auto",
         "showPercentChange": false
       },
-      "description": "Max host temperature from hwmon/thermal-zone plus Pi vcgencmd where available."
+      "description": "Max host temperature where available. Windows ACPI thermal-zone values are observational and may not equal CPU package temperature."
     },
     {
       "id": 5,
@@ -330,6 +374,17 @@
           "refId": "A",
           "expr": "(100 * (1 - avg by (instance) (rate(node_cpu_seconds_total{job=\"node_exporter\",mode=\"idle\"}[$__rate_interval])))) * on(instance) group_left(nodename) node_uname_info{job=\"node_exporter\",nodename=~\"${host:regex}\"}",
           "legendFormat": "{{nodename}}",
+          "instant": false,
+          "range": true,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        },
+        {
+          "refId": "B",
+          "expr": "100 * (1 - avg by (monitored_host) (rate(windows_cpu_time_total{job=\"windows_exporter\",mode=\"idle\",monitored_host=~\"${host:regex}\"}[15m])))",
+          "legendFormat": "{{monitored_host}}",
           "instant": false,
           "range": true,
           "datasource": {
@@ -426,6 +481,17 @@
             "type": "prometheus",
             "uid": "prometheus"
           }
+        },
+        {
+          "refId": "C",
+          "expr": "100 * (1 - (windows_memory_physical_free_bytes{job=\"windows_exporter\",monitored_host=~\"${host:regex}\"} / windows_memory_physical_total_bytes{job=\"windows_exporter\",monitored_host=~\"${host:regex}\"}))",
+          "legendFormat": "{{monitored_host}} memory",
+          "instant": false,
+          "range": true,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
         }
       ],
       "fieldConfig": {
@@ -455,6 +521,17 @@
           "refId": "A",
           "expr": "(100 * (1 - (node_filesystem_avail_bytes{job=\"node_exporter\",fstype!~\"tmpfs|overlay|squashfs|ramfs\",mountpoint!~\"/run.*|/var/lib/docker/.*\"} / node_filesystem_size_bytes{job=\"node_exporter\",fstype!~\"tmpfs|overlay|squashfs|ramfs\",mountpoint!~\"/run.*|/var/lib/docker/.*\"}))) * on(instance) group_left(nodename) node_uname_info{job=\"node_exporter\",nodename=~\"${host:regex}\"}",
           "legendFormat": "{{nodename}} {{mountpoint}}",
+          "instant": false,
+          "range": true,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        },
+        {
+          "refId": "B",
+          "expr": "100 * (1 - windows_logical_disk_free_bytes{job=\"windows_exporter\",monitored_host=~\"${host:regex}\"} / windows_logical_disk_size_bytes{job=\"windows_exporter\",monitored_host=~\"${host:regex}\"})",
+          "legendFormat": "{{monitored_host}} {{volume}}",
           "instant": false,
           "range": true,
           "datasource": {
@@ -553,6 +630,28 @@
             "type": "prometheus",
             "uid": "prometheus"
           }
+        },
+        {
+          "refId": "C",
+          "expr": "sum by (monitored_host) (rate(windows_net_bytes_received_total{job=\"windows_exporter\",monitored_host=~\"${host:regex}\"}[5m]))",
+          "legendFormat": "{{monitored_host}} rx",
+          "instant": false,
+          "range": true,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        },
+        {
+          "refId": "D",
+          "expr": "sum by (monitored_host) (rate(windows_net_bytes_sent_total{job=\"windows_exporter\",monitored_host=~\"${host:regex}\"}[5m]))",
+          "legendFormat": "{{monitored_host}} tx",
+          "instant": false,
+          "range": true,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
         }
       ],
       "fieldConfig": {
@@ -610,6 +709,17 @@
             "type": "prometheus",
             "uid": "prometheus"
           }
+        },
+        {
+          "refId": "D",
+          "expr": "homelap_acpi_thermal_zone_temperature_celsius{job=\"windows_exporter\",monitored_host=~\"${host:regex}\"}",
+          "legendFormat": "{{monitored_host}} {{zone}}",
+          "instant": false,
+          "range": true,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
         }
       ],
       "fieldConfig": {
@@ -619,7 +729,7 @@
         "overrides": []
       },
       "options": {},
-      "description": "Sensor panels show only sensors the host actually exposes. Missing sensors are not treated as healthy."
+      "description": "Sensor panels show only sensors the host actually exposes. Windows ACPI thermal-zone values are observational until validated."
     },
     {
       "id": 12,
@@ -779,6 +889,17 @@
           "refId": "A",
           "expr": "((time() - node_boot_time_seconds{job=\"node_exporter\"})) * on(instance) group_left(nodename) node_uname_info{job=\"node_exporter\",nodename=~\"${host:regex}\"}",
           "legendFormat": "{{nodename}}",
+          "instant": true,
+          "range": false,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        },
+        {
+          "refId": "B",
+          "expr": "time() - windows_system_boot_time_timestamp_seconds{job=\"windows_exporter\",monitored_host=~\"${host:regex}\"}",
+          "legendFormat": "{{monitored_host}}",
           "instant": true,
           "range": false,
           "datasource": {
@@ -1401,540 +1522,6 @@
         }
       },
       "description": "NVMe percentage-used metric where the disk exposes it."
-    },
-    {
-      "id": 28,
-      "title": "Windows laptops (low-overhead)",
-      "type": "row",
-      "collapsed": false,
-      "gridPos": {
-        "h": 1,
-        "w": 24,
-        "x": 0,
-        "y": 88
-      },
-      "panels": []
-    },
-    {
-      "id": 29,
-      "title": "Windows exporter up",
-      "type": "stat",
-      "gridPos": {
-        "h": 5,
-        "w": 6,
-        "x": 0,
-        "y": 89
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "up{job=\"windows_exporter\",monitored_host=~\"${host:regex}\"}",
-          "legendFormat": "{{monitored_host}}",
-          "instant": false,
-          "range": true,
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          }
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "red",
-                "value": null
-              },
-              {
-                "color": "green",
-                "value": 1
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "reduceOptions": {
-          "values": false,
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": ""
-        },
-        "orientation": "auto",
-        "textMode": "auto",
-        "wideLayout": true,
-        "colorMode": "background",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "showPercentChange": false
-      },
-      "description": "1 means Prometheus can scrape windows_exporter. Laptop sleep/offline is normal; alerts only fire after days."
-    },
-    {
-      "id": 30,
-      "title": "Windows CPU busy",
-      "type": "stat",
-      "gridPos": {
-        "h": 5,
-        "w": 6,
-        "x": 6,
-        "y": 89
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "100 * (1 - avg by (monitored_host) (rate(windows_cpu_time_total{job=\"windows_exporter\",mode=\"idle\",monitored_host=~\"${host:regex}\"}[15m])))",
-          "legendFormat": "{{monitored_host}}",
-          "instant": false,
-          "range": true,
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          }
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "orange",
-                "value": 70
-              },
-              {
-                "color": "red",
-                "value": 90
-              }
-            ]
-          },
-          "unit": "percent"
-        },
-        "overrides": []
-      },
-      "options": {
-        "reduceOptions": {
-          "values": false,
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": ""
-        },
-        "orientation": "auto",
-        "textMode": "auto",
-        "wideLayout": true,
-        "colorMode": "background",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "showPercentChange": false
-      },
-      "description": "Low-overhead CPU view from windows_exporter cpu collector."
-    },
-    {
-      "id": 31,
-      "title": "Windows memory used",
-      "type": "stat",
-      "gridPos": {
-        "h": 5,
-        "w": 6,
-        "x": 12,
-        "y": 89
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "100 * (1 - (windows_memory_physical_free_bytes{job=\"windows_exporter\",monitored_host=~\"${host:regex}\"} / windows_memory_physical_total_bytes{job=\"windows_exporter\",monitored_host=~\"${host:regex}\"}))",
-          "legendFormat": "{{monitored_host}}",
-          "instant": false,
-          "range": true,
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          }
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "orange",
-                "value": 80
-              },
-              {
-                "color": "red",
-                "value": 92
-              }
-            ]
-          },
-          "unit": "percent"
-        },
-        "overrides": []
-      },
-      "options": {
-        "reduceOptions": {
-          "values": false,
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": ""
-        },
-        "orientation": "auto",
-        "textMode": "auto",
-        "wideLayout": true,
-        "colorMode": "background",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "showPercentChange": false
-      },
-      "description": "Physical memory used on Windows laptops."
-    },
-    {
-      "id": 32,
-      "title": "Windows C: free",
-      "type": "stat",
-      "gridPos": {
-        "h": 5,
-        "w": 6,
-        "x": 18,
-        "y": 89
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "100 * windows_logical_disk_free_bytes{job=\"windows_exporter\",monitored_host=~\"${host:regex}\",volume=\"C:\"} / windows_logical_disk_size_bytes{job=\"windows_exporter\",monitored_host=~\"${host:regex}\",volume=\"C:\"}",
-          "legendFormat": "{{monitored_host}}",
-          "instant": false,
-          "range": true,
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          }
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "red",
-                "value": null
-              },
-              {
-                "color": "orange",
-                "value": 10
-              },
-              {
-                "color": "green",
-                "value": 20
-              }
-            ]
-          },
-          "unit": "percent"
-        },
-        "overrides": []
-      },
-      "options": {
-        "reduceOptions": {
-          "values": false,
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": ""
-        },
-        "orientation": "auto",
-        "textMode": "auto",
-        "wideLayout": true,
-        "colorMode": "background",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "showPercentChange": false
-      },
-      "description": "C: drive free percentage; alert threshold is below 10% for 30 minutes."
-    },
-    {
-      "id": 33,
-      "title": "Windows scrape duration",
-      "type": "stat",
-      "gridPos": {
-        "h": 5,
-        "w": 6,
-        "x": 0,
-        "y": 94
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "windows_exporter_scrape_duration_seconds{job=\"windows_exporter\",monitored_host=~\"${host:regex}\"}",
-          "legendFormat": "{{monitored_host}}",
-          "instant": false,
-          "range": true,
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          }
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "orange",
-                "value": 1
-              },
-              {
-                "color": "red",
-                "value": 5
-              }
-            ]
-          },
-          "unit": "s"
-        },
-        "overrides": []
-      },
-      "options": {
-        "reduceOptions": {
-          "values": false,
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": ""
-        },
-        "orientation": "auto",
-        "textMode": "auto",
-        "wideLayout": true,
-        "colorMode": "background",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "showPercentChange": false
-      },
-      "description": "Keeps overhead visible; homelap is expected to remain well below 1s per 5-minute scrape."
-    },
-    {
-      "id": 34,
-      "title": "Windows ACPI thermal zone",
-      "type": "stat",
-      "gridPos": {
-        "h": 5,
-        "w": 6,
-        "x": 6,
-        "y": 94
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "homelap_acpi_thermal_zone_temperature_celsius{job=\"windows_exporter\",monitored_host=~\"${host:regex}\"}",
-          "legendFormat": "{{zone}}",
-          "instant": false,
-          "range": true,
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          }
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "orange",
-                "value": 80
-              },
-              {
-                "color": "red",
-                "value": 95
-              }
-            ]
-          },
-          "unit": "celsius"
-        },
-        "overrides": []
-      },
-      "options": {
-        "reduceOptions": {
-          "values": false,
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": ""
-        },
-        "orientation": "auto",
-        "textMode": "auto",
-        "wideLayout": true,
-        "colorMode": "background",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "showPercentChange": false
-      },
-      "description": "Observational Windows ACPI thermal-zone value from textfile collector. May not equal CPU package temperature; graph before alerting."
-    },
-    {
-      "id": 35,
-      "title": "Windows thermal probe success",
-      "type": "stat",
-      "gridPos": {
-        "h": 5,
-        "w": 6,
-        "x": 12,
-        "y": 94
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "homelap_acpi_thermal_zone_probe_success{job=\"windows_exporter\",monitored_host=~\"${host:regex}\"}",
-          "legendFormat": "{{monitored_host}}",
-          "instant": false,
-          "range": true,
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          }
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "red",
-                "value": null
-              },
-              {
-                "color": "green",
-                "value": 1
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "reduceOptions": {
-          "values": false,
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": ""
-        },
-        "orientation": "auto",
-        "textMode": "auto",
-        "wideLayout": true,
-        "colorMode": "background",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "showPercentChange": false
-      },
-      "description": "1 means the PowerShell textfile collector successfully read at least one ACPI thermal zone."
-    },
-    {
-      "id": 36,
-      "title": "Windows thermal trend",
-      "type": "timeseries",
-      "gridPos": {
-        "h": 7,
-        "w": 24,
-        "x": 0,
-        "y": 99
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "homelap_acpi_thermal_zone_temperature_celsius{job=\"windows_exporter\",monitored_host=~\"${host:regex}\"}",
-          "legendFormat": "{{monitored_host}} {{zone}}",
-          "instant": false,
-          "range": true,
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          }
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          },
-          "unit": "celsius"
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "none"
-        }
-      },
-      "description": "Trend the ACPI thermal-zone value before deciding whether it is alert-worthy."
     }
   ],
   "refresh": "1m",
@@ -1981,7 +1568,7 @@
   "timezone": "browser",
   "title": "Host Observability",
   "uid": "host-observability",
-  "version": 6,
+  "version": 7,
   "weekStart": "",
   "description": "Correlates home-network host metrics, sensor telemetry, disk health, and Loki logs by host/time range."
 }

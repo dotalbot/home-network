@@ -24,8 +24,8 @@ Grafana was updated so `homelap` appears in:
 
 - Host Observability dashboard
 - Jellyoffice Environment dashboard, under same-room context
-- Host Observability thermal panels: ACPI thermal-zone temperature, probe success, and thermal trend
-- Jellyoffice Environment thermal panels: homelap ACPI thermal-zone and office-room-vs-homelap thermal comparison only; full homelap CPU/memory/disk host stats live in Host Observability
+- Host Observability now shows homelap inline with other hosts for exporter up, CPU busy, memory used, max temperature, CPU trend, memory trend, filesystem used, network throughput, temperatures, and uptime.
+- Jellyoffice Environment thermal panels: homelap ACPI thermal-zone and office-room-vs-homelap thermal comparison only; full homelap CPU/memory/disk/network host stats live inline in Host Observability.
 
 ## Temperature discovery result
 
