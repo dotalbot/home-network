@@ -898,7 +898,7 @@
         },
         {
           "refId": "B",
-          "expr": "time() - windows_system_boot_time_timestamp_seconds{job=\"windows_exporter\",monitored_host=~\"${host:regex}\"}",
+          "expr": "windows_system_boot_time_timestamp_seconds{job=\"windows_exporter\",monitored_host=~\"${host:regex}\"}",
           "legendFormat": "{{monitored_host}}",
           "instant": true,
           "range": false,
@@ -930,7 +930,7 @@
         "justifyMode": "auto",
         "showPercentChange": false
       },
-      "description": "Host uptime from node_boot_time_seconds."
+      "description": "Host uptime in seconds. Linux uses time() - node_boot_time_seconds; windows_exporter exposes windows_system_boot_time_timestamp_seconds as uptime seconds in this runtime."
     },
     {
       "id": 16,
@@ -1568,7 +1568,7 @@
   "timezone": "browser",
   "title": "Host Observability",
   "uid": "host-observability",
-  "version": 7,
+  "version": 8,
   "weekStart": "",
   "description": "Correlates home-network host metrics, sensor telemetry, disk health, and Loki logs by host/time range."
 }
