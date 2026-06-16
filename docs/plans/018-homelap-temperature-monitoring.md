@@ -1,7 +1,8 @@
 # 018 - homelap temperature monitoring follow-up
 
-Status: deferred
+Status: runtime deployed; observing before alerting
 Date captured: 2026-06-14
+Last updated: 2026-06-16
 
 ## Context
 
@@ -13,12 +14,18 @@ It is already monitored via `windows_exporter` over Tailscale:
 - Prometheus scraper: `jellybase` (`100.125.86.118`)
 - exporter port: `9182`
 - firewall: broad MSI-created `windows_exporter` rule disabled; narrow allow rule permits jellybase Tailscale only
-- current exporter collectors: `cpu,cs,logical_disk,memory,net,os,system`
+- current exporter collectors: `cpu,cs,logical_disk,memory,net,os,system,textfile`
+- textfile collector directory: `C:\ProgramData\windows_exporter\textfile_inputs`
+- thermal collector script: `C:\ProgramData\windows_exporter\collect-homelap-thermal.ps1`
+- thermal scheduled task: `Collect homelap thermal metric`, running as `SYSTEM` every 1 minute
+- Prometheus scrape cadence: `15s` with `10s` timeout
 
 Grafana was updated so `homelap` appears in:
 
 - Host Observability dashboard
 - Jellyoffice Environment dashboard, under same-room context
+- Host Observability thermal panels: ACPI thermal-zone temperature, probe success, and thermal trend
+- Jellyoffice Environment thermal panels: homelap ACPI thermal-zone, probe success, and office-room-vs-homelap thermal comparison
 
 ## Temperature discovery result
 
@@ -54,6 +61,26 @@ Practical interpretation:
 - Start with temperature textfile generation at the same cadence only if it remains cheap.
 - Watch scrape duration and laptop impact.
 - Rollback path: return scrape interval and scheduled temperature collection to `5m`.
+
+## Current runtime status
+
+Completed on 2026-06-16:
+
+- PowerShell textfile collector installed on `homelap` and verified locally.
+- `windows_exporter` reconfigured with the `textfile` collector.
+- Local exporter verified to expose:
+  - `homelap_acpi_thermal_zone_temperature_celsius`
+  - `homelap_acpi_thermal_zone_probe_success`
+  - `windows_exporter_collector_success{collector="textfile"} 1`
+- Scheduled task `Collect homelap thermal metric` ran successfully with `LastTaskResult = 0`.
+- Prometheus on `jellybase` recreated so it sees the updated `15s` windows_exporter scrape config.
+- Prometheus verified with:
+  - `up{job="windows_exporter",monitored_host="homelap"} == 1`
+  - `homelap_acpi_thermal_zone_probe_success == 1`
+  - scrape duration around `0.012s` after the change
+- Grafana dashboard JSON updated with observational thermal panels.
+
+Do not add temperature alerts yet. Continue to graph and observe whether the ACPI value tracks real laptop load/fan/room behavior.
 
 ## Proposed implementation steps
 

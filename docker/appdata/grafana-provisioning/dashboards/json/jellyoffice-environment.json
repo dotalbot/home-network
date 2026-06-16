@@ -1467,6 +1467,203 @@
         "showPercentChange": false
       },
       "description": "Windows laptop system disk free space."
+    },
+    {
+      "id": 24,
+      "title": "homelap ACPI thermal zone",
+      "type": "stat",
+      "gridPos": {
+        "h": 5,
+        "w": 6,
+        "x": 0,
+        "y": 61
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "homelap_acpi_thermal_zone_temperature_celsius{job=\"windows_exporter\",monitored_host=\"homelap\"}",
+          "legendFormat": "{{zone}}",
+          "instant": false,
+          "range": true,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 80
+              },
+              {
+                "color": "red",
+                "value": 95
+              }
+            ]
+          },
+          "unit": "celsius"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "wideLayout": true,
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "showPercentChange": false
+      },
+      "description": "Observational ACPI thermal-zone value from homelap. Treat as firmware-specific until correlated with fan/load/room temperature."
+    },
+    {
+      "id": 25,
+      "title": "homelap thermal probe",
+      "type": "stat",
+      "gridPos": {
+        "h": 5,
+        "w": 6,
+        "x": 6,
+        "y": 61
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "homelap_acpi_thermal_zone_probe_success{job=\"windows_exporter\",monitored_host=\"homelap\"}",
+          "legendFormat": "probe",
+          "instant": false,
+          "range": true,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "wideLayout": true,
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "showPercentChange": false
+      },
+      "description": "1 means the scheduled PowerShell collector wrote a valid textfile metric."
+    },
+    {
+      "id": 26,
+      "title": "Office room vs homelap ACPI thermal zone",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 66
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "mqtt_temperature{monitored_host=\"jellyoffice\"}",
+          "legendFormat": "jellyoffice room",
+          "instant": false,
+          "range": true,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        },
+        {
+          "refId": "B",
+          "expr": "homelap_acpi_thermal_zone_temperature_celsius{job=\"windows_exporter\",monitored_host=\"homelap\"}",
+          "legendFormat": "homelap {{zone}}",
+          "instant": false,
+          "range": true,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "celsius"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "description": "Compare room temperature with homelap ACPI thermal-zone movement. Do not alert on this laptop value until it proves meaningful."
     }
   ],
   "refresh": "1m",
@@ -1491,7 +1688,7 @@
   "timezone": "browser",
   "title": "Jellyoffice Environment",
   "uid": "jellyoffice-environment",
-  "version": 5,
+  "version": 6,
   "weekStart": "",
   "description": " Includes homelap as a same-room Windows laptop context source."
 }
