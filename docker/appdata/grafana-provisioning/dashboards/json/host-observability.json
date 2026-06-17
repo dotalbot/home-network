@@ -778,6 +778,17 @@
             "type": "prometheus",
             "uid": "prometheus"
           }
+        },
+        {
+          "refId": "B",
+          "expr": "homelap_windows_disk_health_status{job=\"windows_exporter\",monitored_host=~\"${host:regex}\"}",
+          "legendFormat": "{{monitored_host}} {{friendly_name}} {{health_status}}",
+          "instant": false,
+          "range": true,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
         }
       ],
       "fieldConfig": {
@@ -787,7 +798,7 @@
         "overrides": []
       },
       "options": {},
-      "description": "Disk health: 1 pass, 0 fail, -1 unknown. Unknown is honest for unsupported Pi/USB/microSD paths."
+      "description": "Disk health: 1 pass/healthy, 0 fail/warning/unhealthy/unknown, -1 unmapped. Linux/Pi metrics use home_network_disk_health_status; homelap uses native Windows Storage health via textfile collector when installed."
     },
     {
       "id": 13,
@@ -1590,7 +1601,7 @@
   "timezone": "browser",
   "title": "Host Observability",
   "uid": "host-observability",
-  "version": 10,
+  "version": 11,
   "weekStart": "",
   "description": "Correlates home-network host metrics, sensor telemetry, disk health, and Loki logs by host/time range."
 }
