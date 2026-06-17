@@ -81,7 +81,8 @@ Prepared on 2026-06-17:
 - The collector/dashboard now filters out `0C`, `Warning Temperature`, and `Critical Temperature` so Host Observability shows live sensor readings rather than thresholds/placeholders.
 - Host Observability now includes filtered LibreHardwareMonitor temperature targets in the existing Max temperature and Temperatures panels.
 - Added repo-managed `scripts/windows/collect-homelap-disk-health.ps1` for native Windows Storage health via textfile collector. It exports `homelap_windows_disk_health_status`, `homelap_windows_disk_operational_status`, `homelap_windows_disk_reliability_counter`, and probe/count metrics without exposing raw disk serials.
-- Host Observability Disk health status panel now includes homelap Windows disk health when the disk-health collector is installed.
+- Host Observability Disk health status panel now includes homelap Windows disk health.
+- First runtime disk-health verification showed one NVMe SSD (`KINGSTON SKC3000S512G`) with `HealthStatus=Healthy`, `OperationalStatus=OK`, reliability `Temperature=40`, and `Wear=0`. Prometheus scrape duration remained low (~0.008s).
 - Rollback removes only the LibreHardwareMonitor/helper disk-health task/files; it leaves `windows_exporter` and the existing ACPI collector unchanged.
 
 ## Current runtime status
