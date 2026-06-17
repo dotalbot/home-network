@@ -62,6 +62,24 @@ Practical interpretation:
 - Watch scrape duration and laptop impact.
 - Rollback path: return scrape interval and scheduled temperature collection to `5m`.
 
+## LibreHardwareMonitor follow-up
+
+Prepared on 2026-06-17:
+
+- Added repo-managed Windows scripts:
+  - `scripts/windows/install-homelap-lhm-textfile-collector.ps1`
+  - `scripts/windows/collect-homelap-lhm-sensors.ps1`
+  - `scripts/windows/uninstall-homelap-lhm-textfile-collector.ps1`
+- The installer downloads LibreHardwareMonitor v0.9.6, verifies SHA256 `086d9f1b5a99e643edc2cfaaac16051685b551e4c5ac0b32a57c58c0e529c001`, installs a 1-minute SYSTEM scheduled task, and writes `homelap_lhm.prom` into the existing `windows_exporter` textfile directory.
+- Exported metrics are intentionally low-cardinality temperature/fan signals only:
+  - `homelap_lhm_probe_success`
+  - `homelap_lhm_temperature_celsius`
+  - `homelap_lhm_fan_rpm`
+  - `homelap_lhm_temperature_sensor_count`
+  - `homelap_lhm_fan_sensor_count`
+- Host Observability now includes LibreHardwareMonitor temperature targets in the existing Max temperature and Temperatures panels.
+- Rollback removes only the LibreHardwareMonitor helper/task/files; it leaves `windows_exporter` and the existing ACPI collector unchanged.
+
 ## Current runtime status
 
 Completed on 2026-06-16:

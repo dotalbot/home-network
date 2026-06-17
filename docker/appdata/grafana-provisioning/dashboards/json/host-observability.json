@@ -312,6 +312,17 @@
             "type": "prometheus",
             "uid": "prometheus"
           }
+        },
+        {
+          "refId": "D",
+          "expr": "max by (monitored_host, hardware, sensor) (homelap_lhm_temperature_celsius{job=\"windows_exporter\",monitored_host=~\"${host:regex}\"})",
+          "legendFormat": "{{monitored_host}} {{hardware}} {{sensor}}",
+          "instant": true,
+          "range": false,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
         }
       ],
       "fieldConfig": {
@@ -353,7 +364,7 @@
         "justifyMode": "auto",
         "showPercentChange": false
       },
-      "description": "Max host temperature where available. Windows ACPI thermal-zone values are observational and may not equal CPU package temperature."
+      "description": "Max host temperature where available. Windows ACPI thermal-zone values are observational; LibreHardwareMonitor values should expose CPU/package/storage sensors when the homelap helper is installed."
     },
     {
       "id": 5,
@@ -720,6 +731,17 @@
             "type": "prometheus",
             "uid": "prometheus"
           }
+        },
+        {
+          "refId": "E",
+          "expr": "homelap_lhm_temperature_celsius{job=\"windows_exporter\",monitored_host=~\"${host:regex}\"}",
+          "legendFormat": "{{monitored_host}} {{hardware}} {{sensor}}",
+          "instant": false,
+          "range": true,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
         }
       ],
       "fieldConfig": {
@@ -729,7 +751,7 @@
         "overrides": []
       },
       "options": {},
-      "description": "Sensor panels show only sensors the host actually exposes. Windows ACPI thermal-zone values are observational until validated."
+      "description": "Sensor panels show only sensors the host actually exposes. Windows ACPI thermal-zone values are observational; LibreHardwareMonitor values should expose more specific CPU/package/storage sensors when available."
     },
     {
       "id": 12,
@@ -1568,7 +1590,7 @@
   "timezone": "browser",
   "title": "Host Observability",
   "uid": "host-observability",
-  "version": 8,
+  "version": 9,
   "weekStart": "",
   "description": "Correlates home-network host metrics, sensor telemetry, disk health, and Loki logs by host/time range."
 }
