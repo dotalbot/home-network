@@ -77,7 +77,9 @@ Prepared on 2026-06-17:
   - `homelap_lhm_fan_rpm`
   - `homelap_lhm_temperature_sensor_count`
   - `homelap_lhm_fan_sensor_count`
-- Host Observability now includes LibreHardwareMonitor temperature targets in the existing Max temperature and Temperatures panels.
+- After first run, Prometheus verified 5 raw LibreHardwareMonitor temperature series: one invalid CPU `0C`, two useful SSD live values (`Composite Temperature`, `Temperature #2`), and two SSD threshold constants (`Warning Temperature`, `Critical Temperature`).
+- The collector/dashboard now filters out `0C`, `Warning Temperature`, and `Critical Temperature` so Host Observability shows live sensor readings rather than thresholds/placeholders.
+- Host Observability now includes filtered LibreHardwareMonitor temperature targets in the existing Max temperature and Temperatures panels.
 - Rollback removes only the LibreHardwareMonitor helper/task/files; it leaves `windows_exporter` and the existing ACPI collector unchanged.
 
 ## Current runtime status

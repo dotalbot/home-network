@@ -315,7 +315,7 @@
         },
         {
           "refId": "D",
-          "expr": "max by (monitored_host, hardware, sensor) (homelap_lhm_temperature_celsius{job=\"windows_exporter\",monitored_host=~\"${host:regex}\"})",
+          "expr": "max by (monitored_host, hardware, sensor) (homelap_lhm_temperature_celsius{job=\"windows_exporter\",monitored_host=~\"${host:regex}\",sensor!~\"Warning Temperature|Critical Temperature\"} > 0)",
           "legendFormat": "{{monitored_host}} {{hardware}} {{sensor}}",
           "instant": true,
           "range": false,
@@ -734,7 +734,7 @@
         },
         {
           "refId": "E",
-          "expr": "homelap_lhm_temperature_celsius{job=\"windows_exporter\",monitored_host=~\"${host:regex}\"}",
+          "expr": "homelap_lhm_temperature_celsius{job=\"windows_exporter\",monitored_host=~\"${host:regex}\",sensor!~\"Warning Temperature|Critical Temperature\"} > 0",
           "legendFormat": "{{monitored_host}} {{hardware}} {{sensor}}",
           "instant": false,
           "range": true,
@@ -1590,7 +1590,7 @@
   "timezone": "browser",
   "title": "Host Observability",
   "uid": "host-observability",
-  "version": 9,
+  "version": 10,
   "weekStart": "",
   "description": "Correlates home-network host metrics, sensor telemetry, disk health, and Loki logs by host/time range."
 }

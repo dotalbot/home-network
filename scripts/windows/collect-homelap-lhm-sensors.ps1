@@ -110,6 +110,10 @@ try {
         $SensorName = Escape-PromLabel $Row.Sensor
         $ValueText = $Row.Value.ToString('R', [System.Globalization.CultureInfo]::InvariantCulture)
         if ($Row.SensorType -eq 'Temperature') {
+            # LibreHardwareMonitor can expose NVMe threshold constants (Warning/Critical) as temperature sensors,
+            # and some unsupported CPU package sensors report exactly 0C. Do not export those as live temperatures.
+            if ($Row.Sensor -match '^(Warning|Critical) Temperature$') { continue }
+            if ($Row.Value -le 0) { continue }
             $TemperatureCount++
             Add-Line $Lines "homelap_lhm_temperature_celsius{monitored_host=`"$MonitoredHost`",hardware_type=`"$HardwareType`",hardware=`"$HardwareName`",sensor=`"$SensorName`"} $ValueText"
         } elseif ($Row.SensorType -eq 'Fan') {
