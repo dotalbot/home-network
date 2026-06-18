@@ -56,6 +56,8 @@ services:
       - /opt/docker/appdata/prometheus/config/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - /opt/docker/appdata/prometheus/config/rules:/etc/prometheus/rules:ro
       - /opt/docker/appdata/prometheus/data:/prometheus
+    secrets:
+      - homeassistant_prometheus_token
     depends_on:
       - alertmanager
       - victoriametrics
@@ -371,6 +373,8 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
 
 secrets:
+  homeassistant_prometheus_token:
+    file: /opt/docker/.secrets/homeassistant/prometheus_token
   postgres_superuser_password:
     file: /opt/docker/.secrets/postgres_superuser_password
   alertmanager_discord_webhook_url:

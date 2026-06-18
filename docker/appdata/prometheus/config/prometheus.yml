@@ -98,6 +98,20 @@ scrape_configs:
           access_path: tailscale
           alert_profile: laptop-intermittent
 
+  - job_name: homeassistant
+    metrics_path: /api/prometheus
+    scrape_interval: 30s
+    scrape_timeout: 10s
+    authorization:
+      type: Bearer
+      credentials_file: /run/secrets/homeassistant_prometheus_token
+    static_configs:
+      - targets:
+          - 192.168.1.2:8123
+        labels:
+          monitored_host: jellybase
+          service: homeassistant
+
   - job_name: mqtt_exporter
     static_configs:
       - targets:
