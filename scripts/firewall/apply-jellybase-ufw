@@ -106,6 +106,7 @@ for cidr in 172.16.0.0/12 192.168.1.2; do
   run_sudo ufw allow from "$cidr" to any port 9100 proto tcp comment 'jellybase local Prometheus scrape node_exporter'
   run_sudo ufw allow from "$cidr" to any port 12345 proto tcp comment 'jellybase local Prometheus scrape Alloy'
   run_sudo ufw allow from "$cidr" to any port 9000 proto tcp comment 'jellybase local Prometheus scrape mqtt-exporter'
+  run_sudo ufw allow from "$cidr" to any port 8123 proto tcp comment 'jellybase local Prometheus scrape Home Assistant'
 done
 
 run_sudo ufw --force enable
