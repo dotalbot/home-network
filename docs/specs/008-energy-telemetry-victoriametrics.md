@@ -192,8 +192,8 @@ Avoid high-cardinality labels such as raw timestamps, message IDs, or arbitrary 
 - [x] Prometheus remote_write verified by querying recent `up` samples from VictoriaMetrics.
 - [x] Home Assistant Prometheus exporter enabled with filtered entities.
 - [x] Home Assistant `/api/prometheus` reachable with authentication (`401 Unauthorized` without token).
-- [ ] Prometheus Home Assistant scrape target enabled after token secret is installed.
-- [ ] Grafana energy dashboard v1 created after Home Assistant metrics are flowing.
+- [x] Prometheus Home Assistant scrape target enabled after token secret is installed.
+- [x] Grafana energy dashboard v1 created after Home Assistant metrics are flowing.
 - [ ] Room/appliance assignments confirmed for `main_power` and `power_strip`.
 
 ## Rollback
