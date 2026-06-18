@@ -61,7 +61,7 @@ services:
       - victoriametrics
 
   victoriametrics:
-    image: victoriametrics/victoria-metrics:stable
+    image: victoriametrics/victoria-metrics:latest
     container_name: victoriametrics
     restart: unless-stopped
     ports:
