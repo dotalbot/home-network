@@ -9,6 +9,15 @@ datasources:
     isDefault: true
     editable: true
 
+  - name: VictoriaMetrics
+    uid: victoriametrics
+    type: prometheus
+    access: proxy
+    url: http://victoriametrics:8428
+    editable: true
+    jsonData:
+      timeInterval: 15s
+
   - name: Loki
     uid: loki
     type: loki

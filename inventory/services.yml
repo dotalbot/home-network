@@ -278,6 +278,26 @@ services:
     backup: appdata
     status: active
 
+  victoriametrics:
+    display_name: VictoriaMetrics
+    icon: mdi-database-clock
+    category: Monitoring
+    mode: single-primary
+    hosts:
+      - jellybase
+    containers:
+      jellybase:
+        - victoriametrics
+    urls:
+      primary: http://192.168.1.2:8428
+      vmui: http://192.168.1.2:8428/vmui
+    description: Prometheus-compatible long-term metrics store for multi-year home-network, Home Assistant, and energy telemetry analysis
+    backup: appdata
+    status: active
+    notes:
+      - Published on jellybase LAN IP only; Prometheus and Grafana use the internal Docker service name.
+      - Treat the TSDB data path as potentially large; add a snapshot/export restore runbook after retention sizing is observed.
+
   alertmanager:
     display_name: Alertmanager
     icon: prometheus.png

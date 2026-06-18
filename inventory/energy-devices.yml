@@ -1,0 +1,80 @@
+# Source-managed room/appliance metadata for Home Assistant energy telemetry.
+# Entity IDs are discovered from Home Assistant; labels here are used for Grafana,
+# CSV imports, recording rules, and future dashboard generation.
+
+rooms:
+  kitchen:
+    display_name: Kitchen
+  utility:
+    display_name: Utility
+  office:
+    display_name: Office
+  unknown:
+    display_name: Unknown / needs assignment
+
+appliance_categories:
+  kettle: Short-burst kitchen appliance
+  mains_or_unknown: Needs physical/load confirmation
+  power_distribution: Multi-outlet smart power strip
+  network_or_computing: Office/server/computer equipment
+
+energy_devices:
+  main_power:
+    display_name: Main power
+    room: unknown
+    appliance: main_power
+    category: mains_or_unknown
+    source: meross_lan
+    manufacturer: Meross
+    model: mss310 2.0.0
+    home_assistant_device_name: Main_power
+    notes:
+      - Physical load and room assignment need operator confirmation before cost/room rollups are trusted.
+      - Energy entity reports Wh, so dashboards/imports should normalize to kWh for long-term comparisons.
+    entities:
+      switch: switch.main_power_outlet
+      power_w: sensor.main_power_power
+      energy_wh_total: sensor.main_power_energy
+      current_a: sensor.main_power_current
+      voltage_v: sensor.main_power_voltage
+      signal_percent: sensor.main_power_signal_strength
+
+  power_strip:
+    display_name: Power strip
+    room: unknown
+    appliance: power_strip
+    category: power_distribution
+    source: meross_lan
+    manufacturer: Meross
+    model: mss420f 3.0.0
+    home_assistant_device_name: Power strip
+    notes:
+      - Multi-outlet strip exposes outlet state and signal strength; no per-outlet energy sensors were observed yet.
+      - Confirm which outlets feed which appliances before using in key-appliance dashboards.
+    entities:
+      switch_all: switch.power_strip_outlet
+      switch_1: switch.power_strip_outlet_1
+      switch_2: switch.power_strip_outlet_2
+      switch_3: switch.power_strip_outlet_3
+      switch_4: switch.power_strip_outlet_4
+      signal_percent: sensor.power_strip_signal_strength
+
+  kettle_co:
+    display_name: Kettle_Co
+    room: kitchen
+    appliance: kettle
+    category: kettle
+    source: sonoff_lan
+    manufacturer: SONOFF
+    model: S60TPG
+    home_assistant_device_name: Kettle_Co
+    notes:
+      - Sonoff Wi-Fi plug currently exposes current, power, voltage, and day/month energy counters.
+      - Prefer the cumulative energy entity if the integration exposes one later; day/month counters reset by design.
+    entities:
+      switch: switch.kettle_co_sonoff_1002700ec0_1
+      power_w: sensor.kettle_co_sonoff_1002700ec0_power
+      energy_day_kwh: sensor.kettle_co_sonoff_1002700ec0_energy_day
+      energy_month_kwh: sensor.kettle_co_sonoff_1002700ec0_energy_month
+      current_a: sensor.kettle_co_sonoff_1002700ec0_current
+      voltage_v: sensor.kettle_co_sonoff_1002700ec0_voltage

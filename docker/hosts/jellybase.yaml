@@ -58,6 +58,20 @@ services:
       - /opt/docker/appdata/prometheus/data:/prometheus
     depends_on:
       - alertmanager
+      - victoriametrics
+
+  victoriametrics:
+    image: victoriametrics/victoria-metrics:stable
+    container_name: victoriametrics
+    restart: unless-stopped
+    ports:
+      - "192.168.1.2:8428:8428"
+    command:
+      - "-storageDataPath=/victoria-metrics-data"
+      - "-retentionPeriod=5y"
+      - "-httpListenAddr=:8428"
+    volumes:
+      - /opt/docker/appdata/victoriametrics/data:/victoria-metrics-data
 
   alertmanager:
     image: prom/alertmanager:latest

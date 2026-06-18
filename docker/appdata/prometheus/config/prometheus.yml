@@ -5,6 +5,9 @@ global:
     monitor: jellybase-prometheus
     site: home-network
 
+remote_write:
+  - url: http://victoriametrics:8428/api/v1/write
+
 rule_files:
   - /etc/prometheus/rules/*.yml
 
@@ -57,6 +60,13 @@ scrape_configs:
     static_configs:
       - targets:
           - loki:3100
+        labels:
+          monitored_host: jellybase
+
+  - job_name: victoriametrics
+    static_configs:
+      - targets:
+          - victoriametrics:8428
         labels:
           monitored_host: jellybase
 

@@ -221,7 +221,7 @@
     }
   },
   "future_write_workflow": "Coming next only: propose Git-reviewed inventory/backups.yml patches and rendered diffs; no UI mutation in this slice.",
-  "generated_at": "2026-06-07T20:32:58.387358+00:00",
+  "generated_at": "2026-06-18T20:29:35.207312+00:00",
   "hosts": [
     {
       "backup_role": "secondary-monitoring-host",
@@ -1063,6 +1063,11 @@
       "path": "docs/operations/docker-host-bootstrap.md",
       "title": "Docker Host Bootstrap",
       "url": "https://github.com/dotalbot/home-network/blob/main/docs/operations/docker-host-bootstrap.md"
+    },
+    {
+      "path": "docs/operations/docker-maintenance.md",
+      "title": "Docker Maintenance",
+      "url": "https://github.com/dotalbot/home-network/blob/main/docs/operations/docker-maintenance.md"
     },
     {
       "path": "docs/operations/docker-user-firewall-hardening.md",
@@ -2130,6 +2135,37 @@
         "restore_priority": "medium",
         "restore_verification": null
       },
+      "category": "Monitoring",
+      "display_name": "VictoriaMetrics",
+      "hosts": [
+        "jellybase"
+      ],
+      "id": "victoriametrics",
+      "restore_note": null,
+      "restore_runbook": null,
+      "source_metadata_status": "not-recorded",
+      "source_type": null,
+      "status": "active",
+      "urls": {
+        "primary": "http://192.168.1.2:8428",
+        "vmui": "http://192.168.1.2:8428/vmui"
+      }
+    },
+    {
+      "backup_class": {
+        "description": "Service has useful persistent appdata.",
+        "excludes": [
+          "cache",
+          "logs",
+          "temp files"
+        ],
+        "includes": [
+          "/opt/docker/appdata/SERVICE"
+        ],
+        "name": "appdata",
+        "restore_priority": "medium",
+        "restore_verification": null
+      },
       "category": "Tools",
       "display_name": "Webtop jellybase",
       "hosts": [
@@ -2194,7 +2230,7 @@
     "disabled_or_planned_hosts": 2,
     "enabled_backup_hosts": 3,
     "missing_metrics_policy": "unknown_not_healthy",
-    "runbook_docs": 43,
-    "services_with_backup_metadata": 31
+    "runbook_docs": 44,
+    "services_with_backup_metadata": 32
   }
 }

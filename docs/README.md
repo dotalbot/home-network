@@ -9,6 +9,7 @@ Unless stated otherwise, paths in this index are relative to the repository root
 - `docs/specs/001-home-network-platform.md` — current platform specification.
 - `docs/specs/002-node-exporter-disk-health.md` — implemented first-pass design for generic node_exporter, backup telemetry, and disk health rollout.
 - `docs/specs/003-loki-grafana-observability.md` — first-pass Loki + Grafana log observability design.
+- `docs/specs/008-energy-telemetry-victoriametrics.md` — Meross/Sonoff/Zigbee2MQTT energy telemetry, VictoriaMetrics long-term storage, and CSV import plan.
 - `docs/roadmap/product-roadmap.md` — completed stages, gap register, and next phases.
 
 ## Operator docs
