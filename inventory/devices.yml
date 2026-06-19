@@ -166,6 +166,21 @@ devices:
     confidence: high
     notes: Seen by hostname and neighbour cache.
 
+  - ip: 192.168.1.140
+    hostname: jellydisp.lan
+    role: touchscreen_dashboard_display_node
+    category: server
+    open_ports: [22, 9100]
+    services:
+      - port: 22
+        name: SSH management
+        protocol: ssh
+      - port: 9100
+        name: Prometheus node_exporter
+        protocol: http
+    confidence: high
+    notes: Raspberry Pi 4 Model B Rev 1.5 with DSI-1 800x480 touchscreen; labwc/Wayland display idle blanking managed by swayidle and wlopm.
+
   - ip: 192.168.1.159
     hostname: jellyberry.lan
     role: scanner_host
@@ -303,6 +318,13 @@ devices:
     notes: Default gateway and mDNS bthomehub.local.
 
 tailnet_peers:
+  - ip: 100.99.15.72
+    hostname: jellydisp.cheetah-iwato.ts.net
+    name: jellydisp
+    role: touchscreen_dashboard_display_node
+    category: server
+    open_ports: [22, 9100]
+    notes: Raspberry Pi 4 touchscreen display node; Tailscale SSH enabled.
   - ip: 100.68.81.120
     hostname: jellyberry.cheetah-iwato.ts.net
     name: jellyberry
