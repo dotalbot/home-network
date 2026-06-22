@@ -39,6 +39,7 @@ In scope:
 - Source-managed Zigbee2MQTT service on jellydisp.
 - Persistent data at `/opt/docker/appdata/zigbee2mqtt/data`.
 - Host-local Zigbee2MQTT MQTT credential in `secret.yaml`.
+- Host-local Zigbee2MQTT frontend auth token in `secret.yaml`.
 - Zigbee2MQTT MQTT ACLs for `zigbee2mqtt/#` and Home Assistant discovery.
 - Zigbee2MQTT frontend on `http://192.168.1.92:8080`.
 - `permit_join: false` by default.
@@ -69,6 +70,8 @@ HA-spoke consumes MQTT discovery and can send control commands. Main HA should c
 - [x] Source-managed Zigbee2MQTT configuration exists with `adapter: ember` and by-id device mapping.
 - [x] Mosquitto ACL includes `zigbee2mqtt` and HA/main consumers for Zigbee topics.
 - [x] Bootstrap generates host-local Zigbee2MQTT MQTT credentials and `secret.yaml`.
+- [x] Zigbee2MQTT frontend uses a host-local auth token.
+- [x] Sync preserves runtime `configuration.yaml` after first seed to avoid clobbering paired-device/friendly-name changes.
 - [x] Docker Compose config validates with the jellydisp overlay.
 - [x] Operator runs bootstrap with sudo on jellydisp after this spec lands.
 - [x] `zigbee2mqtt` container starts and reports coordinator connection.

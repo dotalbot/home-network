@@ -295,9 +295,10 @@ fi
 
 if [ "$HOSTNAME_SHORT" = "jellydisp" ] && [ -d "$SRC_ZIGBEE2MQTT_DATA" ]; then
   run_privileged mkdir -p "$DEST_ZIGBEE2MQTT_DATA"
-  # Copy only source-managed seed config. Do not --delete or overwrite runtime files
-  # such as database.db, coordinator_backup.json, state.json, logs, or secret.yaml.
-  if [ -f "$SRC_ZIGBEE2MQTT_DATA/configuration.yaml" ]; then
+  # Seed only the initial source-managed config. Do not --delete or overwrite
+  # runtime files such as database.db, coordinator_backup.json, state.json,
+  # logs, secret.yaml, or UI-mutated configuration.yaml after pairing/renames.
+  if [ -f "$SRC_ZIGBEE2MQTT_DATA/configuration.yaml" ] && [ ! -f "$DEST_ZIGBEE2MQTT_DATA/configuration.yaml" ]; then
     run_privileged rsync -rtD --omit-dir-times --no-perms --no-owner --no-group "$SRC_ZIGBEE2MQTT_DATA/configuration.yaml" "$DEST_ZIGBEE2MQTT_DATA/configuration.yaml"
   fi
   set_managed_perms "$DEST_ZIGBEE2MQTT_DATA"

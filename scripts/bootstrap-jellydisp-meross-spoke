@@ -183,6 +183,11 @@ else
       echo "ZIGBEE2MQTT_MQTT_PASSWORD=$z2m_pass"
     } >> "$CREDS_ENV"
   fi
+  z2m_frontend_token="$(awk -F= '/^ZIGBEE2MQTT_FRONTEND_AUTH_TOKEN=/{print $2}' "$CREDS_ENV" | tail -1)"
+  if [ -z "$z2m_frontend_token" ]; then
+    z2m_frontend_token="$(openssl rand -hex 32)"
+    echo "ZIGBEE2MQTT_FRONTEND_AUTH_TOKEN=$z2m_frontend_token" >> "$CREDS_ENV"
+  fi
   # mosquitto_passwd expects root-owned password files; restore Mosquitto-readable
   # ownership after updating the hash.
   chown root:root "$PASSFILE"
@@ -192,6 +197,7 @@ else
 server: 'mqtt://mosquitto-edge:1883'
 user: zigbee2mqtt
 password: '$z2m_pass'
+frontend_auth_token: '$z2m_frontend_token'
 EOF
   chown root:docker "$CREDS_ENV"
   chmod 0640 "$CREDS_ENV"
@@ -223,3 +229,4 @@ fi
 echo "good: jellydisp Meross/Zigbee spoke prepared"
 echo "credentials: $CREDS_ENV"
 echo "runbook: $REPO_ROOT/docs/runbooks/jellydisp-meross-spoke.md"
+echo "zigbee runbook: $REPO_ROOT/docs/runbooks/jellydisp-zigbee2mqtt.md"

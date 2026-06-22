@@ -30,10 +30,10 @@ sudo ./scripts/bootstrap-jellydisp-meross-spoke --start
 
 The shared bootstrap now prepares the Meross HA-spoke, local MQTT broker, and Zigbee2MQTT. It:
 
-- syncs `/opt/docker/appdata/zigbee2mqtt/data/configuration.yaml`
-- preserves Zigbee2MQTT runtime files such as `database.db`, `state.json`, logs, and `secret.yaml`
+- seeds `/opt/docker/appdata/zigbee2mqtt/data/configuration.yaml` only when missing
+- preserves Zigbee2MQTT runtime files such as `database.db`, `state.json`, logs, `secret.yaml`, and UI-mutated `configuration.yaml`
 - creates/updates the MQTT `zigbee2mqtt` user
-- writes `/opt/docker/appdata/zigbee2mqtt/data/secret.yaml`
+- writes `/opt/docker/appdata/zigbee2mqtt/data/secret.yaml`, including MQTT and frontend-auth secrets
 - starts/recreates `mqtt-edge` and `zigbee2mqtt`
 
 ## Source-managed config
@@ -53,6 +53,14 @@ Runtime secrets:
 ```
 
 Do not paste or commit these values.
+
+The Zigbee2MQTT frontend auth token is stored host-locally in `credentials.env` as:
+
+```text
+ZIGBEE2MQTT_FRONTEND_AUTH_TOKEN=...
+```
+
+`configuration.yaml` is seeded from Git before first start, then treated as runtime-owned. Zigbee2MQTT/frontend operations may write friendly names, device options, groups, and other runtime state there. If the source template changes later, port only safe changes to the runtime file deliberately.
 
 ## Coordinator
 

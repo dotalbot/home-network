@@ -17,6 +17,7 @@ serial:
 frontend:
   enabled: true
   port: 8080
+  auth_token: '!secret.yaml frontend_auth_token'
 
 advanced:
   channel: 20
