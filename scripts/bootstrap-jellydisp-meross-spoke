@@ -51,6 +51,16 @@ run() {
   fi
 }
 
+compose_cmd() {
+  if docker compose version >/dev/null 2>&1; then
+    docker compose "$@"
+  elif command -v docker-compose >/dev/null 2>&1; then
+    docker-compose "$@"
+  else
+    return 127
+  fi
+}
+
 write_file() {
   local path="$1"
   local mode="$2"
@@ -75,9 +85,13 @@ fi
 
 echo "Preparing jellydisp Meross spoke from $REPO_ROOT"
 
-if ! command -v docker >/dev/null 2>&1 || ! docker compose version >/dev/null 2>&1 || ! command -v mosquitto_passwd >/dev/null 2>&1; then
+if ! command -v docker >/dev/null 2>&1 || ! compose_cmd version >/dev/null 2>&1 || ! command -v mosquitto_passwd >/dev/null 2>&1; then
   run apt-get update
-  run apt-get install -y ca-certificates curl gnupg git rsync openssl docker.io docker-compose-plugin mosquitto-clients
+  compose_pkg=docker-compose
+  if apt-cache show docker-compose-plugin >/dev/null 2>&1; then
+    compose_pkg=docker-compose-plugin
+  fi
+  run apt-get install -y ca-certificates curl gnupg git rsync openssl docker.io "$compose_pkg" mosquitto-clients
 fi
 
 run systemctl enable --now docker
@@ -146,7 +160,7 @@ fi
 
 if [ "$DRY_RUN" -eq 0 ]; then
   cd "$DOCKER_DIR"
-  docker compose --env-file .env -f docker-compose.yml -f hosts/jellydisp.yaml config >/dev/null
+  compose_cmd --env-file .env -f docker-compose.yml -f hosts/jellydisp.yaml config >/dev/null
   echo "Compose config: good"
 fi
 
@@ -155,8 +169,8 @@ if [ "$START" -eq 1 ]; then
     echo "DRY-RUN docker compose up -d mosquitto-edge homeassistant-spoke"
   else
     cd "$DOCKER_DIR"
-    docker compose --env-file .env -f docker-compose.yml -f hosts/jellydisp.yaml up -d mosquitto-edge homeassistant-spoke
-    docker compose --env-file .env -f docker-compose.yml -f hosts/jellydisp.yaml ps
+    compose_cmd --env-file .env -f docker-compose.yml -f hosts/jellydisp.yaml up -d mosquitto-edge homeassistant-spoke
+    compose_cmd --env-file .env -f docker-compose.yml -f hosts/jellydisp.yaml ps
   fi
 fi
 
