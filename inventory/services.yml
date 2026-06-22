@@ -447,6 +447,32 @@ services:
     backup: appdata
     status: active
 
+  homeassistant-spoke-jellydisp:
+    display_name: Home Assistant Spoke jellydisp
+    icon: home-assistant.png
+    category: IoT
+    mode: edge-collector
+    hosts:
+      - jellydisp
+    containers:
+      jellydisp:
+        - ha-spoke
+    urls:
+      primary: http://192.168.1.92:8123
+      tailscale: http://100.99.15.72:8123
+    description: >
+      Low-power Home Assistant spoke for Meross LAN collection during heat-shutdown periods.
+      Collector-only first: Meross-specific integration lives here, normalized power readings are
+      published to the jellydisp edge MQTT broker under homelab/power/#.
+    appdata:
+      config: /opt/docker/appdata/homeassistant-spoke/config
+    backup: appdata
+    status: planned
+    notes:
+      - Install Meross LAN through HACS after the HA first-start wizard.
+      - Configure MQTT integration to 127.0.0.1:1883 with the host-local ha-spoke credential.
+      - Avoid duplicate Meross control automations in main HA and HA-spoke.
+
   manyfold:
     display_name: Manyfold
     icon: mdi-printer-3d
@@ -635,6 +661,32 @@ services:
     description: MQTT broker | jellyhome
     backup: config-and-persistence
     status: active
+
+  mosquitto-edge-jellydisp:
+    display_name: Mosquitto Edge jellydisp
+    icon: mdi-lan-connect
+    category: IoT
+    mode: edge-broker
+    hosts:
+      - jellydisp
+    containers:
+      jellydisp:
+        - mqtt-edge
+    urls:
+      primary: mqtt://192.168.1.92:1883
+      tailscale: mqtt://100.99.15.72:1883
+    description: >
+      Local MQTT broker on jellydisp for HA-spoke Meross power telemetry. Keeps latest retained
+      clean state available even when jellyhome/jellybase are off; long history remains HA recorder
+      or future edge SQLite logger scope.
+    appdata:
+      config: /opt/docker/appdata/mosquitto-edge/config
+      data: /opt/docker/appdata/mosquitto-edge/data
+    backup: config-and-persistence
+    status: planned
+    notes:
+      - Credentials are generated host-locally under /opt/docker/.secrets/mosquitto-edge.
+      - ACL grants ha-spoke readwrite to homelab/power/# and main-ha read-only access.
 
   jellyoffice-enviro:
     display_name: Jellyoffice Enviro

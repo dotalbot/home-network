@@ -1,0 +1,14 @@
+# ACL for jellydisp edge MQTT broker.
+# Users are created by scripts/bootstrap-jellydisp-meross-spoke.
+
+user ha-spoke
+topic readwrite homelab/power/#
+topic readwrite ha-spoke/status/#
+topic readwrite homeassistant/#
+
+user main-ha
+topic read homelab/power/#
+topic read ha-spoke/status/#
+
+user edge-logger
+topic read homelab/power/#

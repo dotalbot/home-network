@@ -1,0 +1,165 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+DRY_RUN=0
+START=0
+OPERATOR_USER="${SUDO_USER:-jellyfish}"
+DOCKER_DIR="${DOCKER_DIR:-/opt/docker}"
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+usage() {
+  cat <<'USAGE'
+Usage: sudo ./scripts/bootstrap-jellydisp-meross-spoke [--dry-run] [--start] [--user USER]
+
+Prepares jellydisp as the Meross Home Assistant spoke:
+  - installs Docker/Mosquitto client tooling if needed
+  - creates /opt/docker runtime directories
+  - syncs source-managed Compose and Mosquitto config
+  - generates host-local MQTT credentials if missing
+  - optionally starts mqtt-edge and ha-spoke containers with --start
+
+Secrets stay on the host under /opt/docker/.secrets/mosquitto-edge/.
+USAGE
+}
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --dry-run) DRY_RUN=1 ;;
+    --start) START=1 ;;
+    --user) shift; OPERATOR_USER="${1:?missing user}" ;;
+    -h|--help) usage; exit 0 ;;
+    *) echo "not good: unknown argument $1" >&2; usage; exit 2 ;;
+  esac
+  shift
+done
+
+if [ "$(id -u)" -ne 0 ] && [ "$DRY_RUN" -ne 1 ]; then
+  echo "not good: run with sudo/root" >&2
+  exit 1
+fi
+if [ "$(id -u)" -ne 0 ] && [ "$DRY_RUN" -eq 1 ]; then
+  echo "dry-run: not root, printing intended privileged actions only"
+fi
+
+run() {
+  if [ "$DRY_RUN" -eq 1 ]; then
+    printf 'DRY-RUN '
+    printf '%q ' "$@"
+    printf '\n'
+  else
+    "$@"
+  fi
+}
+
+write_file() {
+  local path="$1"
+  local mode="$2"
+  local owner="$3"
+  local content="$4"
+  if [ "$DRY_RUN" -eq 1 ]; then
+    echo "DRY-RUN write $path mode=$mode owner=$owner"
+    return
+  fi
+  install -d -m 0750 "$(dirname "$path")"
+  printf '%s\n' "$content" > "$path"
+  chown "$owner" "$path"
+  chmod "$mode" "$path"
+}
+
+host_short="$(hostname -s)"
+if [ "$host_short" != "jellydisp" ] && [ "${JELLYDISP_BOOTSTRAP_FORCE:-0}" != "1" ]; then
+  echo "not good: this bootstrap is jellydisp-specific; refusing to run on $host_short" >&2
+  echo "Set JELLYDISP_BOOTSTRAP_FORCE=1 only if you are deliberately staging a test host." >&2
+  exit 1
+fi
+
+echo "Preparing jellydisp Meross spoke from $REPO_ROOT"
+
+if ! command -v docker >/dev/null 2>&1 || ! docker compose version >/dev/null 2>&1 || ! command -v mosquitto_passwd >/dev/null 2>&1; then
+  run apt-get update
+  run apt-get install -y ca-certificates curl gnupg git rsync openssl docker.io docker-compose-plugin mosquitto-clients
+fi
+
+run systemctl enable --now docker
+
+if id "$OPERATOR_USER" >/dev/null 2>&1; then
+  run usermod -aG docker "$OPERATOR_USER"
+fi
+
+run install -d -m 0775 -o root -g docker "$DOCKER_DIR"
+run install -d -m 0775 -o root -g docker "$DOCKER_DIR/hosts"
+run install -d -m 0775 -o root -g docker "$DOCKER_DIR/appdata"
+run install -d -m 0750 -o root -g docker "$DOCKER_DIR/.secrets"
+
+if [ ! -f "$DOCKER_DIR/.env" ]; then
+  write_file "$DOCKER_DIR/.env" 0664 root:docker "TZ=Europe/London"
+fi
+
+run install -d -m 0775 -o root -g docker "$DOCKER_DIR/appdata/homeassistant-spoke/config"
+run install -d -m 0775 -o root -g docker "$DOCKER_DIR/appdata/mosquitto-edge/config"
+run install -d -m 0775 -o 1883 -g 1883 "$DOCKER_DIR/appdata/mosquitto-edge/data"
+run install -d -m 0775 -o 1883 -g 1883 "$DOCKER_DIR/appdata/mosquitto-edge/log"
+run install -d -m 0750 -o root -g docker "$DOCKER_DIR/.secrets/mosquitto-edge"
+
+run env DOCKER_DIR="$DOCKER_DIR" DOCKER_GROUP=docker "$REPO_ROOT/scripts/sync-docker-config"
+
+CREDS_DIR="$DOCKER_DIR/.secrets/mosquitto-edge"
+PASSFILE="$CREDS_DIR/passwordfile"
+CREDS_ENV="$CREDS_DIR/credentials.env"
+HA_PASS_FILE="$CREDS_DIR/ha_spoke_password"
+
+if [ ! -f "$PASSFILE" ]; then
+  if [ "$DRY_RUN" -eq 1 ]; then
+    echo "DRY-RUN generate MQTT users ha-spoke, main-ha, edge-logger"
+  else
+    umask 077
+    ha_pass="$(openssl rand -base64 33 | tr -d '\n')"
+    main_pass="$(openssl rand -base64 33 | tr -d '\n')"
+    logger_pass="$(openssl rand -base64 33 | tr -d '\n')"
+    : > "$PASSFILE"
+    mosquitto_passwd -b "$PASSFILE" ha-spoke "$ha_pass"
+    mosquitto_passwd -b "$PASSFILE" main-ha "$main_pass"
+    mosquitto_passwd -b "$PASSFILE" edge-logger "$logger_pass"
+    cat > "$CREDS_ENV" <<EOF
+HA_SPOKE_MQTT_USERNAME=ha-spoke
+HA_SPOKE_MQTT_PASSWORD=$ha_pass
+MAIN_HA_MQTT_USERNAME=main-ha
+MAIN_HA_MQTT_PASSWORD=$main_pass
+EDGE_LOGGER_MQTT_USERNAME=edge-logger
+EDGE_LOGGER_MQTT_PASSWORD=$logger_pass
+EOF
+    printf '%s' "$ha_pass" > "$HA_PASS_FILE"
+    chown root:docker "$CREDS_ENV" "$HA_PASS_FILE"
+    chmod 0640 "$CREDS_ENV" "$HA_PASS_FILE"
+    # Mosquitto runs as UID/GID 1883 in the official image and must read the passwordfile.
+    chown 1883:1883 "$PASSFILE"
+    chmod 0640 "$PASSFILE"
+  fi
+else
+  echo "Existing MQTT passwordfile found; not rotating credentials."
+  if [ ! -f "$HA_PASS_FILE" ] && [ -f "$CREDS_ENV" ] && [ "$DRY_RUN" -eq 0 ]; then
+    awk -F= '/^HA_SPOKE_MQTT_PASSWORD=/{print $2}' "$CREDS_ENV" > "$HA_PASS_FILE"
+    chown root:docker "$HA_PASS_FILE"
+    chmod 0640 "$HA_PASS_FILE"
+  fi
+fi
+
+if [ "$DRY_RUN" -eq 0 ]; then
+  cd "$DOCKER_DIR"
+  docker compose --env-file .env -f docker-compose.yml -f hosts/jellydisp.yaml config >/dev/null
+  echo "Compose config: good"
+fi
+
+if [ "$START" -eq 1 ]; then
+  if [ "$DRY_RUN" -eq 1 ]; then
+    echo "DRY-RUN docker compose up -d mosquitto-edge homeassistant-spoke"
+  else
+    cd "$DOCKER_DIR"
+    docker compose --env-file .env -f docker-compose.yml -f hosts/jellydisp.yaml up -d mosquitto-edge homeassistant-spoke
+    docker compose --env-file .env -f docker-compose.yml -f hosts/jellydisp.yaml ps
+  fi
+fi
+
+echo "good: jellydisp Meross spoke prepared"
+echo "credentials: $CREDS_ENV"
+echo "runbook: $REPO_ROOT/docs/runbooks/jellydisp-meross-spoke.md"

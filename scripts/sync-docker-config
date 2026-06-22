@@ -106,6 +106,10 @@ SRC_CRAWL4AI_CONFIG="${REPO_ROOT}/docker/appdata/crawl4ai"
 DEST_CRAWL4AI_CONFIG="${DOCKER_DIR}/appdata/crawl4ai"
 SRC_STORAGE_MONITORING="${REPO_ROOT}/docker/appdata/storage-monitoring"
 DEST_STORAGE_MONITORING="${DOCKER_DIR}/appdata/storage-monitoring"
+SRC_MOSQUITTO_EDGE_CONFIG="${REPO_ROOT}/docker/appdata/mosquitto-edge/config"
+DEST_MOSQUITTO_EDGE_CONFIG="${DOCKER_DIR}/appdata/mosquitto-edge/config"
+DEST_MOSQUITTO_EDGE_DATA="${DOCKER_DIR}/appdata/mosquitto-edge/data"
+DEST_MOSQUITTO_EDGE_LOG="${DOCKER_DIR}/appdata/mosquitto-edge/log"
 DEST_BIN="${DOCKER_DIR}/bin"
 RSYNC_OPTS=(-rtD --delete --omit-dir-times --no-perms --no-owner --no-group)
 
@@ -266,6 +270,19 @@ if [ -d "$SRC_STORAGE_MONITORING" ]; then
   else
     [ -O "$DEST_STORAGE_MONITORING" ] && chmod 775 "$DEST_STORAGE_MONITORING"
     chmod 775 "$DEST_STORAGE_MONITORING"/*.sh 2>/dev/null || true
+  fi
+fi
+
+if [ "$HOSTNAME_SHORT" = "jellydisp" ] && [ -d "$SRC_MOSQUITTO_EDGE_CONFIG" ]; then
+  run_privileged mkdir -p "$DEST_MOSQUITTO_EDGE_CONFIG" "$DEST_MOSQUITTO_EDGE_DATA" "$DEST_MOSQUITTO_EDGE_LOG"
+  run_privileged rsync "${RSYNC_OPTS[@]}" "$SRC_MOSQUITTO_EDGE_CONFIG"/ "$DEST_MOSQUITTO_EDGE_CONFIG"/
+  set_managed_perms "$DEST_MOSQUITTO_EDGE_CONFIG"
+  if [ "$needs_sudo" -eq 1 ] || [ "$(id -u)" -eq 0 ]; then
+    run_privileged chmod -R 775 "$DEST_MOSQUITTO_EDGE_CONFIG"
+    run_privileged chown -R 1883:1883 "$DEST_MOSQUITTO_EDGE_DATA" "$DEST_MOSQUITTO_EDGE_LOG" 2>/dev/null || true
+    run_privileged chmod -R 775 "$DEST_MOSQUITTO_EDGE_DATA" "$DEST_MOSQUITTO_EDGE_LOG" 2>/dev/null || true
+  else
+    [ -O "$DEST_MOSQUITTO_EDGE_CONFIG" ] && chmod -R 775 "$DEST_MOSQUITTO_EDGE_CONFIG"
   fi
 fi
 

@@ -166,7 +166,7 @@ devices:
     confidence: high
     notes: Seen by hostname and neighbour cache.
 
-  - ip: 192.168.1.140
+  - ip: 192.168.1.92
     hostname: jellydisp.lan
     role: touchscreen_dashboard_display_node
     category: server
@@ -179,7 +179,7 @@ devices:
         name: Prometheus node_exporter
         protocol: http
     confidence: high
-    notes: Raspberry Pi 4 Model B Rev 1.5 with DSI-1 800x480 touchscreen; labwc/Wayland display idle blanking managed by swayidle and wlopm.
+    notes: Raspberry Pi 4 Model B Rev 1.5 with DSI-1 800x480 touchscreen; labwc/Wayland display idle blanking managed by swayidle and wlopm. Current LAN IP observed 2026-06-22; reserve this address before using mqtt.lan/ha-spoke.lan aliases.
 
   - ip: 192.168.1.159
     hostname: jellyberry.lan

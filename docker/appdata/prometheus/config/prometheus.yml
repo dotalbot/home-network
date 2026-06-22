@@ -38,7 +38,7 @@ scrape_configs:
         labels:
           monitored_host: jellyberry
       - targets:
-          - 192.168.1.140:9100
+          - 192.168.1.92:9100
         labels:
           monitored_host: jellydisp
       - targets:
