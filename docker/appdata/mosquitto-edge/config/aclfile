@@ -5,10 +5,20 @@ user ha-spoke
 topic readwrite homelab/power/#
 topic readwrite ha-spoke/status/#
 topic readwrite homeassistant/#
+topic readwrite zigbee2mqtt/#
+
+user zigbee2mqtt
+topic readwrite zigbee2mqtt/#
+topic readwrite homeassistant/#
 
 user main-ha
 topic read homelab/power/#
 topic read ha-spoke/status/#
+topic read homeassistant/#
+topic read zigbee2mqtt/#
+topic write zigbee2mqtt/+/set
+topic write zigbee2mqtt/bridge/request/#
 
 user edge-logger
 topic read homelab/power/#
+topic read zigbee2mqtt/#

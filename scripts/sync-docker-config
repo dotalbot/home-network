@@ -110,6 +110,8 @@ SRC_MOSQUITTO_EDGE_CONFIG="${REPO_ROOT}/docker/appdata/mosquitto-edge/config"
 DEST_MOSQUITTO_EDGE_CONFIG="${DOCKER_DIR}/appdata/mosquitto-edge/config"
 DEST_MOSQUITTO_EDGE_DATA="${DOCKER_DIR}/appdata/mosquitto-edge/data"
 DEST_MOSQUITTO_EDGE_LOG="${DOCKER_DIR}/appdata/mosquitto-edge/log"
+SRC_ZIGBEE2MQTT_DATA="${REPO_ROOT}/docker/appdata/zigbee2mqtt/data"
+DEST_ZIGBEE2MQTT_DATA="${DOCKER_DIR}/appdata/zigbee2mqtt/data"
 DEST_BIN="${DOCKER_DIR}/bin"
 RSYNC_OPTS=(-rtD --delete --omit-dir-times --no-perms --no-owner --no-group)
 
@@ -283,6 +285,23 @@ if [ "$HOSTNAME_SHORT" = "jellydisp" ] && [ -d "$SRC_MOSQUITTO_EDGE_CONFIG" ]; t
     run_privileged chmod -R 775 "$DEST_MOSQUITTO_EDGE_DATA" "$DEST_MOSQUITTO_EDGE_LOG" 2>/dev/null || true
   else
     [ -O "$DEST_MOSQUITTO_EDGE_CONFIG" ] && chmod -R 775 "$DEST_MOSQUITTO_EDGE_CONFIG"
+  fi
+fi
+
+if [ "$HOSTNAME_SHORT" = "jellydisp" ] && [ -d "$SRC_ZIGBEE2MQTT_DATA" ]; then
+  run_privileged mkdir -p "$DEST_ZIGBEE2MQTT_DATA"
+  # Copy only source-managed seed config. Do not --delete or overwrite runtime files
+  # such as database.db, coordinator_backup.json, state.json, logs, or secret.yaml.
+  if [ -f "$SRC_ZIGBEE2MQTT_DATA/configuration.yaml" ]; then
+    run_privileged rsync -rtD --omit-dir-times --no-perms --no-owner --no-group "$SRC_ZIGBEE2MQTT_DATA/configuration.yaml" "$DEST_ZIGBEE2MQTT_DATA/configuration.yaml"
+  fi
+  set_managed_perms "$DEST_ZIGBEE2MQTT_DATA"
+  if [ "$needs_sudo" -eq 1 ] || [ "$(id -u)" -eq 0 ]; then
+    run_privileged chmod 775 "$DEST_ZIGBEE2MQTT_DATA"
+    run_privileged chmod 664 "$DEST_ZIGBEE2MQTT_DATA/configuration.yaml" 2>/dev/null || true
+  elif [ -O "$DEST_ZIGBEE2MQTT_DATA" ]; then
+    chmod 775 "$DEST_ZIGBEE2MQTT_DATA"
+    chmod 664 "$DEST_ZIGBEE2MQTT_DATA/configuration.yaml" 2>/dev/null || true
   fi
 fi
 

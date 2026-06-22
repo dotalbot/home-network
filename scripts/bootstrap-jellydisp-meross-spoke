@@ -11,12 +11,12 @@ usage() {
   cat <<'USAGE'
 Usage: sudo ./scripts/bootstrap-jellydisp-meross-spoke [--dry-run] [--start] [--user USER]
 
-Prepares jellydisp as the Meross Home Assistant spoke:
+Prepares jellydisp as the Meross/Zigbee Home Assistant spoke:
   - installs Docker/Mosquitto client tooling if needed
   - creates /opt/docker runtime directories
-  - syncs source-managed Compose and Mosquitto config
+  - syncs source-managed Compose, Mosquitto, and Zigbee2MQTT config
   - generates host-local MQTT credentials if missing
-  - optionally starts mqtt-edge and ha-spoke containers with --start
+  - optionally starts mqtt-edge, ha-spoke, and zigbee2mqtt containers with --start
 
 Secrets stay on the host under /opt/docker/.secrets/mosquitto-edge/.
 USAGE
@@ -118,6 +118,7 @@ run install -d -m 0775 -o root -g docker "$DOCKER_DIR/appdata/homeassistant-spok
 run install -d -m 0775 -o root -g docker "$DOCKER_DIR/appdata/mosquitto-edge/config"
 run install -d -m 0775 -o 1883 -g 1883 "$DOCKER_DIR/appdata/mosquitto-edge/data"
 run install -d -m 0775 -o 1883 -g 1883 "$DOCKER_DIR/appdata/mosquitto-edge/log"
+run install -d -m 0775 -o root -g docker "$DOCKER_DIR/appdata/zigbee2mqtt/data"
 run install -d -m 0750 -o root -g docker "$DOCKER_DIR/.secrets/mosquitto-edge"
 
 run env DOCKER_DIR="$DOCKER_DIR" DOCKER_GROUP=docker "$REPO_ROOT/scripts/sync-docker-config"
@@ -126,6 +127,7 @@ CREDS_DIR="$DOCKER_DIR/.secrets/mosquitto-edge"
 PASSFILE="$CREDS_DIR/passwordfile"
 CREDS_ENV="$CREDS_DIR/credentials.env"
 HA_PASS_FILE="$CREDS_DIR/ha_spoke_password"
+Z2M_SECRET_FILE="$DOCKER_DIR/appdata/zigbee2mqtt/data/secret.yaml"
 
 if [ ! -s "$PASSFILE" ]; then
   if [ -e "$PASSFILE" ]; then
@@ -166,6 +168,35 @@ else
   fi
 fi
 
+if [ "$DRY_RUN" -eq 1 ]; then
+  echo "DRY-RUN ensure Zigbee2MQTT MQTT user and secret.yaml"
+else
+  if [ ! -f "$CREDS_ENV" ]; then
+    echo "not good: expected MQTT credentials file missing at $CREDS_ENV" >&2
+    exit 1
+  fi
+  z2m_pass="$(awk -F= '/^ZIGBEE2MQTT_MQTT_PASSWORD=/{print $2}' "$CREDS_ENV" | tail -1)"
+  if [ -z "$z2m_pass" ]; then
+    z2m_pass="$(openssl rand -base64 33 | tr -d '\n')"
+    {
+      echo "ZIGBEE2MQTT_MQTT_USERNAME=zigbee2mqtt"
+      echo "ZIGBEE2MQTT_MQTT_PASSWORD=$z2m_pass"
+    } >> "$CREDS_ENV"
+  fi
+  mosquitto_passwd -b "$PASSFILE" zigbee2mqtt "$z2m_pass" >/dev/null
+  cat > "$Z2M_SECRET_FILE" <<EOF
+server: 'mqtt://mosquitto-edge:1883'
+user: zigbee2mqtt
+password: '$z2m_pass'
+EOF
+  chown root:docker "$CREDS_ENV"
+  chmod 0640 "$CREDS_ENV"
+  chown root:docker "$Z2M_SECRET_FILE"
+  chmod 0640 "$Z2M_SECRET_FILE"
+  chown 1883:1883 "$PASSFILE"
+  chmod 0640 "$PASSFILE"
+fi
+
 if [ "$DRY_RUN" -eq 0 ]; then
   cd "$DOCKER_DIR"
   compose_cmd --env-file .env -f docker-compose.yml -f hosts/jellydisp.yaml config >/dev/null
@@ -174,14 +205,17 @@ fi
 
 if [ "$START" -eq 1 ]; then
   if [ "$DRY_RUN" -eq 1 ]; then
-    echo "DRY-RUN docker compose up -d mosquitto-edge homeassistant-spoke"
+    echo "DRY-RUN docker compose up -d --force-recreate mosquitto-edge zigbee2mqtt"
+    echo "DRY-RUN docker compose up -d homeassistant-spoke"
   else
     cd "$DOCKER_DIR"
-    compose_cmd --env-file .env -f docker-compose.yml -f hosts/jellydisp.yaml up -d mosquitto-edge homeassistant-spoke
+    # Recreate the broker when ACL/password files change, then start dependent edge services.
+    compose_cmd --env-file .env -f docker-compose.yml -f hosts/jellydisp.yaml up -d --force-recreate mosquitto-edge zigbee2mqtt
+    compose_cmd --env-file .env -f docker-compose.yml -f hosts/jellydisp.yaml up -d homeassistant-spoke
     compose_cmd --env-file .env -f docker-compose.yml -f hosts/jellydisp.yaml ps
   fi
 fi
 
-echo "good: jellydisp Meross spoke prepared"
+echo "good: jellydisp Meross/Zigbee spoke prepared"
 echo "credentials: $CREDS_ENV"
 echo "runbook: $REPO_ROOT/docs/runbooks/jellydisp-meross-spoke.md"

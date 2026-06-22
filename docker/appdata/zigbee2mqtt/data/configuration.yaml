@@ -1,0 +1,34 @@
+# Source-managed Zigbee2MQTT baseline for jellydisp.
+# Runtime secrets are written by scripts/bootstrap-jellydisp-meross-spoke to secret.yaml.
+homeassistant:
+  enabled: true
+
+mqtt:
+  base_topic: zigbee2mqtt
+  server: '!secret.yaml server'
+  user: '!secret.yaml user'
+  password: '!secret.yaml password'
+
+serial:
+  port: /dev/zigbee
+  adapter: ember
+  rtscts: false
+
+frontend:
+  enabled: true
+  port: 8080
+
+advanced:
+  channel: 20
+  cache_state: true
+  cache_state_persistent: true
+  cache_state_send_on_startup: true
+  last_seen: ISO_8601_local
+
+availability:
+  active:
+    timeout: 10
+  passive:
+    timeout: 1500
+
+permit_join: false
