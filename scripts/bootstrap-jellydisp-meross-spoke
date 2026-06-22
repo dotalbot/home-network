@@ -95,6 +95,11 @@ if ! command -v docker >/dev/null 2>&1 || ! compose_cmd version >/dev/null 2>&1 
 fi
 
 run systemctl enable --now docker
+# The distro mosquitto package supplies mosquitto_passwd, but the edge broker
+# runs in Docker. Keep the host service disabled so TCP/1883 is not stolen.
+if systemctl list-unit-files mosquitto.service >/dev/null 2>&1; then
+  run systemctl disable --now mosquitto
+fi
 
 if id "$OPERATOR_USER" >/dev/null 2>&1; then
   run usermod -aG docker "$OPERATOR_USER"
