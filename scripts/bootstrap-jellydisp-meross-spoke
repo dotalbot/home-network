@@ -122,7 +122,10 @@ PASSFILE="$CREDS_DIR/passwordfile"
 CREDS_ENV="$CREDS_DIR/credentials.env"
 HA_PASS_FILE="$CREDS_DIR/ha_spoke_password"
 
-if [ ! -f "$PASSFILE" ]; then
+if [ ! -s "$PASSFILE" ]; then
+  if [ -e "$PASSFILE" ]; then
+    echo "Existing MQTT passwordfile is empty; regenerating credentials."
+  fi
   if [ "$DRY_RUN" -eq 1 ]; then
     echo "DRY-RUN generate MQTT users ha-spoke, main-ha, edge-logger"
   else
