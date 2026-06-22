@@ -467,7 +467,7 @@ services:
     appdata:
       config: /opt/docker/appdata/homeassistant-spoke/config
     backup: appdata
-    status: planned
+    status: active
     notes:
       - Install Meross LAN through HACS after the HA first-start wizard.
       - Configure MQTT integration to 127.0.0.1:1883 with the host-local ha-spoke credential.
@@ -683,7 +683,7 @@ services:
       config: /opt/docker/appdata/mosquitto-edge/config
       data: /opt/docker/appdata/mosquitto-edge/data
     backup: config-and-persistence
-    status: planned
+    status: active
     notes:
       - Credentials are generated host-locally under /opt/docker/.secrets/mosquitto-edge.
       - ACL grants ha-spoke readwrite to homelab/power/# and main-ha read-only access.

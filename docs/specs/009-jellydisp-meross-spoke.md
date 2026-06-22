@@ -96,11 +96,11 @@ Use QoS 1 and retained messages for latest state only. Do not rely on retained M
 - [x] Source-managed Compose overlay exists for `mqtt-edge` and `ha-spoke`.
 - [x] Source-managed Mosquitto config and ACL exist.
 - [x] Bootstrap script exists and keeps credentials host-local.
-- [ ] Operator runs bootstrap with sudo on jellydisp.
-- [ ] `docker compose ... config` passes on jellydisp.
-- [ ] `mqtt-edge` container process healthcheck is healthy and a credentialed publish/subscribe smoke test passes from jellydisp.
-- [ ] TCP/1883 is reachable from the trusted LAN using the `main-ha` read-only credential.
-- [ ] `ha-spoke` first-start wizard reachable at `http://192.168.1.92:8123`.
+- [x] Operator runs bootstrap with sudo on jellydisp.
+- [x] `docker compose ... config` passes on jellydisp.
+- [x] `mqtt-edge` container process healthcheck is healthy and a credentialed publish/subscribe smoke test passes from jellydisp.
+- [x] TCP/1883 is reachable from the trusted LAN using the `main-ha` read-only credential.
+- [x] `ha-spoke` first-start wizard reachable at `http://192.168.1.92:8123`.
 - [ ] Meross LAN integration installed/configured in HA-spoke.
 - [ ] HA-spoke MQTT integration points at `127.0.0.1:1883` using the `ha-spoke` credential.
 - [ ] At least one Meross power sensor publishes clean MQTT JSON under `homelab/power/#`.
