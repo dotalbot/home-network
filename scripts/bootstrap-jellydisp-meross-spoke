@@ -183,6 +183,10 @@ else
       echo "ZIGBEE2MQTT_MQTT_PASSWORD=$z2m_pass"
     } >> "$CREDS_ENV"
   fi
+  # mosquitto_passwd expects root-owned password files; restore Mosquitto-readable
+  # ownership after updating the hash.
+  chown root:root "$PASSFILE"
+  chmod 0600 "$PASSFILE"
   mosquitto_passwd -b "$PASSFILE" zigbee2mqtt "$z2m_pass" >/dev/null
   cat > "$Z2M_SECRET_FILE" <<EOF
 server: 'mqtt://mosquitto-edge:1883'
