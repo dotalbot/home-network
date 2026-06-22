@@ -91,7 +91,7 @@ if ! command -v docker >/dev/null 2>&1 || ! compose_cmd version >/dev/null 2>&1 
   if apt-cache show docker-compose-plugin >/dev/null 2>&1; then
     compose_pkg=docker-compose-plugin
   fi
-  run apt-get install -y ca-certificates curl gnupg git rsync openssl docker.io "$compose_pkg" mosquitto-clients
+  run apt-get install -y ca-certificates curl gnupg git rsync openssl docker.io "$compose_pkg" mosquitto mosquitto-clients
 fi
 
 run systemctl enable --now docker
