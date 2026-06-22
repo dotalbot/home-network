@@ -280,11 +280,16 @@ if [ "$HOSTNAME_SHORT" = "jellydisp" ] && [ -d "$SRC_MOSQUITTO_EDGE_CONFIG" ]; t
   run_privileged rsync "${RSYNC_OPTS[@]}" "$SRC_MOSQUITTO_EDGE_CONFIG"/ "$DEST_MOSQUITTO_EDGE_CONFIG"/
   set_managed_perms "$DEST_MOSQUITTO_EDGE_CONFIG"
   if [ "$needs_sudo" -eq 1 ] || [ "$(id -u)" -eq 0 ]; then
-    run_privileged chmod -R 775 "$DEST_MOSQUITTO_EDGE_CONFIG"
+    # Official Mosquitto runs as UID/GID 1883 and newer versions are strict about
+    # ACL/config file ownership and world-readable modes.
+    run_privileged chown -R 1883:1883 "$DEST_MOSQUITTO_EDGE_CONFIG" 2>/dev/null || true
+    run_privileged chmod 750 "$DEST_MOSQUITTO_EDGE_CONFIG" 2>/dev/null || true
+    run_privileged chmod 640 "$DEST_MOSQUITTO_EDGE_CONFIG"/* 2>/dev/null || true
     run_privileged chown -R 1883:1883 "$DEST_MOSQUITTO_EDGE_DATA" "$DEST_MOSQUITTO_EDGE_LOG" 2>/dev/null || true
     run_privileged chmod -R 775 "$DEST_MOSQUITTO_EDGE_DATA" "$DEST_MOSQUITTO_EDGE_LOG" 2>/dev/null || true
   else
-    [ -O "$DEST_MOSQUITTO_EDGE_CONFIG" ] && chmod -R 775 "$DEST_MOSQUITTO_EDGE_CONFIG"
+    [ -O "$DEST_MOSQUITTO_EDGE_CONFIG" ] && chmod 750 "$DEST_MOSQUITTO_EDGE_CONFIG"
+    [ -O "$DEST_MOSQUITTO_EDGE_CONFIG/aclfile" ] && chmod 640 "$DEST_MOSQUITTO_EDGE_CONFIG"/* 2>/dev/null || true
   fi
 fi
 

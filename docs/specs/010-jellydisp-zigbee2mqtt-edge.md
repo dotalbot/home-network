@@ -70,10 +70,10 @@ HA-spoke consumes MQTT discovery and can send control commands. Main HA should c
 - [x] Mosquitto ACL includes `zigbee2mqtt` and HA/main consumers for Zigbee topics.
 - [x] Bootstrap generates host-local Zigbee2MQTT MQTT credentials and `secret.yaml`.
 - [x] Docker Compose config validates with the jellydisp overlay.
-- [ ] Operator runs bootstrap with sudo on jellydisp after this spec lands.
-- [ ] `zigbee2mqtt` container starts and reports coordinator connection.
-- [ ] Zigbee2MQTT frontend is reachable at `http://192.168.1.92:8080`.
-- [ ] MQTT smoke test publishes/subscribes on `zigbee2mqtt/bridge/state` or another Zigbee2MQTT topic.
+- [x] Operator runs bootstrap with sudo on jellydisp after this spec lands.
+- [x] `zigbee2mqtt` container starts and reports coordinator connection.
+- [x] Zigbee2MQTT frontend is reachable at `http://192.168.1.92:8080`.
+- [x] MQTT smoke test publishes/subscribes on `zigbee2mqtt/bridge/state` or another Zigbee2MQTT topic.
 - [ ] One plug and one temperature/humidity sensor are paired and visible in HA-spoke.
 
 ## Future central bridge
