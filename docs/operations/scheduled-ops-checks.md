@@ -82,7 +82,7 @@ The runner checks:
 - optional Homepage and Network Map render validation via `--dashboard-render-checks` or `DASHBOARD_RENDER_CHECKS=1`; render validation runs in a temporary copy so scheduled runs do not dirty the live checkout;
 - Prometheus readiness;
 - Alertmanager readiness;
-- `up{job="node_exporter"}` for all node_exporter targets;
+- `up{job="node_exporter",monitored_host!="jellysa"}` for local/home node_exporter targets; the remote South Africa node is intentionally excluded from the local scheduled check and should be handled by remote/Tailnet-specific monitoring when in scope;
 - Prometheus discovery of at least one Alertmanager.
 
 ## Install on jellybase

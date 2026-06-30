@@ -22,7 +22,7 @@ groups:
           description: "No fresh Borgmatic run timestamp has been exported for more than 26 hours. Confirm the managed systemd timer and recent logs."
 
       - alert: BorgmaticMetricsMissing
-        expr: up{job="node_exporter"} == 1 unless on (instance) borgmatic_last_run_timestamp_seconds{job="node_exporter"}
+        expr: up{job="node_exporter",monitored_host=~"jellyhome|jellybase|jellyberry"} == 1 unless on (instance) borgmatic_last_run_timestamp_seconds{job="node_exporter"}
         for: 30m
         labels:
           severity: warning
@@ -107,7 +107,7 @@ groups:
         expr: |
           home_network_disk_health_status{job="node_exporter"} == -1
           unless on(host, device)
-          home_network_disk_health_status{job="node_exporter",host="jellyberry",device=~"/dev/(zram0|mmcblk0)"}
+          home_network_disk_health_status{job="node_exporter",host=~"jellyberry|jellybackup",device=~"/dev/(zram0|mmcblk0)"}
         for: 24h
         labels:
           severity: info
@@ -497,14 +497,23 @@ groups:
           description: "Loki is actively discarding log samples with reason {{ $labels.reason }}. Investigate retention limits, ingestion rate limits, or stale/backfilled log pushes before more log history is lost."
 
       - alert: HostSystemdFailedUnits
-        expr: home_network_systemd_failed_units{job="node_exporter"} > 0
+        expr: |
+          count by (monitored_host, instance) (
+            node_systemd_unit_state{job="node_exporter",state="failed"} == 1
+            unless on(monitored_host, name)
+            (
+              node_systemd_unit_state{job="node_exporter",state="failed",monitored_host=~"jellybackup|jellydisp",name="openipmi.service"}
+              or
+              node_systemd_unit_state{job="node_exporter",state="failed",monitored_host="jellydisp",name="smartmontools.service"}
+            )
+          ) > 0
         for: 20m
         labels:
           severity: warning
           category: host-log-signal
         annotations:
-          summary: "Failed systemd units on {{ $labels.host }}"
-          description: "{{ $value | humanize }} systemd units have remained failed on {{ $labels.host }} for at least 20 minutes. Review the host journal before the failure becomes background wallpaper."
+          summary: "Failed systemd units on {{ $labels.monitored_host }}"
+          description: "{{ $value | humanize }} non-suppressed systemd units have remained failed on {{ $labels.monitored_host }} for at least 20 minutes. Review the host journal before the failure becomes background wallpaper. Known non-IPMI Pi openipmi noise and jellydisp unsupported smartmontools noise are suppressed."
 
       - alert: HostJournalKernelErrors
         expr: home_network_journal_kernel_error_count{job="node_exporter",window="15m"} > 0

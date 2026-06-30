@@ -92,7 +92,12 @@ def check_http_ready(name: str, url: str) -> CheckResult:
 
 def check_prometheus_node_exporters(prometheus_url: str) -> CheckResult:
     start = time.monotonic()
-    ok, data_or_detail = prometheus_query(prometheus_url, 'up{job="node_exporter"}')
+    # jellysa is a remote/offsite Tailnet node that is intentionally excluded from
+    # the local home-network scheduled check. Its availability is handled by the
+    # normal Prometheus/Alertmanager node_exporter alerts when that remote scope
+    # is being operated, rather than making the local daily ops check fail while
+    # Dominic is explicitly checking "all hosts apart from jellysa".
+    ok, data_or_detail = prometheus_query(prometheus_url, 'up{job="node_exporter",monitored_host!="jellysa"}')
     if not ok:
         return CheckResult("prometheus_node_exporters_up", False, str(data_or_detail), time.monotonic() - start)
 
