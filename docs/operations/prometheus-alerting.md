@@ -97,7 +97,7 @@ Covered checks:
 - node_exporter missing/down: `NodeExporterDown`.
 - Textfile collector parse failures: `NodeTextfileScrapeError` for `node_textfile_scrape_error > 0`.
 - Disk health probe failed/stale/failed disk: `DiskHealthFailure`, `DiskHealthProbeFailed`, and `DiskHealthProbeStale`.
-- Unexpected unknown disk device changes: `UnexpectedUnknownDiskDeviceChange` waits 12h after the unknown-device count changes and remains nonzero; stable known Pi/USB gaps stay covered by the lower-priority `DiskHealthUnknown` info alert. Jellyberry `/dev/zram0` and `/dev/mmcblk0` are suppressed from `DiskHealthUnknown`; its NVMe system disk remains covered by explicit disk-health metrics.
+- Unexpected unknown disk device changes: `UnexpectedUnknownDiskDeviceChange` waits 12h after the unknown-device count changes and remains nonzero; stable known Pi/USB gaps stay covered by the lower-priority `DiskHealthUnknown` info alert. Jellyberry and jellybackup `/dev/zram0` and `/dev/mmcblk0` are suppressed from `DiskHealthUnknown`; jellyberry's NVMe system disk and jellybackup's external backup disk remain covered by explicit disk-health metrics.
 - Container drift: `HomeNetworkContainerDrift`, sourced from the scheduled `scripts/drift-check` result.
 - Optional dashboard render validation: `HomeNetworkScheduledDashboardRenderCheckFailed`, emitted only when the scheduled runner is configured with `DASHBOARD_RENDER_CHECKS=1` or run manually with `--dashboard-render-checks`.
 
