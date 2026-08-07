@@ -172,8 +172,10 @@ Functional verification status:
 
 As of 2026-08-07 after upgrade to `0.9.0`:
 
-- API `/version` and UI `/api/version` should report `api_version: 0.9.0` on both LAN and Tailscale endpoints.
-- Hermes should still recall from the `hermes-main` bank through `http://jellyhome:18888` after the container is recreated.
+- API `/version` and UI `/api/version` reported `api_version: 0.9.0` on both LAN and Tailscale endpoints.
+- OpenAPI metadata reported version `0.9.0`.
+- Hermes still recalls from the `hermes-main` bank through `http://jellyhome:18888` after the container was recreated.
+- Pre-upgrade appdata backup: `/opt/docker/backups/hindsight/hindsight-data-before-0.9.0-20260807T201853Z.tar.gz`.
 
 As of 2026-05-26 initial deployment:
 

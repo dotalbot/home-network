@@ -52,6 +52,8 @@ Non-goals for this first pass:
 
 - Hindsight container is running on `jellyhome`.
 - Runtime image is upgraded to `ghcr.io/vectorize-io/hindsight:0.9.0` as of 2026-08-07.
+- LAN and Tailscale API/UI version endpoints verified `0.9.0` after recreate.
+- Pre-upgrade appdata backup was written to `/opt/docker/backups/hindsight/hindsight-data-before-0.9.0-20260807T201853Z.tar.gz`.
 - API is exposed on host port `18888` because port `8888` is already occupied on jellyhome by a separate APK-serving HTTP server.
 - UI is exposed on host port `9999`.
 - Startup completed successfully after correcting the image tag (`0.6.2` not `v0.6.2`) and fixing appdata ownership for the embedded pg0 data directory.
