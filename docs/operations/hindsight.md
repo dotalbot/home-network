@@ -10,7 +10,7 @@ Hindsight is the shared long-term memory backend for agent experiments. The goal
 
 - Host: `jellyhome`
 - Container: `hindsight`
-- Image: `ghcr.io/vectorize-io/hindsight:0.6.2`
+- Image: `ghcr.io/vectorize-io/hindsight:0.9.0`
 - API: `http://192.168.1.1:18888` and `http://100.90.175.59:18888`
 - UI: `http://192.168.1.1:9999` and `http://100.90.175.59:9999`
 - Persistent data: `/opt/docker/appdata/hindsight/data`
@@ -22,8 +22,14 @@ The container also uses a stable worker ID: `hindsight-jellyhome`.
 
 Deployment notes:
 
-- Use image tag `ghcr.io/vectorize-io/hindsight:0.6.2` (`v0.6.2` does not exist in GHCR).
+- Use image tag `ghcr.io/vectorize-io/hindsight:0.9.0` (`v0.9.0` does not exist in GHCR).
 - The first startup required correcting appdata ownership so the in-container `hindsight` user could start embedded pg0 successfully.
+
+Upgrade notes:
+
+- Upgraded from `0.6.2` to `0.9.0` on 2026-08-07.
+- Before upgrading, create a local tar backup of `/opt/docker/appdata/hindsight/data` under `/opt/docker/backups/hindsight/`.
+- Recreate only the `hindsight` Compose service after image changes; do not use `docker compose restart`, because restart does not pick up a changed image tag.
 
 ## Secret file
 
@@ -162,7 +168,14 @@ curl -fsS http://192.168.1.1:9999 >/dev/null
 
 Use the API and UI checks plus container logs. First startup can take time while embedded pg0 and model assets initialize.
 
-Functional verification status as of 2026-05-26:
+Functional verification status:
+
+As of 2026-08-07 after upgrade to `0.9.0`:
+
+- API `/version` and UI `/api/version` should report `api_version: 0.9.0` on both LAN and Tailscale endpoints.
+- Hermes should still recall from the `hermes-main` bank through `http://jellyhome:18888` after the container is recreated.
+
+As of 2026-05-26 initial deployment:
 
 - Bank create/update works.
 - Bank template schema endpoint works.

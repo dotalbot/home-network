@@ -25,7 +25,7 @@ Non-goals for this first pass:
 ## Decisions
 
 - Host: `jellyhome`.
-- Image: `ghcr.io/vectorize-io/hindsight:0.6.2`.
+- Image: `ghcr.io/vectorize-io/hindsight:0.9.0`.
 - API host port: `18888` (`8888` remains the in-container port).
 - UI port: `9999`.
 - Bind addresses: jellyhome LAN `192.168.1.1` and Tailnet `100.90.175.59` only.
@@ -51,6 +51,7 @@ Non-goals for this first pass:
 ## Current verified state
 
 - Hindsight container is running on `jellyhome`.
+- Runtime image is upgraded to `ghcr.io/vectorize-io/hindsight:0.9.0` as of 2026-08-07.
 - API is exposed on host port `18888` because port `8888` is already occupied on jellyhome by a separate APK-serving HTTP server.
 - UI is exposed on host port `9999`.
 - Startup completed successfully after correcting the image tag (`0.6.2` not `v0.6.2`) and fixing appdata ownership for the embedded pg0 data directory.

@@ -168,7 +168,7 @@ services:
 
 
   hindsight:
-    image: ghcr.io/vectorize-io/hindsight:0.6.2
+    image: ghcr.io/vectorize-io/hindsight:0.9.0
     container_name: hindsight
     restart: unless-stopped
     env_file:
