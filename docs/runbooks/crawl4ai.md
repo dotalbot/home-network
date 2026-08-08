@@ -89,7 +89,7 @@ Because the API can fetch arbitrary URLs, consuming tools must apply their own U
 From the source repo:
 
 ```bash
-cd /home/jellybot/home-network
+cd /home/jellybot/dev_projects/home-network
 git status --short --branch
 ```
 
@@ -139,7 +139,7 @@ Functional smoke test with a benign page should use a bearer token returned by `
 
 ```bash
 curl -fsS http://192.168.1.2:11235/md \
-  -H 'Authorization: Bearer ACCESS_TOKEN_FROM_TOKEN_RESPONSE' \
+  -H 'Authorization: Bearer <access-token-from-token-response>' \
   -H 'Content-Type: application/json' \
   -d '{"url":"https://example.com"}'
 ```

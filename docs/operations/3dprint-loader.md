@@ -7,7 +7,7 @@
 It is developed in its own application repository and deployed by `home-network` onto `/opt/docker` on `jellyhome`.
 
 ```text
-App source:      /home/jellybot/3dprint_loader
+App source:      /home/jellybot/dev_projects/3dprint_loader
 Runtime host:    jellyhome
 Runtime URL:     http://192.168.1.1:8793
 Health URL:      http://192.168.1.1:8793/health
@@ -18,10 +18,10 @@ Runtime copy:    /opt/docker
 ## Source-of-truth split
 
 ```text
-/home/jellybot/3dprint_loader
+/home/jellybot/dev_projects/3dprint_loader
   owns app source, Dockerfiles, tests, API/frontend code, and app docs
 
-/home/jellybot/home-network
+/home/jellybot/dev_projects/home-network
   owns runtime placement, Compose overlay, service inventory, secrets paths, and this runbook
 
 /opt/docker
@@ -63,7 +63,7 @@ The runtime checkout must be refreshed before every rebuild:
 ```bash
 ssh jellybot@jellyhome '
   set -euo pipefail
-  cd /home/jellybot/3dprint_loader
+  cd /home/jellybot/dev_projects/3dprint_loader
   git fetch origin
   git checkout feat/initial-mvp-scaffold
   git pull --ff-only origin feat/initial-mvp-scaffold
@@ -75,7 +75,7 @@ Then refresh `home-network` and sync `/opt/docker`:
 ```bash
 ssh jellybot@jellyhome '
   set -euo pipefail
-  cd /home/jellybot/home-network
+  cd /home/jellybot/dev_projects/home-network
   git fetch origin
   git checkout main
   git pull --ff-only origin main
@@ -89,9 +89,9 @@ Then rebuild/recreate the selected services:
 ssh jellybot@jellyhome '
   set -euo pipefail
   cd /opt/docker
-  THREEDPRINT_LOADER_COMMIT_COUNT=$(git -C /home/jellybot/3dprint_loader rev-list --count HEAD) \
-  THREEDPRINT_LOADER_COMMIT_SHA=$(git -C /home/jellybot/3dprint_loader rev-parse HEAD) \
-  THREEDPRINT_LOADER_COMMIT_TIMESTAMP=$(git -C /home/jellybot/3dprint_loader log -1 --format=%cI) \
+  THREEDPRINT_LOADER_COMMIT_COUNT=$(git -C /home/jellybot/dev_projects/3dprint_loader rev-list --count HEAD) \
+  THREEDPRINT_LOADER_COMMIT_SHA=$(git -C /home/jellybot/dev_projects/3dprint_loader rev-parse HEAD) \
+  THREEDPRINT_LOADER_COMMIT_TIMESTAMP=$(git -C /home/jellybot/dev_projects/3dprint_loader log -1 --format=%cI) \
   docker compose \
     --env-file .env \
     -f docker-compose.yml \
@@ -149,7 +149,7 @@ Rollback app code:
 ```bash
 ssh jellybot@jellyhome '
   set -euo pipefail
-  cd /home/jellybot/3dprint_loader
+  cd /home/jellybot/dev_projects/3dprint_loader
   git checkout <known-good-ref>
   cd /opt/docker
   docker compose --env-file .env -f docker-compose.yml -f hosts/jellyhome.yaml \
@@ -174,7 +174,7 @@ ssh jellybot@jellyhome 'docker inspect 3dprint-loader-api 3dprint-loader-web --f
 Verify the app checkout exists on `jellyhome`:
 
 ```bash
-ssh jellybot@jellyhome 'test -d /home/jellybot/3dprint_loader/.git && git -C /home/jellybot/3dprint_loader status --short --branch'
+ssh jellybot@jellyhome 'test -d /home/jellybot/dev_projects/3dprint_loader/.git && git -C /home/jellybot/dev_projects/3dprint_loader status --short --branch'
 ```
 
 ### Web proxy returns 502 Bad Gateway even though the API container is healthy

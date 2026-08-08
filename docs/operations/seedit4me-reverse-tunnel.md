@@ -45,7 +45,7 @@ The secret file contains only the seedit4me SSH password. Do not paste the passw
 On `jellyberry`, from the repo:
 
 ```bash
-cd /home/jellybot/home-network
+cd /home/jellybot/dev_projects/home-network
 sudo install -d -m 0770 -o root -g dockerops /opt/docker/.secrets/seedit4me
 sudo install -m 0640 -o root -g dockerops /dev/null /opt/docker/.secrets/seedit4me/ssh_password
 sudo nano /opt/docker/.secrets/seedit4me/ssh_password
@@ -101,7 +101,7 @@ Prometheus alerts route through the existing Alertmanager -> Discord path:
 Verify the textfile metrics locally:
 
 ```bash
-sudo /home/jellybot/home-network/scripts/seedit4me-tunnel-healthcheck
+sudo /home/jellybot/dev_projects/home-network/scripts/seedit4me-tunnel-healthcheck
 curl -fsS http://127.0.0.1:9100/metrics | grep home_network_seedit4me_tunnel
 ```
 

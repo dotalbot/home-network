@@ -35,14 +35,14 @@ Before any UFW changes, Tailscale SSH must be enabled and tested on each target 
 Inspect-only check, run on each host:
 
 ```bash
-cd ~/repo/home-network 2>/dev/null || cd /home/jellybot/home-network
+cd ~/repo/home-network 2>/dev/null || cd /home/jellybot/dev_projects/home-network
 scripts/tailscale-ssh-backdoor-check
 ```
 
 Enable Tailscale SSH, run locally on the target host so the operator can enter sudo if prompted:
 
 ```bash
-cd ~/repo/home-network 2>/dev/null || cd /home/jellybot/home-network
+cd ~/repo/home-network 2>/dev/null || cd /home/jellybot/dev_projects/home-network
 scripts/tailscale-ssh-backdoor-check --enable
 ```
 

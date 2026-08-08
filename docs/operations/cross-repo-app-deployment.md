@@ -8,13 +8,13 @@ Typical example:
 
 ```text
 jellyberry / Hermes development checkout
-  /home/jellybot/3dprint_loader
+  /home/jellybot/dev_projects/3dprint_loader
 
 jellyhome runtime checkout
-  /home/jellybot/3dprint_loader
+  /home/jellybot/dev_projects/3dprint_loader
 
 home-network source-of-truth
-  /home/jellybot/home-network
+  /home/jellybot/dev_projects/home-network
 
 runtime Compose copy
   /opt/docker
@@ -90,7 +90,7 @@ Each cross-repo app should have a checkout on the runtime host at a predictable 
 For `3dprint_loader` on `jellyhome`:
 
 ```text
-/home/jellybot/3dprint_loader
+/home/jellybot/dev_projects/3dprint_loader
 ```
 
 The runtime checkout is not edited manually during normal deployment. It is refreshed from Git.
@@ -100,7 +100,7 @@ The runtime checkout is not edited manually during normal deployment. It is refr
 Every deployment must refresh code before rebuilding containers:
 
 ```bash
-cd /home/jellybot/3dprint_loader
+cd /home/jellybot/dev_projects/3dprint_loader
 git fetch origin
 git checkout feat/initial-mvp-scaffold
 git pull --ff-only origin feat/initial-mvp-scaffold
@@ -115,7 +115,7 @@ Do not use `git reset --hard` unless explicitly approved for that deployment.
 After code refresh, run Compose from `/opt/docker` using the `home-network` synced config:
 
 ```bash
-cd /home/jellybot/home-network
+cd /home/jellybot/dev_projects/home-network
 just sync-docker-config
 
 cd /opt/docker
@@ -142,7 +142,7 @@ Minimum verification after deploy:
 docker ps --filter name=<service>
 docker logs --tail=100 <service>
 curl -fsS http://127.0.0.1:<port>/health || curl -fsS http://127.0.0.1:<port>/
-cd /home/jellybot/home-network && just drift-check-strict
+cd /home/jellybot/dev_projects/home-network && just drift-check-strict
 git status --short --branch
 ```
 
@@ -228,7 +228,7 @@ Treat browser storage-state files, cookies, API tokens, and app credentials as p
 Rollback should be Git-first:
 
 ```bash
-cd /home/jellybot/3dprint_loader
+cd /home/jellybot/dev_projects/3dprint_loader
 git fetch origin
 git checkout <known-good-branch-or-sha>
 
@@ -267,7 +267,7 @@ Deploy `3dprint_loader` on `jellyhome` because:
 Recommended runtime layout:
 
 ```text
-/home/jellybot/3dprint_loader                 # runtime source checkout
+/home/jellybot/dev_projects/3dprint_loader                 # runtime source checkout
 /opt/docker/appdata/3dprint-loader/storage    # runtime storage/cache
 /opt/docker/.secrets/3dprint-loader/          # MakerWorld/session/API secrets
 ```

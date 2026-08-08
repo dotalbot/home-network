@@ -121,7 +121,7 @@ test -w /opt/docker && echo "writable" || echo "not writable"
 From the repo:
 
 ```bash
-cd /home/jellybot/home-network
+cd /home/jellybot/dev_projects/home-network
 just sync-docker-config
 just compose-config
 ```

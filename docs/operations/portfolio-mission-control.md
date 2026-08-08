@@ -15,7 +15,7 @@ docker/hosts/jellyberry.yaml
 The application source remains in:
 
 ```text
-/home/jellybot/portfolio-intel
+/home/jellybot/dev_projects/portfolio-intel
 ```
 
 ## URL
@@ -29,9 +29,9 @@ http://jellyberry:8787
 Read-only source mounts:
 
 ```text
-/home/jellybot/portfolio-intel/config -> /app/config
-/home/jellybot/portfolio-intel/docs   -> /app/docs
-/home/jellybot/portfolio-intel/data   -> /app/data
+/home/jellybot/dev_projects/portfolio-intel/config -> /app/config
+/home/jellybot/dev_projects/portfolio-intel/docs   -> /app/docs
+/home/jellybot/dev_projects/portfolio-intel/data   -> /app/data
 ```
 
 Generated appdata:
@@ -51,7 +51,7 @@ Do not commit the Hermes env file. This service currently depends on the Hermes 
 ## Deploy
 
 ```bash
-cd /home/jellybot/home-network
+cd /home/jellybot/dev_projects/home-network
 just sync-docker-config
 just up portfolio-mission-control-v2
 ```
@@ -83,7 +83,7 @@ If you need the latest generated roadmap data after rollback, copy it back first
 
 ```bash
 rsync -a /opt/docker/appdata/portfolio-mission-control-v2/data/ \
-  /home/jellybot/portfolio-intel/mission-control-v2/data/
+  /home/jellybot/dev_projects/portfolio-intel/mission-control-v2/data/
 ```
 
 Then roll back runtime ownership:
@@ -100,7 +100,7 @@ docker compose --env-file .env \
   -f hosts/jellyberry.yaml \
   rm -f portfolio-mission-control-v2
 
-cd /home/jellybot/portfolio-intel
+cd /home/jellybot/dev_projects/portfolio-intel
 docker compose up -d
 ```
 

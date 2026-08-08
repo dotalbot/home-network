@@ -63,7 +63,7 @@ After this, `scripts/sync-docker-config` should be able to write managed config/
 From the repo on `jellyberry`:
 
 ```bash
-cd /home/jellybot/home-network
+cd /home/jellybot/dev_projects/home-network
 just network-map-render
 just sync-docker-config
 just compose-config
@@ -73,7 +73,7 @@ just up network-map
 Or use the full Homepage/update workflow:
 
 ```bash
-cd /home/jellybot/home-network
+cd /home/jellybot/dev_projects/home-network
 just homepage-deploy
 ```
 

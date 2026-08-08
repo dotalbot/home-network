@@ -1,9 +1,9 @@
 [Unit]
 Description=Check seedit4me reverse SSH tunnel health
-Documentation=file:/home/jellybot/home-network/docs/operations/seedit4me-reverse-tunnel.md
+Documentation=file:/home/jellybot/dev_projects/home-network/docs/operations/seedit4me-reverse-tunnel.md
 Wants=network-online.target
 After=network-online.target home-network-seedit4me-reverse-tunnel.service
 
 [Service]
 Type=oneshot
-ExecStart=/home/jellybot/home-network/scripts/seedit4me-tunnel-healthcheck
+ExecStart=/home/jellybot/dev_projects/home-network/scripts/seedit4me-tunnel-healthcheck

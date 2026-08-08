@@ -1379,7 +1379,7 @@
         "jellyberry"
       ],
       "id": "cert-study-hub",
-      "restore_note": "Requires `/home/jellybot/cert-study-hub`, generated from the local SC-401, MS-102, and AB-900 downloaded course directories.",
+      "restore_note": "Requires `/home/jellybot/projects/cert-study-hub`, generated from the local SC-401, MS-102, and AB-900 downloaded course directories.",
       "restore_runbook": null,
       "source_metadata_status": "present",
       "source_type": "local-directory",

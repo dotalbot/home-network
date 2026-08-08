@@ -21,7 +21,7 @@ docker/hosts/jellyberry.yaml
 The generated static source remains in:
 
 ```text
-/home/jellybot/cert-study-hub
+/home/jellybot/projects/cert-study-hub
 ```
 
 The generator script is:
@@ -53,15 +53,15 @@ python3 /home/jellybot/build_cert_study_hub.py
 Inputs:
 
 ```text
-/home/jellybot/sc-100-prep/study-web
-/home/jellybot/ms-102-prep/study-web
-/home/jellybot/ab-900-prep
+/home/jellybot/projects/sc-100-prep/study-web
+/home/jellybot/projects/ms-102-prep/study-web
+/home/jellybot/projects/ab-900-prep
 ```
 
 ## Deploy
 
 ```bash
-cd /home/jellybot/home-network
+cd /home/jellybot/dev_projects/home-network
 just sync-docker-config
 just up cert-study-hub
 ```

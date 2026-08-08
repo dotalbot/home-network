@@ -1,6 +1,6 @@
 [Unit]
 Description=home-network reverse SSH tunnel to seedit4.me for jellyberry emergency access
-Documentation=file:/home/jellybot/home-network/docs/operations/seedit4me-reverse-tunnel.md
+Documentation=file:/home/jellybot/dev_projects/home-network/docs/operations/seedit4me-reverse-tunnel.md
 Wants=network-online.target
 After=network-online.target
 StartLimitIntervalSec=3600

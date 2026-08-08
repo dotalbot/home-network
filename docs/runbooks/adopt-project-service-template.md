@@ -91,7 +91,7 @@ git pull --ff-only origin <branch>
 Then deploy from `home-network`/`/opt/docker`:
 
 ```bash
-cd /home/jellybot/home-network
+cd /home/jellybot/dev_projects/home-network
 just sync-docker-config
 
 cd /opt/docker
@@ -126,7 +126,7 @@ Suggested commands:
 docker ps --filter name=<service-name>
 docker logs --tail=100 <service-name>
 curl -fsS http://127.0.0.1:<port>/health || curl -fsS http://127.0.0.1:<port>/
-cd /home/jellybot/home-network && just drift-check-strict
+cd /home/jellybot/dev_projects/home-network && just drift-check-strict
 ```
 
 ## 7. Rollback

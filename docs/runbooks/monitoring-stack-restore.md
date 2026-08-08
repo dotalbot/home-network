@@ -80,7 +80,7 @@ Restore monitoring before relying on dashboards/alerts for other services.
 
 ```bash
 hostname -s
-cd /home/jellybot/home-network
+cd /home/jellybot/dev_projects/home-network
 git status --short --branch
 git pull --ff-only origin main
 ```
@@ -121,7 +121,7 @@ sudo test -s /opt/docker/.secrets/alertmanager/discord_webhook_url
 6. Re-sync source-managed config, then recreate services:
 
 ```bash
-cd /home/jellybot/home-network
+cd /home/jellybot/dev_projects/home-network
 ./scripts/sync-docker-config
 cd /opt/docker
 docker compose --env-file .env -f docker-compose.yml -f hosts/jellybase.yaml up -d --force-recreate prometheus alertmanager-discord-bridge alertmanager grafana loki alloy

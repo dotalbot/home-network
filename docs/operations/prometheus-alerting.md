@@ -113,7 +113,7 @@ Noise controls:
 
 ## Deploy
 
-From `/home/jellybot/home-network` on `jellybase`:
+From the runtime checkout on `jellybase`, normally `/home/jellyfish/repo/home-network`:
 
 ```bash
 git fetch origin

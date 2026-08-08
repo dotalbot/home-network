@@ -2,7 +2,7 @@ services:
 
   portfolio-mission-control-v2:
     build:
-      context: /home/jellybot/portfolio-intel
+      context: /home/jellybot/dev_projects/portfolio-intel
       dockerfile: Dockerfile
     image: portfolio-mission-control-v2:latest
     container_name: portfolio-mission-control-v2
@@ -17,14 +17,14 @@ services:
     secrets:
       - hermes_env
     volumes:
-      - /home/jellybot/portfolio-intel/config:/app/config:ro
-      - /home/jellybot/portfolio-intel/docs:/app/docs:ro
-      - /home/jellybot/portfolio-intel/data:/app/data:ro
+      - /home/jellybot/dev_projects/portfolio-intel/config:/app/config:ro
+      - /home/jellybot/dev_projects/portfolio-intel/docs:/app/docs:ro
+      - /home/jellybot/dev_projects/portfolio-intel/data:/app/data:ro
       - /opt/docker/appdata/portfolio-mission-control-v2/data:/app/mission-control-v2/data
 
   sc401-study-hub:
     build:
-      context: /home/jellybot/sc-100-prep/study-web
+      context: /home/jellybot/projects/sc-100-prep/study-web
       dockerfile: Dockerfile
     image: study-web-sc401-study-hub:latest
     container_name: sc401-study-hub
@@ -34,7 +34,7 @@ services:
 
   ms102-study-hub:
     build:
-      context: /home/jellybot/ms-102-prep/study-web
+      context: /home/jellybot/projects/ms-102-prep/study-web
       dockerfile: Dockerfile
     image: study-web-ms102-study-hub:latest
     container_name: ms102-study-hub
@@ -44,7 +44,7 @@ services:
 
   cert-study-hub:
     build:
-      context: /home/jellybot/cert-study-hub
+      context: /home/jellybot/projects/cert-study-hub
       dockerfile: Dockerfile
     image: cert-study-hub:latest
     container_name: cert-study-hub
@@ -54,7 +54,7 @@ services:
 
   image-pastebin:
     build:
-      context: /home/jellybot/image-pastebin
+      context: /home/jellybot/projects/image-pastebin
       dockerfile: Dockerfile
     image: image-pastebin-image-pastebin:latest
     container_name: image-pastebin

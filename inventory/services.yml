@@ -103,9 +103,9 @@ services:
     description: portfolio dashboard | home-network managed on jellyberry
     source:
       type: git
-      local_path: /home/jellybot/portfolio-intel
+      local_path: /home/jellybot/dev_projects/portfolio-intel
       remote: git@github.com:dotalbot/portfolio-intel.git
-      build_context: /home/jellybot/portfolio-intel
+      build_context: /home/jellybot/dev_projects/portfolio-intel
       dockerfile: Dockerfile
       restore_note: Requires the source repository plus `/opt/docker/appdata/portfolio-mission-control-v2/data` and `/home/jellybot/.hermes/.env` on the host.
     backup: appdata-and-source-repo
@@ -126,9 +126,9 @@ services:
     description: certification study hub | home-network managed on jellyberry
     source:
       type: local-directory
-      local_path: /home/jellybot/sc-100-prep/study-web
+      local_path: /home/jellybot/projects/sc-100-prep/study-web
       remote: TBD
-      build_context: /home/jellybot/sc-100-prep/study-web
+      build_context: /home/jellybot/projects/sc-100-prep/study-web
       dockerfile: Dockerfile
       restore_note: Requires the study-web source directory; no git remote is currently recorded in this repo.
     backup: source-repo
@@ -149,9 +149,9 @@ services:
     description: Microsoft 365 Administrator study hub | home-network managed on jellyberry
     source:
       type: local-directory
-      local_path: /home/jellybot/ms-102-prep/study-web
+      local_path: /home/jellybot/projects/ms-102-prep/study-web
       remote: TBD
-      build_context: /home/jellybot/ms-102-prep/study-web
+      build_context: /home/jellybot/projects/ms-102-prep/study-web
       dockerfile: Dockerfile
       restore_note: Requires the MS-102 study-web source directory; no git remote is currently recorded in this repo.
     backup: source-repo
@@ -172,11 +172,11 @@ services:
     description: Unified certification study menu for SC-401, MS-102, and AB-900 | home-network managed on jellyberry
     source:
       type: local-directory
-      local_path: /home/jellybot/cert-study-hub
+      local_path: /home/jellybot/projects/cert-study-hub
       remote: TBD
-      build_context: /home/jellybot/cert-study-hub
+      build_context: /home/jellybot/projects/cert-study-hub
       dockerfile: Dockerfile
-      restore_note: Requires `/home/jellybot/cert-study-hub`, generated from the local SC-401, MS-102, and AB-900 downloaded course directories.
+      restore_note: Requires `/home/jellybot/projects/cert-study-hub`, generated from the local SC-401, MS-102, and AB-900 downloaded course directories.
     backup: source-repo
     status: active
 
@@ -195,9 +195,9 @@ services:
     description: unauthenticated LAN upload helper | home-network managed on jellyberry
     source:
       type: local-directory
-      local_path: /home/jellybot/image-pastebin
+      local_path: /home/jellybot/projects/image-pastebin
       remote: TBD
-      build_context: /home/jellybot/image-pastebin
+      build_context: /home/jellybot/projects/image-pastebin
       dockerfile: Dockerfile
       restore_note: Requires the image-pastebin source directory; uploads live under `/opt/docker/appdata/image-pastebin/uploads` if retention is needed.
     backup: uploads-if-needed
@@ -522,14 +522,14 @@ services:
     description: Cross-repo 3D model source resolver and previewer for MakerWorld, Printables, Thingiverse, and future Manyfold import; developed on jellyberry, runtime on jellyhome via home-network.
     source:
       type: git
-      local_path: /home/jellybot/3dprint_loader
+      local_path: /home/jellybot/dev_projects/3dprint_loader
       remote: git@github.com:dotalbot/3dprint_loader.git
       branch: feat/initial-mvp-scaffold
-      build_context: /home/jellybot/3dprint_loader
+      build_context: /home/jellybot/dev_projects/3dprint_loader
       dockerfile: backend/Dockerfile and frontend/Dockerfile
       build_contexts:
-        api: /home/jellybot/3dprint_loader/backend
-        web: /home/jellybot/3dprint_loader/frontend
+        api: /home/jellybot/dev_projects/3dprint_loader/backend
+        web: /home/jellybot/dev_projects/3dprint_loader/frontend
       restore_note: Requires source checkout on jellyhome plus /opt/docker appdata/secrets; refresh with git fetch and git pull --ff-only before compose rebuild.
     appdata:
       storage: /opt/docker/appdata/3dprint-loader/storage

@@ -102,7 +102,7 @@ For each host:
 2. Run dry-run:
 
 ```bash
-cd ~/repo/home-network 2>/dev/null || cd /home/jellybot/home-network
+cd ~/repo/home-network 2>/dev/null || cd /home/jellybot/dev_projects/home-network
 scripts/firewall/apply-docker-user-hardening
 ```
 

@@ -60,7 +60,7 @@ Only run during an approved maintenance window.
 
 ```bash
 hostname -s
-cd /home/jellybot/home-network
+cd /home/jellybot/dev_projects/home-network
 git status --short --branch
 git pull --ff-only origin main
 ```

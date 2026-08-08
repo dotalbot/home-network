@@ -8,13 +8,13 @@ URL: `http://192.168.1.159:8787`
 
 Source repository:
 
-- `/home/jellybot/portfolio-intel`
+- `/home/jellybot/dev_projects/portfolio-intel`
 - remote: `git@github.com:dotalbot/portfolio-intel.git`
 
 Runtime paths:
 
 - `/opt/docker/appdata/portfolio-mission-control-v2/data`
-- `/home/jellybot/portfolio-intel`
+- `/home/jellybot/dev_projects/portfolio-intel`
 - host-local environment/secrets in `/home/jellybot/.hermes/.env` when GitHub/private repo access is needed
 
 ## Restore priority
@@ -53,7 +53,7 @@ Do not print tokens from `/home/jellybot/.hermes/.env`.
 
 ```bash
 hostname -s
-cd /home/jellybot/home-network
+cd /home/jellybot/dev_projects/home-network
 git status --short --branch
 git pull --ff-only origin main
 ```
@@ -61,8 +61,8 @@ git pull --ff-only origin main
 2. Restore or clone the app source repository:
 
 ```bash
-test -d /home/jellybot/portfolio-intel/.git || git clone git@github.com:dotalbot/portfolio-intel.git /home/jellybot/portfolio-intel
-cd /home/jellybot/portfolio-intel
+test -d /home/jellybot/dev_projects/portfolio-intel/.git || git clone git@github.com:dotalbot/portfolio-intel.git /home/jellybot/dev_projects/portfolio-intel
+cd /home/jellybot/dev_projects/portfolio-intel
 git pull --ff-only
 ```
 
@@ -88,7 +88,7 @@ test -f /home/jellybot/.hermes/.env
 6. Sync home-network runtime and recreate the service:
 
 ```bash
-cd /home/jellybot/home-network
+cd /home/jellybot/dev_projects/home-network
 ./scripts/sync-docker-config
 cd /opt/docker
 docker compose --env-file .env -f docker-compose.yml -f hosts/jellyberry.yaml up -d --force-recreate portfolio-mission-control-v2

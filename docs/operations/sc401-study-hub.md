@@ -15,7 +15,7 @@ docker/hosts/jellyberry.yaml
 The source remains in:
 
 ```text
-/home/jellybot/sc-100-prep/study-web
+/home/jellybot/projects/sc-100-prep/study-web
 ```
 
 ## URL
@@ -27,7 +27,7 @@ http://jellyberry:8791
 ## Deploy
 
 ```bash
-cd /home/jellybot/home-network
+cd /home/jellybot/dev_projects/home-network
 just sync-docker-config
 just up sc401-study-hub
 ```
@@ -67,7 +67,7 @@ docker compose --env-file .env \
   -f hosts/jellyberry.yaml \
   rm -f sc401-study-hub
 
-cd /home/jellybot/sc-100-prep/study-web
+cd /home/jellybot/projects/sc-100-prep/study-web
 docker compose up -d
 ```
 

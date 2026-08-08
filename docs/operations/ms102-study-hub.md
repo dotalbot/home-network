@@ -15,7 +15,7 @@ docker/hosts/jellyberry.yaml
 The source remains in:
 
 ```text
-/home/jellybot/ms-102-prep/study-web
+/home/jellybot/projects/ms-102-prep/study-web
 ```
 
 ## URL
@@ -28,14 +28,14 @@ http://192.168.1.159:8794
 ## Build source assets
 
 ```bash
-cd /home/jellybot/ms-102-prep
+cd /home/jellybot/projects/ms-102-prep
 python3 build_study_web.py
 ```
 
 ## Deploy
 
 ```bash
-cd /home/jellybot/home-network
+cd /home/jellybot/dev_projects/home-network
 just sync-docker-config
 just up ms102-study-hub
 ```

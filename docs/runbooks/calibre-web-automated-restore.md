@@ -14,7 +14,7 @@ Runtime paths:
 - appdata/config: `/opt/docker/appdata/calibre-web-automated/config`
 - book library root mounted into CWA: `/home/jellyfish/media/Primary_5TB/ebooks_library/Calibre`
 - inbound ingest folder: `/home/jellyfish/media/Primary_5TB/ebooks_inbound`
-- Compose source: `/home/jellyfish/repo/home-network/docker/hosts/jellyhome.yaml` on jellyhome; `/home/jellybot/home-network/docker/hosts/jellyhome.yaml` in the operator source checkout
+- Compose source: `/home/jellyfish/repo/home-network/docker/hosts/jellyhome.yaml` on jellyhome; `/home/jellybot/dev_projects/home-network/docker/hosts/jellyhome.yaml` in the operator source checkout
 
 Host-local secrets, if any, must live under `/opt/docker/.secrets/calibre-web-automated/` and stay out of Git.
 
@@ -83,7 +83,7 @@ Only run during an approved maintenance window after the service has been deploy
 
 ```bash
 hostname -s
-cd /home/jellybot/home-network
+cd /home/jellybot/dev_projects/home-network
 git status --short --branch
 git pull --ff-only origin main
 ```
@@ -131,7 +131,7 @@ test -r "$LIBRARY_PATH"
 7. Re-sync source-managed config and recreate the service:
 
 ```bash
-cd /home/jellybot/home-network
+cd /home/jellybot/dev_projects/home-network
 ./scripts/sync-docker-config
 cd /opt/docker
 docker compose --env-file .env -f docker-compose.yml -f hosts/jellyhome.yaml up -d --force-recreate calibre-web-automated

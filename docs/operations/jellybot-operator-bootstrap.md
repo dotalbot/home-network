@@ -131,7 +131,7 @@ sudo ./scripts/bootstrap-jellybot-operator \
 Run on the new host:
 
 ```bash
-cd /home/jellybot/home-network
+cd /home/jellybot/dev_projects/home-network
 sudo ./scripts/bootstrap-jellybot-operator \
   --github-email jellybot@example.local
 ```
@@ -253,15 +253,15 @@ sudo -iu jellybot docker ps
 Clone `home-network` and any app repos the host will build locally:
 
 ```bash
-sudo -iu jellybot git clone git@github.com:dotalbot/home-network.git /home/jellybot/home-network
-sudo -iu jellybot git clone git@github.com:dotalbot/3dprint_loader.git /home/jellybot/3dprint_loader
+sudo -iu jellybot git clone git@github.com:dotalbot/home-network.git /home/jellybot/dev_projects/home-network
+sudo -iu jellybot git clone git@github.com:dotalbot/3dprint_loader.git /home/jellybot/dev_projects/3dprint_loader
 ```
 
 If the repositories already exist, refresh them safely:
 
 ```bash
-sudo -iu jellybot sh -c 'cd /home/jellybot/home-network && git fetch origin && git pull --ff-only'
-sudo -iu jellybot sh -c 'cd /home/jellybot/3dprint_loader && git fetch origin && git pull --ff-only'
+sudo -iu jellybot sh -c 'cd /home/jellybot/dev_projects/home-network && git fetch origin && git pull --ff-only'
+sudo -iu jellybot sh -c 'cd /home/jellybot/dev_projects/3dprint_loader && git fetch origin && git pull --ff-only'
 ```
 
 ## Verify remote deployment access

@@ -15,7 +15,7 @@ docker/hosts/jellyberry.yaml
 The source remains in:
 
 ```text
-/home/jellybot/image-pastebin
+/home/jellybot/projects/image-pastebin
 ```
 
 ## URL
@@ -39,7 +39,7 @@ This is an unauthenticated LAN helper. Treat it as trusted-LAN/Tailnet-only and 
 ## Deploy
 
 ```bash
-cd /home/jellybot/home-network
+cd /home/jellybot/dev_projects/home-network
 just sync-docker-config
 just up image-pastebin
 ```
@@ -81,7 +81,7 @@ If you need uploaded files after rollback, copy them back first:
 
 ```bash
 rsync -a /opt/docker/appdata/image-pastebin/uploads/ \
-  /home/jellybot/image-pastebin/uploads/
+  /home/jellybot/projects/image-pastebin/uploads/
 ```
 
 Then roll back runtime ownership:
@@ -98,7 +98,7 @@ docker compose --env-file .env \
   -f hosts/jellyberry.yaml \
   rm -f image-pastebin
 
-cd /home/jellybot/image-pastebin
+cd /home/jellybot/projects/image-pastebin
 docker compose up -d
 ```
 

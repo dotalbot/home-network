@@ -116,7 +116,7 @@ services:
 
   3dprint-loader-api:
     build:
-      context: /home/jellybot/3dprint_loader/backend
+      context: /home/jellybot/dev_projects/3dprint_loader/backend
       dockerfile: Dockerfile
     image: 3dprint-loader-api:latest
     container_name: 3dprint-loader-api
@@ -153,7 +153,7 @@ services:
 
   3dprint-loader-web:
     build:
-      context: /home/jellybot/3dprint_loader/frontend
+      context: /home/jellybot/dev_projects/3dprint_loader/frontend
       dockerfile: Dockerfile
     image: 3dprint-loader-web:latest
     container_name: 3dprint-loader-web

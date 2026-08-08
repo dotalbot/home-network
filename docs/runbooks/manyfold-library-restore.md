@@ -12,7 +12,7 @@ URL: `http://192.168.1.1:3214`
 - Manyfold Valkey queue/cache state: `/opt/docker/appdata/manyfold/valkey`
 - 3D model library: `/home/jellyfish/media/Primary_5TB/3D_models`
 - Database: central PostgreSQL `manyfold` database on `jellybase`
-- Compose source: `/home/jellybot/home-network/docker/hosts/jellyhome.yaml`
+- Compose source: `/home/jellybot/dev_projects/home-network/docker/hosts/jellyhome.yaml`
 
 Host-local secrets that must be recreated outside Git:
 
@@ -82,7 +82,7 @@ Only run during an approved maintenance window.
 
 ```bash
 hostname -s
-cd /home/jellybot/home-network
+cd /home/jellybot/dev_projects/home-network
 git status --short --branch
 git pull --ff-only origin main
 ```
@@ -132,7 +132,7 @@ test -r /home/jellyfish/media/Primary_5TB/3D_models
 8. Re-sync source-managed config and recreate services:
 
 ```bash
-cd /home/jellybot/home-network
+cd /home/jellybot/dev_projects/home-network
 ./scripts/sync-docker-config
 cd /opt/docker
 docker compose --env-file .env -f docker-compose.yml -f hosts/jellyhome.yaml up -d --force-recreate manyfold-valkey manyfold

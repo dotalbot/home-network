@@ -2,7 +2,7 @@
 set -euo pipefail
 
 SERVICE_NAME="home-network-seedit4me-reverse-tunnel.service"
-REPO_DIR="${REPO_DIR:-/home/jellybot/home-network}"
+REPO_DIR="${REPO_DIR:-/home/jellybot/dev_projects/home-network}"
 SECRET_DIR="${SECRET_DIR:-/opt/docker/.secrets/seedit4me}"
 SECRET_FILE="${SECRET_FILE:-${SECRET_DIR}/ssh_password}"
 SYSTEMD_SERVICE_SRC="${REPO_DIR}/systemd/${SERVICE_NAME}"
