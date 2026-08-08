@@ -171,6 +171,7 @@ services:
     image: ghcr.io/vectorize-io/hindsight:0.9.0
     container_name: hindsight
     restart: unless-stopped
+    shm_size: "1gb"
     env_file:
       - /opt/docker/.secrets/hindsight/hindsight.env
     environment:
