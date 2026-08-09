@@ -18,7 +18,7 @@ You first SSH to seedit4.me, then connect back through the loopback-only reverse
 
 - Local host: `jellyberry`
 - Local service user: `jellybot`
-- Remote SSH endpoint: `seedit4me@nl13.seedit4.me:2088`
+- Remote SSH endpoint: `seedit4me@nl2.seedit4.me:2115`
 - Remote reverse port: `127.0.0.1:22022`
 - Local target: `127.0.0.1:22`
 
@@ -28,6 +28,8 @@ Source-managed:
 
 ```text
 systemd/home-network-seedit4me-reverse-tunnel.service
+systemd/home-network-seedit4me-tunnel-healthcheck.service
+systemd/home-network-seedit4me-tunnel-healthcheck.timer
 scripts/install-seedit4me-reverse-tunnel
 bootstrap/bootstrap-pi.sh
 ```
@@ -54,9 +56,9 @@ sudo chmod 0640 /opt/docker/.secrets/seedit4me/ssh_password
 ./scripts/install-seedit4me-reverse-tunnel
 ```
 
-The installer installs `sshpass`, confirms the secret is readable by `jellybot`, requires a pinned SSH host key in `/home/jellybot/.ssh/known_hosts`, copies the systemd unit into `/etc/systemd/system/`, enables it, starts it, and verifies that seedit4.me can see the reverse port.
+The installer installs `sshpass` and `autossh`, confirms the secret is readable by `jellybot`, requires a pinned SSH host key in `/home/jellybot/.ssh/known_hosts`, verifies its ED25519 fingerprint against the value below, copies the tunnel and healthcheck units into `/etc/systemd/system/`, restarts/enables them, and verifies that seedit4.me can see the reverse port.
 
-The current observed ED25519 host-key fingerprint for `nl13.seedit4.me:2088` from this setup session is:
+The observed ED25519 host-key fingerprint for `nl2.seedit4.me:2115` is unchanged from the previous endpoint:
 
 ```text
 SHA256:f+lTqShffAxrW96d8Gospx/EWJpEd3k5WA+ieVb47vg
@@ -69,7 +71,7 @@ Verify that fingerprint out-of-band before trusting a fresh rebuilt host. The se
 Step 1: connect to seedit4.me:
 
 ```bash
-ssh -p2088 seedit4me@nl13.seedit4.me
+ssh -p2115 seedit4me@nl2.seedit4.me
 ```
 
 Step 2: from the seedit4.me shell, connect through the tunnel back to `jellyberry`:
@@ -116,12 +118,12 @@ Verify the remote loopback port without printing the password:
 
 ```bash
 sshpass -f /opt/docker/.secrets/seedit4me/ssh_password \
-  ssh -p2088 \
+  ssh -p2115 \
   -o StrictHostKeyChecking=yes \
   -o UserKnownHostsFile=/home/jellybot/.ssh/known_hosts \
   -o PubkeyAuthentication=no \
   -o PreferredAuthentications=password,keyboard-interactive \
-  seedit4me@nl13.seedit4.me \
+  seedit4me@nl2.seedit4.me \
   "timeout 5 bash -lc '</dev/tcp/127.0.0.1/22022' && echo tunnel-open"
 ```
 

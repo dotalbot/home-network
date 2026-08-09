@@ -8,7 +8,7 @@ Create a persistent fallback access path into `jellyberry` for networks that blo
 
 ## Scope
 
-- Establish a reverse SSH tunnel from `jellyberry` to `seedit4me@nl13.seedit4.me:2088`.
+- Establish a reverse SSH tunnel from `jellyberry` to `seedit4me@nl2.seedit4.me:2115`.
 - Bind the remote reverse port to `127.0.0.1:22022` on seedit4.me.
 - Forward that port to `127.0.0.1:22` on `jellyberry`.
 - Store the seedit4me password as a host-local secret outside Git.

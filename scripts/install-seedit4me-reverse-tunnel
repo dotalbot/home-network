@@ -2,16 +2,23 @@
 set -euo pipefail
 
 SERVICE_NAME="home-network-seedit4me-reverse-tunnel.service"
+HEALTHCHECK_SERVICE_NAME="home-network-seedit4me-tunnel-healthcheck.service"
+HEALTHCHECK_TIMER_NAME="home-network-seedit4me-tunnel-healthcheck.timer"
 REPO_DIR="${REPO_DIR:-/home/jellybot/dev_projects/home-network}"
 SECRET_DIR="${SECRET_DIR:-/opt/docker/.secrets/seedit4me}"
 SECRET_FILE="${SECRET_FILE:-${SECRET_DIR}/ssh_password}"
 SYSTEMD_SERVICE_SRC="${REPO_DIR}/systemd/${SERVICE_NAME}"
 SYSTEMD_SERVICE_DST="/etc/systemd/system/${SERVICE_NAME}"
-REMOTE_HOST="${REMOTE_HOST:-nl13.seedit4.me}"
+HEALTHCHECK_SERVICE_SRC="${REPO_DIR}/systemd/${HEALTHCHECK_SERVICE_NAME}"
+HEALTHCHECK_SERVICE_DST="/etc/systemd/system/${HEALTHCHECK_SERVICE_NAME}"
+HEALTHCHECK_TIMER_SRC="${REPO_DIR}/systemd/${HEALTHCHECK_TIMER_NAME}"
+HEALTHCHECK_TIMER_DST="/etc/systemd/system/${HEALTHCHECK_TIMER_NAME}"
+REMOTE_HOST="${REMOTE_HOST:-nl2.seedit4.me}"
 REMOTE_USER="${REMOTE_USER:-seedit4me}"
-REMOTE_SSH_PORT="${REMOTE_SSH_PORT:-2088}"
+REMOTE_SSH_PORT="${REMOTE_SSH_PORT:-2115}"
 REMOTE_TUNNEL_BIND="${REMOTE_TUNNEL_BIND:-127.0.0.1}"
 REMOTE_TUNNEL_PORT="${REMOTE_TUNNEL_PORT:-22022}"
+EXPECTED_ED25519_FINGERPRINT="${EXPECTED_ED25519_FINGERPRINT:-SHA256:f+lTqShffAxrW96d8Gospx/EWJpEd3k5WA+ieVb47vg}"
 SERVICE_USER="${SERVICE_USER:-jellybot}"
 SERVICE_HOME="$(getent passwd "$SERVICE_USER" | cut -d: -f6)"
 KNOWN_HOSTS="${KNOWN_HOSTS:-${SERVICE_HOME}/.ssh/known_hosts}"
@@ -32,6 +39,8 @@ require_file() {
 }
 
 require_file "$SYSTEMD_SERVICE_SRC"
+require_file "$HEALTHCHECK_SERVICE_SRC"
+require_file "$HEALTHCHECK_TIMER_SRC"
 
 if [[ -z "$SERVICE_HOME" ]]; then
   echo "service user $SERVICE_USER not found" >&2
@@ -107,10 +116,29 @@ EOF
   exit 2
 fi
 
-echo "==> Installing systemd service"
+pinned_ed25519_fingerprint="$(
+  "${RUN_AS_SERVICE_USER[@]}" ssh-keygen -F "$KNOWN_HOST_PATTERN" -f "$KNOWN_HOSTS" \
+    | grep ' ssh-ed25519 ' \
+    | ssh-keygen -lf - 2>/dev/null \
+    | awk '{print $2}' \
+    | head -n 1 \
+    || true
+)"
+if [[ "$pinned_ed25519_fingerprint" != "$EXPECTED_ED25519_FINGERPRINT" ]]; then
+  echo "pinned ED25519 fingerprint mismatch for ${KNOWN_HOST_PATTERN}" >&2
+  echo "expected: ${EXPECTED_ED25519_FINGERPRINT}" >&2
+  echo "observed: ${pinned_ed25519_fingerprint:-missing}" >&2
+  exit 1
+fi
+
+echo "==> Installing systemd service and healthcheck units"
 "${SUDO[@]}" install -m 0644 "$SYSTEMD_SERVICE_SRC" "$SYSTEMD_SERVICE_DST"
+"${SUDO[@]}" install -m 0644 "$HEALTHCHECK_SERVICE_SRC" "$HEALTHCHECK_SERVICE_DST"
+"${SUDO[@]}" install -m 0644 "$HEALTHCHECK_TIMER_SRC" "$HEALTHCHECK_TIMER_DST"
 "${SUDO[@]}" systemctl daemon-reload
-"${SUDO[@]}" systemctl enable --now "$SERVICE_NAME"
+"${SUDO[@]}" systemctl enable "$SERVICE_NAME"
+"${SUDO[@]}" systemctl restart "$SERVICE_NAME"
+"${SUDO[@]}" systemctl enable --now "$HEALTHCHECK_TIMER_NAME"
 
 echo "==> Waiting briefly for tunnel establishment"
 sleep 3

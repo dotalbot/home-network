@@ -2,9 +2,9 @@
 set -euo pipefail
 
 SERVICE_NAME="${SERVICE_NAME:-home-network-seedit4me-reverse-tunnel.service}"
-REMOTE_HOST="${REMOTE_HOST:-nl13.seedit4.me}"
+REMOTE_HOST="${REMOTE_HOST:-nl2.seedit4.me}"
 REMOTE_USER="${REMOTE_USER:-seedit4me}"
-REMOTE_SSH_PORT="${REMOTE_SSH_PORT:-2088}"
+REMOTE_SSH_PORT="${REMOTE_SSH_PORT:-2115}"
 REMOTE_TUNNEL_BIND="${REMOTE_TUNNEL_BIND:-127.0.0.1}"
 REMOTE_TUNNEL_PORT="${REMOTE_TUNNEL_PORT:-22022}"
 SECRET_FILE="${SECRET_FILE:-/opt/docker/.secrets/seedit4me/ssh_password}"

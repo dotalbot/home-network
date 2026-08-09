@@ -615,8 +615,10 @@ services:
     systemd_units:
       jellyberry:
         - home-network-seedit4me-reverse-tunnel.service
+        - home-network-seedit4me-tunnel-healthcheck.service
+        - home-network-seedit4me-tunnel-healthcheck.timer
     urls:
-      remote_ssh: ssh://seedit4me@nl13.seedit4.me:2088
+      remote_ssh: ssh://seedit4me@nl2.seedit4.me:2115
       remote_loopback: ssh://127.0.0.1:22022
     description: fallback reverse SSH tunnel for jellyberry when Tailscale is blocked; remote port is loopback-only on seedit4.me
     backup: config-only
