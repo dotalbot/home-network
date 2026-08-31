@@ -10,7 +10,7 @@ Hindsight is the shared long-term memory backend for agent experiments. The goal
 
 - Host: `jellyhome`
 - Container: `hindsight`
-- Image: `ghcr.io/vectorize-io/hindsight:0.9.0`
+- Image: `ghcr.io/vectorize-io/hindsight:0.9.2`
 - API: `http://192.168.1.1:18888` and `http://100.90.175.59:18888`
 - UI: `http://192.168.1.1:9999` and `http://100.90.175.59:9999`
 - Persistent data: `/opt/docker/appdata/hindsight/data`
@@ -22,12 +22,13 @@ The container also uses a stable worker ID: `hindsight-jellyhome`.
 
 Deployment notes:
 
-- Use image tag `ghcr.io/vectorize-io/hindsight:0.9.0` (`v0.9.0` does not exist in GHCR).
+- Use image tag `ghcr.io/vectorize-io/hindsight:0.9.2` (`v0.9.2` does not exist in GHCR).
 - The first startup required correcting appdata ownership so the in-container `hindsight` user could start embedded pg0 successfully.
 
 Upgrade notes:
 
 - Upgraded from `0.6.2` to `0.9.0` on 2026-08-07.
+- Upgrade from `0.9.0` to `0.9.2` prepared on 2026-08-31; live verification is recorded below after deployment.
 - Before upgrading, create a local tar backup of `/opt/docker/appdata/hindsight/data` under `/opt/docker/backups/hindsight/`.
 - Recreate only the `hindsight` Compose service after image changes; do not use `docker compose restart`, because restart does not pick up a changed image tag.
 
@@ -35,16 +36,16 @@ Upgrade notes:
 
 Create `/opt/docker/.secrets/hindsight/hindsight.env` on jellyhome. Do not commit it.
 
-Current working provider choice uses the existing OpenRouter key as an OpenAI-compatible Hindsight provider:
+Current working provider choice uses OpenCode Go through its OpenAI-compatible chat-completions endpoint:
 
 ```env
-HINDSIGHT_API_LLM_PROVIDER=openrouter
-HINDSIGHT_API_LLM_MODEL=openai/gpt-4o-mini
+HINDSIGHT_API_LLM_PROVIDER=openai
+HINDSIGHT_API_LLM_MODEL=glm-5.1
 HINDSIGHT_API_LLM_API_KEY=<secret>
-HINDSIGHT_API_LLM_BASE_URL=https://openrouter.ai/api/v1
+HINDSIGHT_API_LLM_BASE_URL=https://opencode.ai/zen/go/v1
 ```
 
-Reason for the change: the initial `qwen/qwen3.5-9b` choice could answer a direct structured-output probe, but Hindsight retain stalled in `llm.openrouter.retain_extract_facts+structured`. Switching to `openai/gpt-4o-mini` on the same OpenRouter account allowed the end-to-end retain/recall smoke test to complete successfully.
+`glm-5.1` was preflighted against OpenCode Go's documented `/v1/chat/completions` endpoint with a strict JSON schema response before deployment. The earlier OpenRouter `openai/gpt-4o-mini` configuration remains the known-good rollback provider if the Hindsight end-to-end smoke test fails.
 
 If the provider changes later, update only the host-local secret file and redeploy the service.
 
@@ -169,6 +170,12 @@ curl -fsS http://192.168.1.1:9999 >/dev/null
 Use the API and UI checks plus container logs. First startup can take time while embedded pg0 and model assets initialize.
 
 Functional verification status:
+
+2026-08-31 upgrade acceptance (pending live deployment):
+
+- Verify API `/version`, UI `/api/version`, and OpenAPI metadata report `0.9.2` on the live endpoints.
+- Run a temporary-bank retain/recall smoke test using OpenCode Go `glm-5.1`.
+- Record the timestamped `before-0.9.2` appdata backup path.
 
 As of 2026-08-07 after upgrade to `0.9.0`:
 

@@ -1,6 +1,6 @@
 # 013 — Central Hindsight Memory Service
 
-Status: deployed; template pack created; retain/recall smoke test verified after switching the OpenRouter-backed model from qwen/qwen3.5-9b to openai/gpt-4o-mini
+Status: deployed on 0.9.0; 0.9.2/OpenCode Go upgrade prepared and awaiting live acceptance
 
 ## Goal
 
@@ -25,12 +25,12 @@ Non-goals for this first pass:
 ## Decisions
 
 - Host: `jellyhome`.
-- Image: `ghcr.io/vectorize-io/hindsight:0.9.0`.
+- Image: `ghcr.io/vectorize-io/hindsight:0.9.2`.
 - API host port: `18888` (`8888` remains the in-container port).
 - UI port: `9999`.
 - Bind addresses: jellyhome LAN `192.168.1.1` and Tailnet `100.90.175.59` only.
-- First-pass LLM provider: OpenRouter via host-local secret file.
-- Working model after smoke-test diagnosis: `openai/gpt-4o-mini` via OpenRouter.
+- LLM provider: OpenCode Go via host-local secret file and its OpenAI-compatible endpoint.
+- Working model: `glm-5.1`.
 - Memory bank strategy: repo/project banks first, global bank second.
 
 ## Checklist
@@ -51,6 +51,7 @@ Non-goals for this first pass:
 ## Current verified state
 
 - Hindsight container is running on `jellyhome`.
+- Upgrade target is `ghcr.io/vectorize-io/hindsight:0.9.2` with OpenCode Go `glm-5.1`; direct strict structured-output preflight passed, while live Hindsight retain/recall acceptance remains pending.
 - Runtime image is upgraded to `ghcr.io/vectorize-io/hindsight:0.9.0` as of 2026-08-07.
 - LAN and Tailscale API/UI version endpoints verified `0.9.0` after recreate.
 - Pre-upgrade appdata backup was written to `/opt/docker/backups/hindsight/hindsight-data-before-0.9.0-20260807T201853Z.tar.gz`.
