@@ -28,7 +28,7 @@ Deployment notes:
 Upgrade notes:
 
 - Upgraded from `0.6.2` to `0.9.0` on 2026-08-07.
-- Upgrade from `0.9.0` to `0.9.2` prepared on 2026-08-31; live verification is recorded below after deployment.
+- Upgraded from `0.9.0` to `0.9.2` on 2026-08-31 and migrated the LLM provider to OpenCode Go `glm-5.1`.
 - Before upgrading, create a local tar backup of `/opt/docker/appdata/hindsight/data` under `/opt/docker/backups/hindsight/`.
 - Recreate only the `hindsight` Compose service after image changes; do not use `docker compose restart`, because restart does not pick up a changed image tag.
 
@@ -171,11 +171,13 @@ Use the API and UI checks plus container logs. First startup can take time while
 
 Functional verification status:
 
-2026-08-31 upgrade acceptance (pending live deployment):
+As of 2026-08-31 after upgrade to `0.9.2` and provider migration to OpenCode Go:
 
-- Verify API `/version`, UI `/api/version`, and OpenAPI metadata report `0.9.2` on the live endpoints.
-- Run a temporary-bank retain/recall smoke test using OpenCode Go `glm-5.1`.
-- Record the timestamped `before-0.9.2` appdata backup path.
+- API `/version` and UI `/api/version` reported `api_version: 0.9.2` on the LAN endpoint.
+- Startup logs confirmed migrations completed, stable worker `hindsight-jellyhome` started, and the LLM connection verified as `openai/glm-5.1` through the configured OpenCode Go base URL.
+- A temporary-bank async retain completed, recall returned the unique smoke token, and the temporary bank was deleted.
+- Pre-upgrade appdata backup: `/opt/docker/backups/hindsight/hindsight-data-before-0.9.2-20260831T213009Z.tar.gz` (264,520,502 bytes).
+- The previous provider secret was backed up locally on jellyhome under `/opt/docker/backups/hindsight/` with the same timestamp and mode `0600`.
 
 As of 2026-08-07 after upgrade to `0.9.0`:
 

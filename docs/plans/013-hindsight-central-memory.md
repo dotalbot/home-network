@@ -1,6 +1,6 @@
 # 013 — Central Hindsight Memory Service
 
-Status: deployed on 0.9.0; 0.9.2/OpenCode Go upgrade prepared and awaiting live acceptance
+Status: deployed on 0.9.2 with OpenCode Go glm-5.1; provider-backed retain/recall acceptance verified
 
 ## Goal
 
@@ -51,7 +51,9 @@ Non-goals for this first pass:
 ## Current verified state
 
 - Hindsight container is running on `jellyhome`.
-- Upgrade target is `ghcr.io/vectorize-io/hindsight:0.9.2` with OpenCode Go `glm-5.1`; direct strict structured-output preflight passed, while live Hindsight retain/recall acceptance remains pending.
+- Runtime image is `ghcr.io/vectorize-io/hindsight:0.9.2` as of 2026-08-31.
+- Provider is OpenCode Go `glm-5.1`; direct strict structured-output preflight and live Hindsight temporary-bank retain/recall acceptance passed.
+- Pre-upgrade appdata backup is `/opt/docker/backups/hindsight/hindsight-data-before-0.9.2-20260831T213009Z.tar.gz`.
 - Runtime image is upgraded to `ghcr.io/vectorize-io/hindsight:0.9.0` as of 2026-08-07.
 - LAN and Tailscale API/UI version endpoints verified `0.9.0` after recreate.
 - Pre-upgrade appdata backup was written to `/opt/docker/backups/hindsight/hindsight-data-before-0.9.0-20260807T201853Z.tar.gz`.
