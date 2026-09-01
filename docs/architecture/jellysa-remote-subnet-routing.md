@@ -175,10 +175,30 @@ Route-by-route: start advertising with the single first approved `/24` and grow 
 
 | Gap | Detail | Fix (mutation, needs approval) |
 | --- | --- | --- |
-| **accept-routes OFF on operator nodes** | `RouteAll:false` on jellyberry, jellybase, jellyhome → the 9 routes won't install on any verifier | `sudo tailscale set --accept-routes=true` on each operator node |
+| **accept-routes OFF on operator nodes** | `RouteAll:false` on jellyberry, jellybase, jellyhome → the 9 routes won't install on any verifier | `sudo tailscale set --accept-routes=true` per node — read §6.1 first (jellyhome LAN-overlap prerequisite) |
 | WG userspace tools missing | `wg`/`wg-quick` not installed; kernel module unloaded | `apt install wireguard-tools` + `modprobe wireguard` (make persistent) on jellysa |
 | Root-gated reads | prefs/ruleset needed interactive sudo | solved via stored `SUDO_PASSWORD_JELLYSA` (read-only use) |
 | Peer questions Q1–Q7 | peer tunnel IP / server-side `AllowedIPs`; single vs chained peer; NAT/keepalive; MTU; remote DNS | must be answered out-of-band before payload traffic |
+
+### 6.1 accept-routes vs the home-LAN advertisement (verified pitfall — read before flipping)
+
+**jellyhome advertises its LAN `192.168.1.0/24` into the tailnet as a subnet router.** This is the path that lets **off-LAN clients — e.g. your laptop on the road — reach home-network devices such as `192.168.1.254`**. Keep this advertisement; **do not remove it**, or road access to the LAN breaks.
+
+The 9 remote subnets do **not** overlap the LAN (all `192.168.1x/2x/3x` / `192.168.14.0/24`), so accepting them is never the problem. The only collision is jellyhome's *own* LAN advertisement against hosts that sit on that LAN:
+
+- **Off-LAN clients (laptop/phone on the road):** `--accept-routes=true` installs `192.168.1.0/24 via jellyhome` plus jellysa's 9 remote routes — clean, no overlap. Just enable “Use Tailscale subnets” in the Tailscale app.
+- **Hosts physically on the LAN (jellyberry `192.168.1.159`, jellybase `192.168.1.2`):** enabling `accept-routes` makes Tailscale install `192.168.1.0/24` into **table 52**, whose policy rule (`from all lookup 52`, pref 5270) runs **before** `main` — so LAN traffic starts routing via `tailscale0` despite the on-link `eth0` route, breaking local LAN. **Verified live 2026-09-01; recorded as a pitfall in the `home-network-operations` skill.**
+
+Correct reconciliation (choose A or B):
+
+- **(A) Keep the LAN advertisement + targeted on-link rule on LAN members.** Enable `accept-routes` on any LAN-member node that must consume remote routes, and add a durable higher-priority rule so the local LAN still resolves via `main` before table 52:
+  ```bash
+  sudo ip rule add to 192.168.1.0/24 lookup main pref 5260   # 5260 < 5270 (Tailscale table 52)
+  ```
+  Persist with a small systemd `networkd`/`if-up` unit. Remote subnets are unaffected.
+- **(B) Leave LAN members untouched; verify from an off-LAN node.** Only nodes that genuinely consume remote routes get `--accept-routes=true`; during route-by-route rollout verify reachability from an off-LAN device (e.g. the road laptop) rather than jellybase/jellyberry.
+
+Rollout must stay rollback-first: snapshot prefs → enable on ONE node → check `ip route show table 52` + `ip route get 192.168.1.2` + ping LAN → `sudo tailscale set --accept-routes=false` immediately if LAN routing broke, before touching any other node.
 
 ## 7. EVOLUTION — remote sites route back to us (we become a backup destination)
 
