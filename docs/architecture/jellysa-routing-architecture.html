@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>jellysa Remote-Subnet Routing &amp; Backup Evolution</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet"/>
+<style>
+  body{margin:0;background:#020617;color:#cbd5e1;font-family:'JetBrains Mono',monospace;}
+  .wrap{padding:28px;}
+  h1{font-size:16px;font-weight:600;color:#e2e8f0;margin:0 0 2px;display:flex;align-items:center;gap:10px;}
+  h1 .dot{width:9px;height:9px;border-radius:50%;background:#22d3ee;box-shadow:0 0 0 0 rgba(34,211,238,.6);animation:pulse 2s infinite;}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(34,211,238,.55)}80%{box-shadow:0 0 0 8px rgba(34,211,238,0)}100%{box-shadow:0 0 0 0 rgba(34,211,238,0)}}
+  .sub{font-size:11px;color:#64748b;margin:0 0 18px;}
+  .cards{display:flex;gap:14px;margin-top:20px;flex-wrap:wrap;}
+  .card{background:#0f172a;border:1px solid #1e293b;border-radius:10px;padding:12px 16px;min-width:200px;flex:1;}
+  .card h3{font-size:11px;color:#94a3b8;margin:0 0 8px;display:flex;align-items:center;gap:8px;font-weight:600;}
+  .card ul{list-style:none;margin:0;padding:0;}
+  .card li{font-size:10px;color:#cbd5e1;padding:3px 0;}
+  .card-dot{width:8px;height:8px;border-radius:50%;display:inline-block;}
+  .footer{font-size:9px;color:#475569;margin-top:18px;text-align:right;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1><span class="dot"></span> jellysa Remote-Subnet Routing — one-way today, backup evolution</h1>
+  <p class="sub">tailscale0 + wg0 in parallel | 9 approved remote subnets | fail-closed nft | SA Pi 4 · tailnet 100.120.89.41</p>
+
+<svg viewBox="0 0 1060 560" width="1060" height="560" xmlns="http://www.w3.org/2000/svg" style="background:#020617;border:1px solid #1e293b;border-radius:12px;">
+  <defs>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M 40 0 L 0 0 0 40" fill="none" stroke="#1e293b" stroke-width="0.5"/></pattern>
+    <marker id="arrow-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#22d3ee"/></marker>
+    <marker id="arrow-r" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#fb7185"/></marker>
+    <marker id="arrow-c" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#a78bfa"/></marker>
+  </defs>
+  <rect width="1060" height="560" fill="url(#grid)"/>
+
+  <!-- boundaries -->
+  <rect x="14" y="60" width="300" height="430" rx="12" fill="none" stroke="#fbbf24" stroke-width="1.5" stroke-dasharray="8,4"/>
+  <text x="26" y="80" fill="#fbbf24" font-size="10" font-weight="600">OUR TAILNET</text>
+  <rect x="344" y="60" width="340" height="430" rx="12" fill="none" stroke="#22d3ee" stroke-width="1.5" stroke-dasharray="8,4"/>
+  <text x="356" y="80" fill="#22d3ee" font-size="10" font-weight="600">jellysa — SA Pi 4 (South Africa)</text>
+  <rect x="714" y="60" width="332" height="430" rx="12" fill="none" stroke="#fbbf24" stroke-width="1.5" stroke-dasharray="8,4"/>
+  <text x="726" y="80" fill="#fbbf24" font-size="10" font-weight="600">REMOTE SITES (behind single WG peer)</text>
+
+  <!-- phase 1 arrows (cyan), drawn early -->
+  <!-- outbound probe tailnet -> jellysa ts ->
+  <path d="M225 250 C 300 250, 330 215, 355 215" fill="none" stroke="#22d3ee" stroke-width="1.6" marker-end="url(#arrow-a)"/>
+  -->
+  <path d="M225 205 C 300 205, 335 150, 360 150" fill="none" stroke="#22d3ee" stroke-width="1.6" marker-end="url(#arrow-a)"/>
+  <path d="M530 230 L 720 230" fill="none" stroke="#22d3ee" stroke-width="1.6" marker-end="url(#arrow-a)"/>
+  <path d="M715 305 C 760 305, 820 300, 860 300" fill="none" stroke="#22d3ee" stroke-width="1.6" opacity="0" />
+  <!-- evolution inbound (rose dashed) -->
+  <path d="M985 390 C 900 390, 720 430, 566 430" fill="none" stroke="#fb7185" stroke-width="1.6" stroke-dasharray="6,4" marker-end="url(#arrow-r)"/>
+
+  <!-- ============ OUR TAILNET ============ -->
+  <g>
+    <rect x="40" y="120" width="120" height="60" rx="6" fill="#0f172a" stroke="#22d3ee" stroke-width="1.5"/><text x="100" y="112" fill="#cbd5e1" font-size="11" text-anchor="middle" font-weight="600">jellyhome</text><text x="100" y="126" fill="#64748b" font-size="9" text-anchor="middle">100.90.175.59</text><text x="100" y="140" fill="#94a3b8" font-size="8" text-anchor="middle">operator / verifier</text>
+    <rect x="168" y="120" width="120" height="60" rx="6" fill="#0f172a" stroke="#22d3ee" stroke-width="1.5"/><text x="228" y="112" fill="#cbd5e1" font-size="11" text-anchor="middle" font-weight="600">jellybase</text><text x="228" y="126" fill="#64748b" font-size="9" text-anchor="middle">100.125.86.118</text><text x="228" y="140" fill="#94a3b8" font-size="8" text-anchor="middle">verify routes</text>
+    <rect x="40" y="220" width="120" height="60" rx="6" fill="#0f172a" stroke="#22d3ee" stroke-width="1.5"/><text x="100" y="212" fill="#cbd5e1" font-size="11" text-anchor="middle" font-weight="600">jellyberry</text><text x="100" y="226" fill="#64748b" font-size="9" text-anchor="middle">100.68.81.120</text><text x="100" y="240" fill="#94a3b8" font-size="8" text-anchor="middle">this agent host</text>
+    <text x="100" y="330" fill="#fbbf24" font-size="9" text-anchor="middle">need</text>
+    <text x="100" y="344" fill="#fbbf24" font-size="9" text-anchor="middle">--accept-routes=true</text>
+    <text x="100" y="372" fill="#64748b" font-size="8" text-anchor="middle">(currently OFF)</text>
+  </g>
+
+  <!-- ============ jellysa ============ -->
+  <g>
+    <rect x="376" y="120" width="150" height="60" rx="6" fill="#0f172a" stroke="#a78bfa" stroke-width="1.5"/><text x="451" y="112" fill="#e2e8f0" font-size="11" text-anchor="middle" font-weight="600">tailscale0</text><text x="451" y="126" fill="#64748b" font-size="9" text-anchor="middle">100.120.89.41/32</text>
+    <rect x="376" y="220" width="150" height="60" rx="6" fill="#0f172a" stroke="#a78bfa" stroke-width="1.5"/><text x="451" y="212" fill="#e2e8f0" font-size="11" text-anchor="middle" font-weight="600">wg0</text><text x="451" y="226" fill="#64748b" font-size="9" text-anchor="middle">10.10.10.105/32</text><text x="451" y="240" fill="#94a3b8" font-size="8" text-anchor="middle">UDP 13231 to peer</text>
+    <rect x="376" y="330" width="150" height="120" rx="6" fill="rgba(136,19,55,.4)" stroke="#fb7185" stroke-width="1.5"/><text x="451" y="322" fill="#fda4af" font-size="10" text-anchor="middle" font-weight="600">stateful nft forward</text><text x="451" y="338" fill="#fda4af" font-size="9" text-anchor="middle">(fail-closed)</text>
+    <text x="451" y="362" fill="#cbd5e1" font-size="8" text-anchor="middle">tailscale0→wg0 = 9 prefixes</text>
+    <text x="451" y="378" fill="#cbd5e1" font-size="8" text-anchor="middle">wg0→anything NEW = DROP</text>
+    <text x="451" y="394" fill="#cbd5e1" font-size="8" text-anchor="middle">separate table inet jw</text>
+    <text x="451" y="410" fill="#64748b" font-size="8" text-anchor="middle">ip_forward=1 · rp_filter loose</text>
+
+    <text x="451" y="476" fill="#64748b" font-size="8" text-anchor="middle">WG tools not yet installed</text>
+  </g>
+
+  <!-- connective inside jellysa -->
+  <path d="M451 180 L 451 220" stroke="#a78bfa" stroke-width="1.5"/>
+  <path d="M451 280 L 451 330" stroke="#fb7185" stroke-width="1.5" stroke-dasharray="4,3"/>
+
+  <!-- ============ REMOTE ============ -->
+  <g>
+    <rect x="760" y="120" width="250" height="60" rx="6" fill="#0f172a" stroke="#fbbf24" stroke-width="1.5"/><text x="885" y="112" fill="#fbbf24" font-size="11" text-anchor="middle" font-weight="600">peer router</text><text x="885" y="126" fill="#64748b" font-size="9" text-anchor="middle">154.126.215.194:13231</text><text x="885" y="140" fill="#94a3b8" font-size="8" text-anchor="middle">serves all nine subnets (A3)</text>
+    <rect x="760" y="230" width="250" height="52" rx="6" fill="#0f172a" stroke="#fbbf24" stroke-width="1.5"/><text x="885" y="248" fill="#cbd5e1" font-size="10" text-anchor="middle">Andrews Farm · 11/21/31.0/24</text>
+    <rect x="760" y="292" width="250" height="52" rx="6" fill="#0f172a" stroke="#fbbf24" stroke-width="1.5"/><text x="885" y="310" fill="#cbd5e1" font-size="10" text-anchor="middle">Pieter · 12/22.0/24</text>
+    <rect x="760" y="354" width="250" height="52" rx="6" fill="#0f172a" stroke="#fbbf24" stroke-width="1.5"/><text x="885" y="372" fill="#cbd5e1" font-size="10" text-anchor="middle">Chicken farm · 13/23/33.0/24</text>
+    <rect x="760" y="416" width="250" height="52" rx="6" fill="#0f172a" stroke="#fbbf24" stroke-width="1.5"/><text x="885" y="434" fill="#cbd5e1" font-size="10" text-anchor="middle">Lodge · 14.0/24</text>
+  </g>
+
+  <!-- labels -->
+  <text x="300" y="205" fill="#22d3ee" font-size="8" font-weight="600">1? probe</text>
+  <text x="600" y="222" fill="#22d3ee" font-size="8" font-weight="600">NEW → approved remote</text>
+  <text x="600" y="420" fill="#fb7185" font-size="8" font-weight="600" text-anchor="end">EVOLUTION: peer → us (backup)</text>
+
+  <!-- legend -->
+  <g transform="translate(22,500)">
+    <rect x="0" y="0" width="1016" height="38" rx="8" fill="#0f172a" stroke="#1e293b"/>
+    <path d="M20 20 L70 20" stroke="#22d3ee" stroke-width="2" marker-end="url(#arrow-a)"/><text x="80" y="24" fill="#94a3b8" font-size="9">Phase 1 outbound (one-way, NEW tailnet→remote)</text>
+    <path d="M320 20 L370 20" stroke="#fb7185" stroke-width="2" stroke-dasharray="6,4" marker-end="url(#arrow-r)"/><text x="380" y="24" fill="#94a3b8" font-size="9">Evolution: remote→us backup inbound (gated)</text>
+    <rect x="600" y="12" width="14" height="14" rx="2" fill="#0f172a" stroke="#a78bfa"/><text x="622" y="24" fill="#94a3b8" font-size="9">jellysa host interfaces</text>
+    <rect x="760" y="12" width="14" height="14" rx="2" fill="rgba(120,53,15,.3)" stroke="#fbbf24"/><text x="782" y="24" fill="#94a3b8" font-size="9">remote / our-tailnet zones</text>
+    <rect x="930" y="12" width="14" height="14" rx="2" fill="rgba(136,19,55,.4)" stroke="#fb7185"/><text x="952" y="24" fill="#94a3b8" font-size="9">security / rules</text>
+  </g>
+</svg>
+
+  <div class="cards">
+    <div class="card"><h3><span class="card-dot" style="background:#22d3ee"></span>Phase 1 — today</h3><ul>
+      <li>• NEW traffic originates from our tailnet</li>
+      <li>• Targets = 9 approved remote prefixes only</li>
+      <li>• Return = established,related</li>
+      <li>• wg0→anything NEW = DROP</li>
+      <li>• No default route / 0.0.0.0/0</li></ul></div>
+    <div class="card"><h3><span class="card-dot" style="background:#a78bfa"></span>jellysa (SA)</h3><ul>
+      <li>• tailscale0 100.120.89.41 + wg0 10.10.10.105/32</li>
+      <li>• nft fail-closed rules in table <b>inet jw</b></li>
+      <li>• ip_forward=1, rp_filter loose, MTU 1420</li>
+      <li>• WG tools install still pending (sudo)</li></ul></div>
+    <div class="card"><h3><span class="card-dot" style="background:#fb7185"></span>Evolution — backup to us</h3><ul>
+      <li>• E1: peer → jellysa backup repo (INPUT rule)</li>
+      <li>• E2 (future): peer → one tailnet host:port</li>
+      <li>• Peer source pinned to tunnel IP</li>
+      <li>• Only approved backup port open; rest DROP</li></ul></div>
+    <div class="card"><h3><span class="card-dot" style="background:#fbbf24"></span>Blocker</h3><ul>
+      <li>• Operator nodes have accept-routes=false</li>
+      <li>• routes won't install until --accept-routes=true</li>
+      <li>• Peer Q1–Q7 still open (AllowedIPs / NAT)</li></ul></div>
+  </div>
+  <p class="footer">Reference: docs/architecture/jellysa-remote-subnet-routing.md · source plan docs/plans/018 · intent only — nothing applied to live hosts</p>
+</div>
+</body>
+</html>
