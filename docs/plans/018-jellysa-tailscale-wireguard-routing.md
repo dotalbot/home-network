@@ -186,9 +186,11 @@ Assumptions (label explicitly; verify before execution):
   (`.15`, `.19`, `.100`, `.151`) remain out of scope.
 - A4: Our tailnet currently has NO other advertised subnet routes that could
   collide with the nine remote subnets. Verify against admin console.
-- A5: jellysa's only verified backdoor access at plan time is Tailscale SSH;
-  any firewall/mutation work must preserve it or establish a second path
-  first (see "Two independent active access paths" below).
+- A5 **resolved by operator confirmation 2026-09-02:** jellysa has two
+  independent administrative paths: Tailscale SSH and a non-Tailscale remote-
+  control session to a machine on the South Africa LAN, followed by LAN SSH to
+  jellysa at `10.0.0.21` with sudo access. Re-test both immediately before each
+  risky mutation (see "Two independent active access paths" below).
 - A6: WireGuard port is UDP; no TCP fallback exists on the peer.
 
 Peer questions — resolved and remaining (read-only evidence supplied 2026-09-02):
@@ -338,13 +340,17 @@ jellysa unless either:
 - (b) an on-site recovery procedure is confirmed (physical access to the
   Raspberry Pi in South Africa).
 
-At plan time only ONE path is verified (Tailscale SSH). The WireGuard tunnel
-itself is the second path under construction - so the FIRST wg0 bring-up must
-happen while Tailscale is fully up and healthy, wg0 adds NO routing changes
-until the handshake succeeds, and the tunnel is never configured such that
-losing Tailscale would strand access (i.e. wg0 must never become the only
-path). If Tailscale SSH is lost at any point before wg0 is proven, STOP and
-use the on-site/peer recovery path; never attempt blind reconfiguration.
+**Access sub-gate satisfied by operator confirmation on 2026-09-02:**
+
+1. Primary: Tailscale SSH to `100.120.89.41`.
+2. Independent recovery: remote-control a machine at the South Africa site
+   without Tailscale, then use LAN SSH to jellysa at `10.0.0.21` with sudo.
+
+Immediately before every risky mutation, actively test both paths and keep the
+LAN jump-host session available. The WireGuard tunnel under construction does
+not count as either path. The first `wg0` bring-up still adds no remote routing
+until the handshake succeeds. If Tailscale SSH is lost, use the LAN jump-host
+path and the armed watchdog; never attempt blind reconfiguration.
 
 ## Rollback watchdog design (tmux / at / systemd-run)
 

@@ -86,7 +86,10 @@ graph TB
 - Forwarding: `net.ipv4.ip_forward=1` (from `/etc/sysctl.d/99-tailscale-exit-node.conf`); `rp_filter` all=0, per-iface **2 (loose)**.
 - Firewall backend: **nftables / iptables-nft**. Active **Tailscale-managed** `ts-input`/`ts-forward` chains in `table ip filter`/`nat`; `FORWARD` policy `ACCEPT`. No `wg0` rules exist.
 - WireGuard: kernel module `wireguard.ko` **available but not loaded**; **`wg-quick`/`wg` userspace tools NOT installed**; `/etc/wireguard/` absent.
-- Access path: Tailscale SSH as `jellyfish` (passwordless, key-based); sudo needs a password.
+- Access paths: (1) Tailscale SSH as `jellyfish`; (2) operator-confirmed
+  independent recovery by remotely controlling a non-Tailscale machine on the
+  South Africa LAN, then using LAN SSH/sudo to jellysa at `10.0.0.21`. Re-test
+  both immediately before risky mutations.
 - **Gap:** operator nodes have `--accept-routes=false` (§6 blocker).
 
 ## 4. Traffic flow — phase 1 (one-way subnet routing)
