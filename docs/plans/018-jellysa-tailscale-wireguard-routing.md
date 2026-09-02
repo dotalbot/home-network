@@ -225,7 +225,7 @@ Peer questions — resolved and remaining (read-only evidence supplied 2026-09-0
 - **Remaining:** Piet must nominate one safe first target IP, ideally inside
   `192.168.14.0/24`.
 
-## Staged tasks (Stage 0 read-only execution complete; snapshot artifact pending; Stages 1+ not executed)
+## Staged tasks (Stage 0 read-only execution and Stage 1 backup complete; Stage 2+ not executed)
 
 Stage 0 - Read-only preflight (all checks, no mutation):
 
@@ -249,10 +249,20 @@ architecture reference, but no separate dated sanitized command-output
 snapshot has been stored. The acceptance checkbox remains open until that
 artifact exists; do not reconstruct or fabricate raw evidence from summaries.
 
-Stage 1 - Backup/rollback artifacts and access gate (see next sections).
-Confirm two independent access paths or on-site recovery, capture and verify
-the backups, install the reviewed rollback script, and arm the watchdog before
-the first mutation.
+Stage 1 - Backup-only evidence and access gate (see next sections).
+Confirm the independent recovery path, then use an operator-controlled GNU tar
+procedure under the explicit trusted-root, quiescent-source threat model.
+Capture fixed source paths directly into a root-only archive with ACL, xattr,
+ownership, mode, and security-label support. Verify it remotely with GNU tar
+`--compare`, retrieve it into root-equivalent private storage, validate archive
+members before extraction, verify all checksums, and perform a private restore
+test. Retain both archive digests outside jellysa. Stage 1 does not install
+rollback code or arm a watchdog and performs no network, package, service,
+firewall, route, sysctl, Tailscale, or WireGuard mutation.
+
+Immediately before Stage 2, build and review a small mutation-specific
+rollback/watchdog against the exact Stage 2 change set. Arm it only after the
+verified Stage 1 backup exists and both access paths have been re-tested.
 
 Stage 2 - Install and persist the fail-closed firewall **before `wg0` exists**.
 Validate the candidate with `nft --check`, apply `table inet jw` atomically,
@@ -300,10 +310,11 @@ the handshake re-establishes, and the approved route remains correctly scoped.
 
 Stage 7 - Documentation/inventory update (including this plan's status), only
 after live verification evidence is attached.
-## Backup / rollback artifacts
+## Backup-only artifacts and deferred rollback
 
-Before any mutation, capture and verify (on jellysa, stored locally; ship a
-copy to the repo's ops notes only after sanitization - never commit keys):
+Before any mutation, capture and verify on jellysa. Retrieve the archive and
+retain its trusted SHA-256 outside jellysa. Never commit keys or unsanitized
+host-state evidence:
 
 - `/etc/wireguard/wg0.conf` (if exists) - chmod 600, owner root.
 - `/etc/systemd/network/*` or `/etc/network/interfaces` / netplan YAML - the
@@ -313,12 +324,43 @@ copy to the repo's ops notes only after sanitization - never commit keys):
   no secrets - it is host state).
 - Firewall state if present: `sudo nft list ruleset > backup-nft.txt` or
   `sudo ufw status verbose > backup-ufw.txt`.
-- A dated manifest (`backup_YYYYMMDD_HHMM.txt`) listing every file captured
-  with sha256sums, plus the exact Tailscale prefs in effect at backup time
-  (from `tailscale debug prefs`).
-- Rollback artifacts are ONLY usable if an access path survives: the backup
-  tarball must include a `rollback.sh` that restores wg0 + sysctl + firewall
-  from the captured files.
+- Fixed source paths are archived directly; do not use an intermediate
+  `cp -a` tree because GNU `cp --archive` can ignore failures to preserve
+  security contexts and xattrs.
+- The root-only backup directory contains the direct archive, verbose member
+  listing, source presence/absence records, read-only host-state evidence,
+  per-artifact SHA-256 checksums, and a completion marker.
+- GNU tar `--compare` verifies the direct archive against the live quiescent
+  sources. The retrieved transfer bundle and inner configuration archive are
+  independently digested, member-validated before extraction, checksum-
+  verified, and restored into private local directories.
+- No generic rollback script is included in Stage 1. The mutation-specific
+  rollback and watchdog are constructed, reviewed, staged, and armed
+  immediately before Stage 2, once the exact changes are known.
+
+### Stage 1 execution evidence - 2026-09-02
+
+- Operator approval: explicit "go ahead" for the manual trusted-root procedure.
+- Remote authoritative backup:
+  `/root/jellysa-stage1-manual/stage1_20260902T194130Z`, owner `root:root`,
+  mode `0700`; no stale partial directory remains.
+- Direct configuration archive SHA-256:
+  `404fa4bc95d678cf6d1df61376c4f3bfb998c251dccb36accb259229199972ff`.
+- Retrieved transfer bundle SHA-256:
+  `3d6d1175415193d654f85020e5022880baf1a588f06833739337aa9969e4b6e7`.
+- Private local copy (not committed):
+  `/home/jellybot/.hermes/profiles/homenetworkworker/artifacts/`
+  `jellysa-stage1_20260902T194130Z/`.
+- Verification: every recorded artifact checksum passed; outer and inner
+  archive member sets/types/links were validated before extraction; four
+  approved source roots and eight members were restored privately; GNU tar
+  `--compare` passed remotely; routes and policy rules matched their captured
+  baseline.
+- Post-check: `tailscaled` active, Tailscale IP `100.120.89.41`, LAN address
+  `10.0.0.21/24`, and no `wg0`, `table inet jw`, or rollout-owned config file.
+- The temporary `/home/jellyfish` transfer copy was removed after retrieval.
+- No network, package, service, firewall, route, sysctl, Tailscale, or
+  WireGuard configuration was changed.
 
 Restore procedure (template - MUST NOT be run now):
 - If the WireGuard session breaks: `sudo wg-quick down wg0` (removes routes) restores
@@ -640,8 +682,12 @@ Live execution requires explicit operator approval plus re-armed watchdog.
 
 The plan is "proven" only when the following evidence set exists:
 
-- [ ] Preflight snapshot dated and stored (routes, flags, firewall, rp_filter, MTU).
-- [ ] Backup manifest with sha256sums; rollback.sh executable.
+- [x] Stage 1 backup-time host-state snapshot dated and stored privately (routes, flags,
+      firewall, rp_filter, package/service state).
+- [x] Stage 1 backup archive retrieved, checksums verified, and private restore
+      test passed; external digests recorded above.
+- [ ] Mutation-specific rollback and watchdog reviewed, executable, and tested
+      immediately before Stage 2.
 - [ ] `wg0` handshake SUCCESS recorded from another tailnet node.
 - [ ] Each of the nine subnets verified reachable FROM another tailnet node,
       one at a time, with timestamps.
@@ -664,9 +710,11 @@ The plan is "proven" only when the following evidence set exists:
 | --- | --- | --- |
 | Source plan | This document's intent and gates | Planned |
 | Staged config | Templates in this file; restart content, not runtime | Not applied |
-| Live execution | Read-only Stage 0 commands on jellysa/operator nodes plus peer-side read-only RouterOS collection | Completed; **no configuration mutation** |
+| Live execution | Read-only Stage 0 collection plus the Stage 1 backup-only procedure on jellysa | Stage 1 completed; **no network or service configuration mutation** |
 | Tailscale admin route approval | Admin console route enablement | Not performed |
 | ACL/grant policy | Tailnet access rules | Not performed |
 | Proven runtime | Verified working end-to-end after reboot | Not reached |
 
-No success is claimed. This is a plan for review, not a record of execution.
+Stage 1 backup and restore verification succeeded as recorded above. No routing
+rollout, WireGuard handshake, routed-subnet connectivity, persistence, or
+end-to-end operational success is claimed; Stage 2 and later remain unexecuted.
