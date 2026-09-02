@@ -17,22 +17,28 @@
 | Thing | Value |
 | --- | --- |
 | `jellysa` WireGuard tunnel address | `10.10.10.105/32` |
-| Remote WireGuard endpoint (UDP) | `154.126.215.194:13231` |
-| Peer public key | `h7zAUZaAvBpypPUlvKfuaLAdegfuFCMigp16Y7W7nGI=` (public, not secret) |
-| Peer private key | **none available, none invented** |
+| Piet's MikroTik WireGuard interface | `WG-Rhenosterfontein`, `10.10.10.11/24`, MTU `1420` |
+| Remote WireGuard endpoint (UDP) | `154.126.215.194:13231` (Piet's PPPoE WAN) |
+| MikroTik interface public key | `h7zAUZaAvBpypPUlvKfuaLAdegfuFCMigp16Y7W7nGI=` (public, not secret; verified from RouterOS) |
+| MikroTik RouterOS / WAN MTU | RouterOS `7.24.1`; PPPoE actual MTU `1480` |
+| jellysa private/public key state | **Generate a fresh keypair on jellysa.** No matching private key has been verified on jellysa. Replace only `Dom.public-key` with the newly generated jellysa public key. |
+| MikroTik peer policy for `Dom` | `allowed-address=10.10.10.105/32`, `persistent-keepalive=25s` (verified; no handshake yet) |
 | jellysa tailnet IP | `100.120.89.41` |
 | Operator/verifying tailnet nodes | `jellyberry 100.68.81.120`, `jellybase 100.125.86.118`, `jellyhome 100.90.175.59` |
 | jellysa LAN | `10.0.0.21/24`, default via `10.0.0.2` (ordinary default route — WG endpoint must keep using it) |
 
 ### Approved remote subnets (nine)
-| Subnet | Site |
-| --- | --- |
-| `192.168.11.0/24`, `192.168.21.0/24`, `192.168.31.0/24` | Andrews Farm |
-| `192.168.12.0/24`, `192.168.22.0/24` | Pieter |
-| `192.168.13.0/24`, `192.168.23.0/24`, `192.168.33.0/24` | Other chicken farm |
-| `192.168.14.0/24` | Lodge |
+| Subnet | Site | Verified route from Piet's MikroTik |
+| --- | --- | --- |
+| `192.168.11.0/24`, `192.168.21.0/24` | Andrews Farm | directly connected on `bridge1` |
+| `192.168.31.0/24` | Andrews Farm | next hop `192.168.21.254` via `bridge1` |
+| `192.168.12.0/24`, `192.168.22.0/24` | Pieter / Rietfontein side | onward via `WG-Rhenosterfontein` |
+| `192.168.13.0/24`, `192.168.23.0/24`, `192.168.33.0/24` | Other chicken farm | onward via `WG-Rhenosterfontein` |
+| `192.168.14.0/24` | Lodge | onward via `WG-Rhenosterfontein` |
 
-Overlap check (first pass): none of the 1x/2x/3x subnets collide with our LAN `192.168.1.0/24`, tailnet CGNAT `100.64.0.0/10`, or jellysa LAN `10.0.0.0/24`. **Programmatic check is still a preflight gate.**
+Piet's router also has routes for `192.168.15.0/24`, `192.168.19.0/24`, `192.168.100.0/24`, and `192.168.151.0/24`. These are **out of scope and must not be added** unless a later plan explicitly approves them. In particular, an existing route is not permission to advertise it into our tailnet.
+
+Overlap check (first pass): none of the approved 1x/2x/3x subnets collide with our LAN `192.168.1.0/24`, tailnet CGNAT `100.64.0.0/10`, or jellysa LAN `10.0.0.0/24`. **Programmatic check is still a preflight gate.**
 
 ## 3. Architecture
 
@@ -51,18 +57,19 @@ graph TB
     TS --- FW --- WG
   end
 
-  subgraph REMOTE["Remote sites behind single WG peer"]
-    R1["Andrews Farm<br/>192.168.11/21/31.0/24"]
-    R2["Pieter<br/>192.168.12/22.0/24"]
-    R3["Chicken farm<br/>192.168.13/23/33.0/24"]
-    R4["Lodge<br/>192.168.14.0/24"]
-    Peer(("peer router<br/>154.126.215.194:13231"))
+  subgraph REMOTE["Piet's routed network behind MikroTik WG hub"]
+    R1["Direct on bridge1<br/>192.168.11/21.0/24"]
+    R31["via 192.168.21.254<br/>192.168.31.0/24"]
+    R2["Onward WG peers<br/>192.168.12/22.0/24"]
+    R3["Onward WG peers<br/>192.168.13/23/33.0/24"]
+    R4["Onward WG peer<br/>192.168.14.0/24"]
+    Peer(("Piet's MikroTik hub<br/>WG-Rhenosterfontein<br/>10.10.10.11/24<br/>154.126.215.194:13231"))
   end
 
   OUR_TAILNET <--TS--> TS
   jh -.->|"verify routes"| TS
   WG <--UDP WG--> Peer
-  Peer --- R1 & R2 & R3 & R4
+  Peer --- R1 & R31 & R2 & R3 & R4
 
   classDef tailnet fill:rgba(8,51,68,.4),stroke:#22d3ee;
   classDef host fill:rgba(76,29,149,.4),stroke:#a78bfa;
@@ -116,13 +123,13 @@ sequenceDiagram
 Address = 10.10.10.105/32
 PrivateKey = <JELLYSA_WG_PRIVATE_KEY_PLACEHOLDER>   # obtain out-of-band, never commit
 MTU = 1420                                           # lower only after PMTU test
-PersistentKeepalive = 25                             # NAT-safe default
 
 [Peer]
 PublicKey = h7zAUZaAvBpypPUlvKfuaLAdegfuFCMigp16Y7W7nGI=
 Endpoint = 154.126.215.194:13231
-# route-by-route: start with ONE peer-confirmed test host /32, then its /24
-AllowedIPs = <FIRST_PEER_CONFIRMED_TEST_HOST/32>
+PersistentKeepalive = 25                             # NAT-safe default
+# Handshake-only baseline. Add a peer-confirmed remote test host /32 in Stage 5.
+AllowedIPs = 10.10.10.11/32
 ```
 
 ### 5.2 Forwarding scope — `/etc/sysctl.d/99-jellysa-wg-routing.conf` (preserve existing exit-node value)
@@ -134,42 +141,63 @@ net.ipv4.ip_forward = 1
 Do **not** set `ip_forward=0` — the existing Tailscale exit-node role and subnet routing both need it.
 
 ### 5.3 Stateful fail-closed ruleset — **candidate**, separate nft table (NOT Tailscale's managed tables)
-> Backend is nftables (iptables-nft). Tailscale owns `table ip filter`/`nat` (warns "do not touch"). Put wg rules in a **new** table `inet jw` and ensure its forward hook runs **before** Tailscale's `ts-forward` (which ACCEPTs traffic to `tailscale0` broadly). Validate ordering live — this is a template.
+> Backend is nftables (iptables-nft). Tailscale owns `table ip filter`/`nat` (warns "do not touch"). Put wg rules in a **new** table `inet jw` and ensure its input/forward hooks run **before** Tailscale's chains. Piet's MikroTik currently permits broad NEW forwarding from `10.10.10.0/24` through its WireGuard interface, so jellysa must protect both local services (**INPUT**) and the tailnet (**FORWARD**). Validate with `nft --check`, apply atomically under an armed rollback watchdog, and make the ruleset persist through `nftables.service` **before** enabling `wg-quick@wg0.service`. Verify the live hook order and external Tailscale SSH before proceeding. This remains a template.
 
 ```
 #!/usr/sbin/nft -f
 table inet jw {
-  set approved_prefixes { type ipv4_addr; flags interval;
-    elements = { 192.168.11.0/24, 192.168.21.0/24, 192.168.31.0/24,
-                 192.168.12.0/24, 192.168.22.0/24,
-                 192.168.13.0/24, 192.168.23.0/24, 192.168.33.0/24,
-                 192.168.14.0/24 } }
+  # Initially empty. Stage 5 adds only the current cumulative proven prefixes,
+  # atomically updating both the live set and its persisted source.
+  set enabled_prefixes { type ipv4_addr; flags interval; }
 
-  chain forward { type filter hook forward priority filter - 1; policy accept;
-    iifname "wg0" jump filter_wg
-    oifname "wg0" ip daddr @approved_prefixes ct state new,established accept
-    oifname "wg0" ct state established,related accept
-    oifname "wg0" drop
+  chain input { type filter hook input priority filter - 1; policy accept;
+    # WireGuard's encrypted UDP transport arrives on the ordinary WAN path;
+    # these rules govern only decrypted packets emerging from wg0.
+    iifname "wg0" ct state established,related accept
+    # evolution §7: a deliberate inbound backup exception goes before this drop.
+    iifname "wg0" drop
   }
 
-  chain filter_wg {
-    oifname "tailscale0" ip daddr @approved_prefixes ct state established,related accept
-    # evolution §7: deliberate inbound exception lives here
-    ip daddr @backup_dst tcp dport @backup_ports ct state new,established accept
-    drop
+  chain forward { type filter hook forward priority filter - 1; policy accept;
+    # Return traffic only toward tailscale0 for flows initiated there.
+    iifname "wg0" oifname "tailscale0" ct state established,related accept
+    # Phase 1: no NEW traffic may originate from any MikroTik-side WG peer.
+    iifname "wg0" drop
+
+    # Only tailscale0 may initiate toward approved remote prefixes.
+    iifname "tailscale0" oifname "wg0" ip daddr @enabled_prefixes ct state new,established accept
+    oifname "wg0" drop
   }
 }
 ```
 
-### 5.4 Tailscale advertisement — **corrected** Stage-4 (decision: DROP exit-node, advertise only the nine)
-```bash
-# Remove dormant exit-node default-route advertisement, advertise all nine, then read back.
-sudo tailscale set \
-  --advertise-exit-node=false \
-  --advertise-routes=192.168.11.0/24,192.168.21.0/24,192.168.31.0/24,192.168.12.0/24,192.168.22.0/24,192.168.13.0/24,192.168.23.0/24,192.168.33.0/24,192.168.14.0/24
-sudo tailscale debug prefs   # verify: AdvertiseRoutes == the nine, AdvertiseExitNode == false, no 0.0.0.0/0
+Enforce the ordering instead of relying on incidental target timing:
+
+```ini
+# /etc/systemd/system/wg-quick@wg0.service.d/10-nftables-first.conf
+[Unit]
+Requires=nftables.service
+After=nftables.service
 ```
-Route-by-route: start advertising with the single first approved `/24` and grow the list only after each external verification. **Admin-console route approval is a separate gate — an advertised route is inert until approved.**
+
+Run `systemctl daemon-reload`; enable `nftables.service` and
+`wg-quick@wg0.service`; then verify `Requires=` and `After=` with
+`systemctl show`. Start `wg0` through the selected service so the persistent
+and tested path are the same. Rollback must restore prior enablement state.
+
+### 5.4 Tailscale advertisement — cumulative, one route at a time
+```bash
+# First route only. Preserve the existing exit-node capability explicitly.
+sudo tailscale set \
+  --advertise-routes=192.168.14.0/24 \
+  --advertise-exit-node=true
+sudo tailscale debug prefs
+```
+For each subsequent route, pass the **complete cumulative proven list** to
+`--advertise-routes`; the flag replaces rather than appends to the advertised
+route list. Never advertise all nine initially. Install the restrictive ACL/
+grant policy before approving the first route in the admin console. Advertising,
+admin approval, and ACL/grant policy are separate gates.
 
 ## 6. Precondition gaps (must close before live use)
 
@@ -178,7 +206,9 @@ Route-by-route: start advertising with the single first approved `/24` and grow 
 | **accept-routes OFF on operator nodes** | `RouteAll:false` on jellyberry, jellybase, jellyhome → the 9 routes won't install on any verifier | `sudo tailscale set --accept-routes=true` per node — read §6.1 first (jellyhome LAN-overlap prerequisite) |
 | WG userspace tools missing | `wg`/`wg-quick` not installed; kernel module unloaded | `apt install wireguard-tools` + `modprobe wireguard` (make persistent) on jellysa |
 | Root-gated reads | prefs/ruleset needed interactive sudo | solved via stored `SUDO_PASSWORD_JELLYSA` (read-only use) |
-| Peer questions Q1–Q7 | peer tunnel IP / server-side `AllowedIPs`; single vs chained peer; NAT/keepalive; MTU; remote DNS | must be answered out-of-band before payload traffic |
+| jellysa key ownership | MikroTik already has a `Dom` peer public key, but no matching jellysa private key has been verified | Generate a fresh keypair on jellysa and have Piet replace only `Dom.public-key`; never invent/reuse a key without its private half |
+| First safe test target | No approved concrete target IP supplied yet | Piet to nominate one host, ideally inside `192.168.14.0/24`; handshake itself is verified with `wg show` before sending payload |
+| Remote DNS | Not supplied | Use IP-only tests for phase 1; DNS remains optional/later |
 
 ### 6.1 accept-routes vs the home-LAN advertisement (verified pitfall — read before flipping)
 

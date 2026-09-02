@@ -2,7 +2,7 @@
 
 **Purpose:** unblock plan 018 (jellysa Tailscale + WireGuard) by collecting the few peer-side facts that cannot be guessed. This is **read-only** — none of these commands change anything on the remote router. For the operator at `154.126.215.194:13231`.
 
-> Security: **never send private keys or passwords.** All values requested below are public/tunnel config (a WG public key is not secret). The only secret on the MikroTik is its `private-key`, which must stay on the box.
+> Security: **never send private keys, preshared keys, passwords, PPPoE credentials, or output produced with `show-sensitive`.** The requested WireGuard public key and tunnel-routing values are not secrets.
 
 ---
 
@@ -17,13 +17,13 @@
 > **1. Your tunnel address (the peer side we tunnel to).** In a MikroTik terminal (Winbox → New Terminal, or WebFig → Terminal, or SSH):
 > ```
 > /interface wireguard print detail
-> /ip address print where interface=wireguard1
+> /ip address print detail where interface="WG-Rhenosterfontein"
 > ```
 > Send us: the WireGuard interface name, its **IP/prefix** (that's your tunnel address), the **MTU**, and confirm the **public key** shown matches ours: `h7zAUZaAvBpypPUlvKfuaLAdegfuFCMigp16Y7W7nGI=`.
 >
 > **2. What your router will route back to us.** For the peer entry that represents us (jellysa), send us its `allowed-address`. Standard behaviour would be `10.10.10.105/32` — please confirm, because that value is what determines return routing to our tunnel IP. Also send its `persistent-keepalive` if set.
 > ```
-> /interface wireguard peers print detail
+> /interface wireguard peers print detail where name="Dom"
 > ```
 >
 > **3. How the nine subnets route on your side (single hop vs second hop).** Send us the gateway/interface for each of: `192.168.11/21/31`, `192.168.12/22`, `192.168.13/23/33`, `192.168.14` (all `.0/24`). Specifically: are they all reachable **directly** through the WireGuard-facing router, or does any need a **second hop / another gateway** (i.e. are they behind more than one device)?
@@ -59,8 +59,8 @@ How to run: **Winbox** login → top-left **New Terminal**; **WebFig** → **Ter
 Paste this whole block into the terminal (read-only):
 ```
 /interface wireguard print detail
-/interface wireguard peers print detail
-/ip address print where interface=wireguard1
+/interface wireguard peers print detail where name="Dom"
+/ip address print detail where interface="WG-Rhenosterfontein"
 /ip route print detail
 /ip firewall filter print
 /ip firewall nat print
@@ -68,13 +68,11 @@ Paste this whole block into the terminal (read-only):
 /interface pppoe-client print
 /system resource print
 ```
-If the WG interface is not named `wireguard1`, adjust the `/ip address` filter to the real name from the first command (or just run `/ip address print` and pick it out).
+The live interface is now confirmed as `WG-Rhenosterfontein`; keep the quoted name because it contains a hyphen.
 
-To pull **exactly the peer entry for jellysa** (once our public key is installed) by key:
-```
-/interface wireguard peers print detail where public-key=="<jellysa-public-key>"
-```
-(Until our key is installed, run the full `/interface wireguard peers print detail` and identify ours by comment/description.)
+The `name="Dom"` filter is intentional: it avoids collecting unrelated peers' public keys, names, traffic counters, and current endpoint IPs. If the peer has a different name, identify it locally in Winbox and substitute that exact name; do not send a full peer dump.
+
+The route/firewall/NAT/interface commands are broader because their rule order and next hops matter. Before sending their output outside the trusted operator group, redact unrelated public endpoint IPs, peer/customer names, interface comments, PPPoE usernames, and any accidental credential material. Never use `show-sensitive`.
 
 ---
 
@@ -83,7 +81,7 @@ To pull **exactly the peer entry for jellysa** (once our public key is installed
 | # | Command | Value requested | Answers |
 |---|---|---|---|
 | 1 | `/interface wireguard print detail` + `/ip address print where interface=<wg>` | server tunnel IP/prefix, MTU, public key | **Q1** (peer tunnel address / subnet layout), Q6 (MTU) |
-| 2 | `/interface wireguard peers print detail` | `allowed-address` + `persistent-keepalive` for the jellysa peer | **Q1** (return routing / server-side AllowedIPs), Q4 (NAT/keepalive) |
+| 2 | `/interface wireguard peers print detail where name="Dom"` | `allowed-address` + `persistent-keepalive` for the jellysa peer | **Q1** (return routing / server-side AllowedIPs), Q4 (NAT/keepalive) |
 | 3 | `/ip route print detail` | gateway/interface for each of the 9 subnets | **Q2** (single peer vs second hop), Q5 (route overlap sanity) |
 | 4 | `/ip firewall filter print` / `/ip firewall nat print` | whether `10.10.10.105` is allowed; masquerade/NAT | **Q3** (source accepted by peer firewall), Q4 (NAT) |
 | 5 | `/interface print` / `/interface pppoe-client print` | WAN/tunnel MTU, PPPoE presence | **Q6** (forced tunnel MTU) |
@@ -93,7 +91,23 @@ To pull **exactly the peer entry for jellysa** (once our public key is installed
 
 ---
 
-## PART D — Things we already know about the peer (do not re-ask)
-- Remote WireGuard endpoint: `154.126.215.194:13231` (UDP).
-- Peer public key: `h7zAUZaAvBpypPUlvKfuaLAdegfuFCMigp16Y7W7nGI=` (the MikroTik's WG key; **public**, not secret).
-- Then offset the tunnel: the supplied `10.10.10.105/32` is **jellysa's** address only; the MikroTik's own tunnel IP and its `allowed-address` for us are what PART A #1/#2 extract.
+## PART D — Verified peer facts received from Piet (2026-09-02)
+- Remote endpoint is Piet's MikroTik WAN: `154.126.215.194:13231/udp`.
+- Router: MikroTik RouterOS `7.24.1`; WG interface `WG-Rhenosterfontein` is running.
+- MikroTik WG address: `10.10.10.11/24`; interface public key matches `h7zAUZaAvBpypPUlvKfuaLAdegfuFCMigp16Y7W7nGI=`; MTU `1420`.
+- PPPoE actual MTU is `1480`, so IPv4 WireGuard MTU `1420` fits exactly; retain PMTU testing as a gate.
+- Existing MikroTik peer named `Dom`: `allowed-address=10.10.10.105/32`, `persistent-keepalive=25s`, no handshake yet.
+- Approved route topology from Piet's router:
+  - directly connected: `192.168.11.0/24`, `192.168.21.0/24`;
+  - via next hop `192.168.21.254`: `192.168.31.0/24`;
+  - onward through Piet's WireGuard hub: `192.168.12.0/24`, `192.168.22.0/24`, `192.168.13.0/24`, `192.168.23.0/24`, `192.168.33.0/24`, `192.168.14.0/24`.
+- Other routed networks (`192.168.15.0/24`, `.19.0/24`, `.100.0/24`, `.151.0/24`) are **not approved** and stay excluded.
+- The MikroTik firewall permits broad NEW forwarding for source `10.10.10.0/24` through the WG interface. Our phase-1 safety therefore depends on fail-closed INPUT and FORWARD rules on jellysa (and ideally a narrow destination-side rule on Piet's router later).
+
+
+## PART E — Remaining answers/actions (do not start the tunnel until resolved)
+1. **Key replacement required:** no matching private key has been verified on jellysa. Generate a fresh keypair on jellysa and ask Piet to replace **only** the `Dom` peer's `public-key`. Never request, transfer, or commit either side's private key.
+2. **First target:** Piet must nominate one safe test host, ideally one IP inside `192.168.14.0/24`.
+3. **Remote DNS:** confirm IP-only testing is acceptable for phase 1 (recommended).
+4. **Return path on onward routers:** ask Piet to confirm the Rietfontein/onward WireGuard routers **and the `192.168.21.254` second-hop router for `192.168.31.0/24`** route replies for `10.10.10.105/32` back through `WG-Rhenosterfontein`. His central MikroTik has the correct `Dom /32`, but every far-side/second-hop router must also return traffic to it.
+5. **Defence in depth:** before live routing, review a MikroTik rule placed before the broad inter-peer accepts that drops NEW WG traffic destined to `10.10.10.105` while phase 1 is one-way. Established replies remain allowed. This is a coordinated future mutation, not part of information gathering.

@@ -41,7 +41,7 @@
   <rect x="344" y="60" width="340" height="430" rx="12" fill="none" stroke="#22d3ee" stroke-width="1.5" stroke-dasharray="8,4"/>
   <text x="356" y="80" fill="#22d3ee" font-size="10" font-weight="600">jellysa — SA Pi 4 (South Africa)</text>
   <rect x="714" y="60" width="332" height="430" rx="12" fill="none" stroke="#fbbf24" stroke-width="1.5" stroke-dasharray="8,4"/>
-  <text x="726" y="80" fill="#fbbf24" font-size="10" font-weight="600">REMOTE SITES (behind single WG peer)</text>
+  <text x="726" y="80" fill="#fbbf24" font-size="10" font-weight="600">REMOTE SITES (via Piet's WG hub)</text>
 
   <!-- phase 1 arrows (cyan), drawn early -->
   <!-- outbound probe tailnet -> jellysa ts ->
@@ -82,11 +82,11 @@
 
   <!-- ============ REMOTE ============ -->
   <g>
-    <rect x="760" y="120" width="250" height="60" rx="6" fill="#0f172a" stroke="#fbbf24" stroke-width="1.5"/><text x="885" y="112" fill="#fbbf24" font-size="11" text-anchor="middle" font-weight="600">peer router</text><text x="885" y="126" fill="#64748b" font-size="9" text-anchor="middle">154.126.215.194:13231</text><text x="885" y="140" fill="#94a3b8" font-size="8" text-anchor="middle">serves all nine subnets (A3)</text>
-    <rect x="760" y="230" width="250" height="52" rx="6" fill="#0f172a" stroke="#fbbf24" stroke-width="1.5"/><text x="885" y="248" fill="#cbd5e1" font-size="10" text-anchor="middle">Andrews Farm · 11/21/31.0/24</text>
-    <rect x="760" y="292" width="250" height="52" rx="6" fill="#0f172a" stroke="#fbbf24" stroke-width="1.5"/><text x="885" y="310" fill="#cbd5e1" font-size="10" text-anchor="middle">Pieter · 12/22.0/24</text>
-    <rect x="760" y="354" width="250" height="52" rx="6" fill="#0f172a" stroke="#fbbf24" stroke-width="1.5"/><text x="885" y="372" fill="#cbd5e1" font-size="10" text-anchor="middle">Chicken farm · 13/23/33.0/24</text>
-    <rect x="760" y="416" width="250" height="52" rx="6" fill="#0f172a" stroke="#fbbf24" stroke-width="1.5"/><text x="885" y="434" fill="#cbd5e1" font-size="10" text-anchor="middle">Lodge · 14.0/24</text>
+    <rect x="760" y="120" width="250" height="60" rx="6" fill="#0f172a" stroke="#fbbf24" stroke-width="1.5"/><text x="885" y="112" fill="#fbbf24" font-size="11" text-anchor="middle" font-weight="600">Piet's MikroTik WG hub</text><text x="885" y="126" fill="#64748b" font-size="9" text-anchor="middle">10.10.10.11/24 · WAN :13231</text><text x="885" y="140" fill="#94a3b8" font-size="8" text-anchor="middle">RouterOS 7.24.1 · MTU 1420</text>
+    <rect x="760" y="230" width="250" height="52" rx="6" fill="#0f172a" stroke="#fbbf24" stroke-width="1.5"/><text x="885" y="248" fill="#cbd5e1" font-size="10" text-anchor="middle">Direct: 11/21 · via 21.254: 31</text>
+    <rect x="760" y="292" width="250" height="52" rx="6" fill="#0f172a" stroke="#fbbf24" stroke-width="1.5"/><text x="885" y="310" fill="#cbd5e1" font-size="10" text-anchor="middle">Onward WG · 12/22.0/24</text>
+    <rect x="760" y="354" width="250" height="52" rx="6" fill="#0f172a" stroke="#fbbf24" stroke-width="1.5"/><text x="885" y="372" fill="#cbd5e1" font-size="10" text-anchor="middle">Onward WG · 13/23/33.0/24</text>
+    <rect x="760" y="416" width="250" height="52" rx="6" fill="#0f172a" stroke="#fbbf24" stroke-width="1.5"/><text x="885" y="434" fill="#cbd5e1" font-size="10" text-anchor="middle">Onward WG · Lodge 14.0/24</text>
   </g>
 
   <!-- labels -->
@@ -111,21 +111,23 @@
       <li>• Targets = 9 approved remote prefixes only</li>
       <li>• Return = established,related</li>
       <li>• wg0→anything NEW = DROP</li>
-      <li>• No default route / 0.0.0.0/0</li></ul></div>
+      <li>• No wg0 default / 0.0.0.0/0 AllowedIPs</li></ul></div>
     <div class="card"><h3><span class="card-dot" style="background:#a78bfa"></span>jellysa (SA)</h3><ul>
       <li>• tailscale0 100.120.89.41 + wg0 10.10.10.105/32</li>
       <li>• nft fail-closed rules in table <b>inet jw</b></li>
       <li>• ip_forward=1, rp_filter loose, MTU 1420</li>
-      <li>• WG tools install still pending (sudo)</li></ul></div>
+      <li>• WG tools install still pending (sudo)</li>
+      <li>• Fresh jellysa keypair / Dom key replacement required</li></ul></div>
     <div class="card"><h3><span class="card-dot" style="background:#fb7185"></span>Evolution — backup to us</h3><ul>
       <li>• E1: peer → jellysa backup repo (INPUT rule)</li>
       <li>• E2 (future): peer → one tailnet host:port</li>
       <li>• Peer source pinned to tunnel IP</li>
       <li>• Only approved backup port open; rest DROP</li></ul></div>
-    <div class="card"><h3><span class="card-dot" style="background:#fbbf24"></span>Blocker</h3><ul>
+    <div class="card"><h3><span class="card-dot" style="background:#fbbf24"></span>Remaining gates</h3><ul>
       <li>• Operator nodes have accept-routes=false</li>
       <li>• routes won't install until --accept-routes=true</li>
-      <li>• Peer Q1–Q7 still open (AllowedIPs / NAT)</li></ul></div>
+      <li>• Safe test target + complete downstream return paths</li>
+      <li>• Confirm IP-only phase-1 testing</li></ul></div>
   </div>
   <p class="footer">Reference: docs/architecture/jellysa-remote-subnet-routing.md · source plan docs/plans/018 · intent only — nothing applied to live hosts</p>
 </div>

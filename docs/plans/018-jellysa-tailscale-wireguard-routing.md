@@ -1,9 +1,9 @@
 # 018 - jellysa Tailscale + WireGuard routing
 
-Status: planned - documentation only, for operator review
+Status: planned - read-only preflight executed; snapshot artifact pending; no configuration applied
 Number: 018
 Date created: 2026-09-01
-Last updated: 2026-09-01
+Last updated: 2026-09-02
 
 ## Purpose of this document
 
@@ -12,11 +12,12 @@ second, fail-safe network path by running `tailscale0` and `wg0` in parallel and
 advertising nine approved remote routes into our tailnet. The design is
 fail-closed for a host where losing Tailscale would strand access.
 
-Nothing in this document has been executed. No host or endpoint was contacted,
-no network probes or SSH were run, no sudo or service commands were issued, and
-no git commit/push happened. Commands below are templates for operator use;
-
-they must be reviewed and approved before any live execution.
+Read-only Stage 0 has now been performed on jellysa and from operator nodes,
+and Piet supplied read-only MikroTik output on 2026-09-02. No WireGuard
+packages, keys, interfaces, routes, firewall rules, Tailscale advertisements,
+ACLs, services, or reboot changes have been applied. Commands below remain
+templates for operator review unless a section explicitly identifies captured
+read-only evidence.
 
 ## Supplied peer facts (verbatim)
 
@@ -42,10 +43,11 @@ Remote routed subnets (nine total):
 | 192.168.33.0/24 | Other chicken farm |
 | 192.168.14.0/24 | Lodge |
 
-Important boundary note: the supplied `10.10.10.105/32` alone does NOT reveal
-the peer's own tunnel IP or its return-routing expectations. Before finalizing
-config we must obtain the peer's WireGuard tunnel address or confirm
-server-side `AllowedIPs`/route behavior (see Unresolved peer questions).
+Important boundary note (resolved 2026-09-02): Piet's MikroTik owns
+`10.10.10.11/24` on `WG-Rhenosterfontein`; its existing `Dom` peer allows
+`10.10.10.105/32` with `PersistentKeepalive=25s`. No matching private key has
+been verified on jellysa, so generate a fresh jellysa keypair and replace only
+`Dom.public-key` with the new public key.
 
 ## Architecture target
 
@@ -67,7 +69,9 @@ Our tailnet                 jellysa (South Africa)                 Remote sites
 - jellysa advertises ONLY the nine remote routes above into our tailnet.
 - Access is one-way initiated from our tailnet to explicitly approved remote
   destinations. No friend-initiated access into our tailnet.
-- No default route. No `0.0.0.0/0`. No broad forwarding.
+- No default route through `wg0`; no `0.0.0.0/0` in WireGuard `AllowedIPs`;
+  no broad forwarding. The existing Tailscale exit-node capability remains a
+  separate, intentionally preserved advertisement.
 - Tailscale's subnet-router SNAT default is accounted for: connections
   initiated by approved tailnet nodes towards the remote subnets are normally
   SNATed to jellysa's egress address on `wg0`. Return packets are permitted as
@@ -113,9 +117,9 @@ Our tailnet                 jellysa (South Africa)                 Remote sites
 
 3. ACL/grant policy
    Tailnet-side ACLs must grant only tailnet users/devices that are explicitly
-   approved for these routes. Subnet route approval in the Tailscale admin
-   console is a separate gate from host config; both must be in place before
-   live advertising.
+   approved for these routes. Install and validate the restrictive ACL/grant
+   before admin-console route approval. The host must advertise a route before
+   the admin can approve it; advertising alone is inert.
 
 4. Remote subnet overlap checks
    The nine subnets must not collide with our LAN `192.168.1.0/24`,
@@ -163,7 +167,7 @@ Our tailnet                 jellysa (South Africa)                 Remote sites
     systemd unit), and the persisted Tailscale prefs must be idempotent so both
     interfaces come back automatically after reboot without operator
     intervention.
-## Assumptions and unresolved peer questions
+## Assumptions and peer questions (resolved + remaining)
 
 Assumptions (label explicitly; verify before execution):
 
@@ -171,11 +175,15 @@ Assumptions (label explicitly; verify before execution):
   (tailnet/node `100.120.89.41`, exit-node advertised via
   `/etc/sysctl.d/99-tailscale-exit-node.conf`). Verify by preflight, never by
   assumption.
-- A2: The peer at `154.126.215.194:13231` is the WireGuard peer that holds the
-  private half of the supplied public key and serves the nine remote subnets.
-  Confirm out-of-band before sending any traffic.
-- A3: The nine subnets are served contiguously behind the single remote peer
-  (one tunnel, multiple routes) rather than via nested/chained routing.
+- A2 (resolved 2026-09-02 from Piet's RouterOS output): `154.126.215.194:13231`
+  is Piet's PPPoE WAN and terminates on running MikroTik interface
+  `WG-Rhenosterfontein`; the interface public key matches the supplied key.
+- A3 (resolved/corrected 2026-09-02): Piet's MikroTik is a hub, not a single
+  flat next hop. It directly connects `192.168.11.0/24` and
+  `192.168.21.0/24`; routes `192.168.31.0/24` via `192.168.21.254`; and
+  routes `192.168.12.0/24`, `.22.0/24`, `.13.0/24`, `.23.0/24`, `.33.0/24`,
+  and `.14.0/24` onward through `WG-Rhenosterfontein`. Other visible routes
+  (`.15`, `.19`, `.100`, `.151`) remain out of scope.
 - A4: Our tailnet currently has NO other advertised subnet routes that could
   collide with the nine remote subnets. Verify against admin console.
 - A5: jellysa's only verified backdoor access at plan time is Tailscale SSH;
@@ -183,31 +191,39 @@ Assumptions (label explicitly; verify before execution):
   first (see "Two independent active access paths" below).
 - A6: WireGuard port is UDP; no TCP fallback exists on the peer.
 
-Unresolved peer questions (must be answered before live rollout):
+Peer questions — resolved and remaining (read-only evidence supplied 2026-09-02):
 
-- Q1: What is the peer's OWN WireGuard tunnel address/return-routing
-  expectation? The supplied `10.10.10.105/32` is jellysa's address only; it
-  does not reveal the peer tunnel IP or its `AllowedIPs` on the server side.
-  Obtain the peer tunnel IP or confirm server-side AllowedIPs/route behavior,
-  otherwise return traffic may never leave the peer.
-- Q2: Which subnets are reachable ONLY through this peer, and is the peer a
-  full router for all nine (as opposed to some subnets being behind a second
-  hop)?
-- Q3: Does the peer firewall restrict which source addresses may connect?
-  Our tailnet egress will appear as `10.10.10.105` after SNAT; confirm this
-  is acceptable to the peer.
-- Q4: Is either side behind stateful NAT, and does the peer require a different
-  keepalive? Use `PersistentKeepalive = 25` for the initial remote/NAT-safe
-  rollout unless the peer explicitly confirms a different requirement.
-- Q5: Are there any client networks inside the remote sites that overlap with
-  the nine approved subnets, which would make route-by-route testing
-  ambiguous?
-- Q6: MTU support on the remote path (PPPoE/fragmentation issues) that forces
-  a `wg0` MTU lower than 1420.
-- Q7: DNS servers for the remote subnets, or is IP-only access acceptable for
-  the first phase?
+- Q1 **resolved:** Piet's peer tunnel address is `10.10.10.11/24`. The MikroTik
+  `Dom` peer has `allowed-address=10.10.10.105/32`, so the central return route
+  is correct. **Key replacement required:** no matching private key has been
+  verified on jellysa. Generate a fresh keypair on jellysa and replace only
+  `Dom.public-key` with the new jellysa public key.
+- Q2 **resolved/corrected:** the nine subnets are routable from Piet's hub, but
+  not all are directly attached. `192.168.11.0/24` and `.21.0/24` are direct;
+  `.31.0/24` uses next hop `192.168.21.254`; `.12`, `.22`, `.13`, `.23`, `.33`,
+  and `.14` route onward through `WG-Rhenosterfontein`. Piet must still confirm
+  those onward routers **and the `192.168.21.254` second-hop router for `.31`**
+  return `10.10.10.105/32` through the hub.
+- Q3 **resolved for the hub:** the MikroTik firewall accepts NEW forwarding
+  from `10.10.10.0/24` on `WG-Rhenosterfontein`, so `.105` is accepted. This is
+  broad; phase 1 therefore requires fail-closed INPUT and FORWARD rules on
+  jellysa, plus a reviewed defence-in-depth destination rule on Piet's hub.
 
-## Staged tasks (exact sequence, nothing executed yet)
+- Q4 **resolved:** Piet uses PPPoE and the `Dom` peer is configured with
+  `persistent-keepalive=25s`; retain `PersistentKeepalive=25` on jellysa.
+- Q5 **partially resolved:** the approved nine routes exist and do not overlap
+  our known LAN/tailnet ranges. Additional remote routes `.15`, `.19`, `.100`,
+  and `.151` are visible but explicitly out of scope. Confirm remote client-side
+  overlap only if route-by-route testing becomes ambiguous.
+- Q6 **resolved for initial config:** PPPoE actual MTU is `1480`; Piet's WG MTU
+  is `1420`, which fits IPv4 WireGuard overhead exactly. Start at `1420`, retain
+  PMTU/error-counter testing, and lower only if evidence requires it.
+- Q7 **remaining:** confirm IP-only phase-1 testing is acceptable or provide
+  remote DNS servers.
+- **Remaining:** Piet must nominate one safe first target IP, ideally inside
+  `192.168.14.0/24`.
+
+## Staged tasks (Stage 0 read-only execution complete; snapshot artifact pending; Stages 1+ not executed)
 
 Stage 0 - Read-only preflight (all checks, no mutation):
 
@@ -226,31 +242,59 @@ Stage 0 - Read-only preflight (all checks, no mutation):
 7. Verify a second access path exists per the gate below (two paths or
    on-site recovery).
 
-Stage 1 - Backup/rollback artifacts (see next section).
+Evidence gap: the observed Stage 0 results are summarized in this plan and the
+architecture reference, but no separate dated sanitized command-output
+snapshot has been stored. The acceptance checkbox remains open until that
+artifact exists; do not reconstruct or fabricate raw evidence from summaries.
 
-Stage 2 - Create `wg0` config from templates below; apply with
-`wg-quick up wg0` or the matching host net backend. Use the initial
-`PersistentKeepalive = 25` to initiate a handshake without relying on a routed
-payload. Verify `wg show wg0` lists the endpoint and a recent handshake before
-adding or advertising a full remote /24.
+Stage 1 - Backup/rollback artifacts and access gate (see next sections).
+Confirm two independent access paths or on-site recovery, capture and verify
+the backups, install the reviewed rollback script, and arm the watchdog before
+the first mutation.
 
-Stage 3 - Route-by-route rollout: enable ONE approved subnet at a time
-(starting with the most testable, e.g. `192.168.14.0/24` lodge), add it to
-`AllowedIPs` on wg0, verify reachability from another tailnet node, then move
-to the next. Never add all nine at once.
+Stage 2 - Install and persist the fail-closed firewall **before `wg0` exists**.
+Validate the candidate with `nft --check`, apply `table inet jw` atomically,
+and verify its INPUT/FORWARD hooks precede the Tailscale-managed chains. Make
+the ruleset load at boot through the host's reviewed nftables configuration and
+enable `nftables.service`. Install the reviewed systemd drop-in shown below so
+`wg-quick@wg0.service` requires and starts after `nftables.service`. From
+another tailnet node, confirm Tailscale SSH still works before cancelling the
+watchdog. Do not proceed if the rules are absent after an nftables reload.
 
-Stage 4 - Tailscale advertisement: after wg0 proves out for the first route,
-use `tailscale set --advertise-routes=... --advertise-exit-node=true` with the
-complete intended route list, read back the prefs, then SEPARATELY approve each
-route in the Tailscale admin console (ACL/grant gate).
+Stage 3 - Install WireGuard userspace tools, generate a fresh keypair locally
+on jellysa, and have Piet replace only `Dom.public-key`. Create `wg0` with no
+approved remote `/24` yet; a peer-only `/32` may be used if required by the
+reviewed config. Run `systemctl daemon-reload`, enable
+`wg-quick@wg0.service` without starting it, verify its `Requires=`/`After=`
+relationships include `nftables.service`, then start that selected persistent
+service—not an ad-hoc `wg-quick up`. Use `PersistentKeepalive = 25` to establish
+a handshake without routed payload. Verify a recent handshake before adding or
+advertising any remote subnet.
 
-Stage 5 - ACL/grant policy: in the Tailscale admin console, restrict subnet
-route access to explicitly approved tailnet users/devices; verify from an
-approved and a non-approved node.
+Stage 4 - Install the restrictive Tailscale ACL/grant policy **before approving
+the first subnet route**. Grant the approved source nodes/tags access only to
+the current route under test, validate the policy with Tailscale's ACL tests or
+admin-console policy checker, and confirm an unapproved source has no grant.
 
-Stage 6 - Reboot persistence test: only after explicit approval, reboot
-jellysa and verify `tailscale0` and `wg0` both come back, routes re-advertise,
-handshake re-establishes, and remote subnets reachable again.
+Stage 5 - Route-by-route rollout, one prefix at a time:
+
+1. Confirm the route-specific return path, safe test target, and overlap check.
+2. Add only the safe target `/32` to `AllowedIPs`; test it locally from jellysa.
+3. If that succeeds, expand `AllowedIPs` to the single `/24` under test and
+   atomically add that `/24` to the live and persisted nftables
+   `enabled_prefixes` set.
+4. Advertise the **complete cumulative proven route list** with `tailscale set
+   --advertise-routes=... --advertise-exit-node=true`; read prefs back.
+5. Approve only that newly advertised route in the Tailscale admin console.
+6. Verify externally from both an approved and non-approved tailnet node, then
+   cancel/re-arm the watchdog and proceed to the next prefix.
+
+Never advertise or approve all nine routes at once.
+
+Stage 6 - Reboot persistence test: only after explicit approval and at least
+one complete route has passed Stage 5, reboot jellysa and verify the nftables
+rules load before `wg0`, both tunnels return, route advertisements reappear,
+the handshake re-establishes, and the approved route remains correctly scoped.
 
 Stage 7 - Documentation/inventory update (including this plan's status), only
 after live verification evidence is attached.
@@ -348,26 +392,25 @@ Address = 10.10.10.105/32
 PrivateKey = <JELLYSA_WG_PRIVATE_KEY_PLACEHOLDER>
 # start with 1420; lower only after PMTU testing (design item 8)
 MTU = 1420
-# Remote/NAT-safe initial default; change only if Q4 resolves differently.
-PersistentKeepalive = 25
 
 [Peer]
 # Peer public key (supplied; public, not a secret)
 PublicKey = h7zAUZaAvBpypPUlvKfuaLAdegfuFCMigp16Y7W7nGI=
 # Remote endpoint (supplied)
 Endpoint = 154.126.215.194:13231
-# Route-by-route rollout: start with one peer-confirmed test host /32 inside
-# the first approved remote subnet. Keepalive can establish the handshake;
-# the /32 limits the first routed payload test. Expand to its /24 only after
-# that test and the return path pass.
-AllowedIPs = <FIRST_PEER_CONFIRMED_TEST_HOST/32>
+# Remote/NAT-safe initial default; change only if Q4 resolves differently.
+PersistentKeepalive = 25
+# Handshake-only baseline: the known MikroTik tunnel address, not a remote LAN.
+# Stage 5 adds one peer-confirmed remote test host /32, then its /24 only after
+# the test and return path pass.
+AllowedIPs = 10.10.10.11/32
 ```
 
-Critical: until Q1 and the first approved test host are confirmed, do not send
-payload traffic and do not add all nine /24s. `PersistentKeepalive` can prove
-the cryptographic peer handshake without knowing the peer's tunnel address;
-the peer's server-side `AllowedIPs` and return route must still be confirmed
-before claiming routed connectivity.
+Critical: Q1 is resolved, but no payload traffic may be sent until the first
+approved test host and its complete return path are confirmed. Do not add all
+nine `/24`s. `PersistentKeepalive` can prove the cryptographic peer handshake;
+route-specific return paths must still be confirmed before claiming routed
+connectivity.
 
 ### Forwarding scope (kernel switch plus narrow firewall authorization)
 
@@ -386,13 +429,31 @@ kernel prerequisite. Scope authorization with stateful firewall rules, not by
 setting `ip_forward=0`, which would break both subnet routing and the existing
 exit-node role.
 
-Firewall intent (translate only after detecting the live backend):
+### Enforced boot ordering (systemd drop-in; template)
+
+```ini
+# /etc/systemd/system/wg-quick@wg0.service.d/10-nftables-first.conf
+[Unit]
+Requires=nftables.service
+After=nftables.service
+```
+
+After installing the reviewed drop-in, run `systemctl daemon-reload`, enable
+both services, and verify with `systemctl show -p Requires -p After
+wg-quick@wg0.service`. The watchdog rollback must restore the services' prior
+enabled/disabled states as well as their files. Do not enable `wg0` persistence
+without this enforced dependency.
+
+Firewall intent (live backend confirmed as nftables/iptables-nft; implement in
+a separate `inet jw` table before Tailscale-managed chains):
 
 ```text
-ALLOW  tailscale0 -> wg0  state NEW,ESTABLISHED  destination in APPROVED_REMOTE_PREFIXES
+ALLOW  tailscale0 -> wg0  state NEW,ESTABLISHED  destination in ENABLED_PREFIXES
 ALLOW  wg0 -> tailscale0  state ESTABLISHED,RELATED
 DROP   wg0 -> tailscale0  state NEW
 DROP   wg0 -> any-other-interface
+ALLOW  wg0 -> jellysa-local state ESTABLISHED,RELATED
+DROP   wg0 -> jellysa-local state NEW   # phase 1; backup exception only in phase 2
 ```
 
 The implementation must use an atomic nftables ruleset update or an equivalent
@@ -414,8 +475,9 @@ Record the current prefs first, explicitly preserve the exit-node setting, and
 read the prefs back after every change. If the installed Tailscale version has
 different CLI semantics, STOP and use that version's local `--help` output.
 
-Subnet approval in the Tailscale admin console is a SEPARATE step; an
-advertised route is inert until approved there (design item 3).
+Subnet approval in the Tailscale admin console is a SEPARATE step. Install and
+validate the restrictive ACL/grant policy before approving the first route;
+an advertised route remains inert until approved.
 
 ### ACL / grant policy sketch (tailnet admin)
 
@@ -425,9 +487,10 @@ advertised route is inert until approved there (design item 3).
 # "src": ["<approved-node/tag>"], "dst": ["192.168.14.0/24:*"] # one-way
 ```
 
-The remote subnets must appear as destinations ONLY after approval, and only
-for explicitly approved tailnet sources. No rule may grant the remote peer
-originating access back into our tailnet.
+Install and validate this restrictive policy before any subnet route is
+approved. The remote subnets may be reachable only by explicitly approved
+tailnet sources. No rule may grant the remote peer originating access back
+into our tailnet.
 ## Route-by-route rollout (never all nine at once)
 
 Order (suggested, most testable first - adjust to operator preference):
@@ -445,13 +508,16 @@ Order (suggested, most testable first - adjust to operator preference):
 Per route:
 
 - Preflight overlap check for that /24 vs all existing routes.
-- Add the subnet to `AllowedIPs` in wg0.conf (or append to the tailscale
-  advertise list only after wg0-level routing is proven for it).
+- Add the safe target `/32` to `AllowedIPs` first; after local proof, expand it
+  to the single `/24` under test and atomically add that `/24` to the live and
+  persisted nftables `enabled_prefixes` set.
 - Reload the peer atomically with
   `sudo wg syncconf wg0 <(sudo wg-quick strip wg0)`, then update the complete
-  advertised-route list with `tailscale set --advertise-routes=...` only after
-  the WireGuard route works.
-- Verify from ANOTHER tailnet node (see below).
+  cumulative advertised-route list with `tailscale set --advertise-routes=...`
+  only after the WireGuard route works locally. Preserve
+  `--advertise-exit-node=true` explicitly.
+- Approve only the new route in the admin console, then verify from ANOTHER
+  tailnet node (see below).
 - Re-arm/cancel the watchdog only after external verification.
 - Record result in the plan's progress log before the next route.
 
@@ -517,19 +583,26 @@ approved go-ahead:
 
 - G0 (GO from plan to preflight): operator confirms this document's facts;
   peer Q1-Q7 answered or explicitly deferred.
-- G1 (GO to create wg0): preflight complete, TWO access paths verified or
-  on-site recovery confirmed, backups taken and verified, watchdog armed.
-- G2 (GO to add FIRST route): wg0 handshake SUCCESS from another node;
-  negative checks pass; first route approved in admin console.
-- G3 (GO per subsequent route): previous route verified externally;
-  watchdog re-armed; overlap check passed for the new /24.
-- G4 (GO to reboot test): at least the first route proven across a full
-  external verification; operator explicitly approves.
+- G1 (GO to install fail-closed firewall): preflight complete, TWO access paths
+  verified or on-site recovery confirmed, backups verified, watchdog armed.
+- G2 (GO to create `wg0`): `inet jw` installed and persistent, boot ordering
+  reviewed, and Tailscale access re-verified externally; fresh key coordinated.
+- G3 (GO to add FIRST route): wg0 handshake SUCCESS; restrictive ACL/grants
+  installed and validated; safe target and complete return path confirmed;
+  watchdog re-armed.
+- G4 (GO per subsequent route): previous route verified externally from an
+  approved and non-approved node; watchdog re-armed; overlap and return-path
+  checks passed for the new `/24`.
+- G5 (GO to reboot test): at least the first route proven across a full
+  external verification; firewall-before-wg0 boot ordering verified; operator
+  explicitly approves.
 - STOP conditions (halt immediately, restore via watchdog/rollback):
   - Tailscale SSH lost while wg0 not yet proven.
   - Handshake fails after a route add and does not recover within the
     watchdog window.
-  - Any `0.0.0.0/0` or default-route entry appears.
+  - Any default route through `wg0` or `0.0.0.0/0` WireGuard `AllowedIPs`
+    entry appears. The separately preserved Tailscale exit-node advertisement
+    is not this stop condition.
   - Any unapproved subnet becomes reachable.
   - Any sign the remote peer can originate into our tailnet.
 
@@ -566,8 +639,10 @@ The plan is "proven" only when the following evidence set exists:
 - [ ] `wg0` handshake SUCCESS recorded from another tailnet node.
 - [ ] Each of the nine subnets verified reachable FROM another tailnet node,
       one at a time, with timestamps.
-- [ ] Negative checks pass: no default route, no 0.0.0.0/0, no unapproved
-      subnet reachable, no remote-originated access into our tailnet.
+- [ ] Negative checks pass: no default route through `wg0`, no `0.0.0.0/0` in
+      WireGuard `AllowedIPs`, no unapproved subnet reachable, and no
+      remote-originated access into our tailnet. The intentional Tailscale
+      exit-node advertisement remains separately preserved.
 - [ ] Tailscale admin console shows exactly the nine approved routes.
 - [ ] ACL policy restricts route access to approved nodes/tags.
 - [ ] Reboot test passed after explicit approval; both interfaces auto-start.
@@ -583,7 +658,7 @@ The plan is "proven" only when the following evidence set exists:
 | --- | --- | --- |
 | Source plan | This document's intent and gates | Planned |
 | Staged config | Templates in this file; restart content, not runtime | Not applied |
-| Live execution | Commands run on jellysa | NONE performed |
+| Live execution | Read-only Stage 0 commands on jellysa/operator nodes plus peer-side read-only RouterOS collection | Completed; **no configuration mutation** |
 | Tailscale admin route approval | Admin console route enablement | Not performed |
 | ACL/grant policy | Tailnet access rules | Not performed |
 | Proven runtime | Verified working end-to-end after reboot | Not reached |
